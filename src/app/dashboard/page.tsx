@@ -33,12 +33,10 @@ import {
 import { Lead } from '@/lib/types';
 import { format, startOfWeek, endOfWeek, eachDayOfInterval, isSameDay } from 'date-fns';
 import { Button } from '@/components/ui/button';
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 
 export default function Dashboard() {
   const { user } = useUser();
   const db = useFirestore();
-  const [isStatsExpanded, setIsStatsExpanded] = useState(true);
 
   const leadsQuery = useMemoFirebase(() => {
     if (!db || !user) return null;
@@ -55,15 +53,6 @@ export default function Dashboard() {
       won: leads.filter(l => l.status === 'won').length,
       revenue: leads.filter(l => l.status === 'won').reduce((acc, l) => acc + (l.dealValue || 0), 0)
     };
-  }, [leads]);
-
-  const pipelineData = useMemo(() => {
-    const stages = ['new', 'contacted', 'qualified', 'proposal', 'negotiated', 'won'];
-    return stages.map((stage, i) => ({
-      name: stage.charAt(0).toUpperCase() + stage.slice(1),
-      value: leads?.filter(l => l.status === stage).length || 0,
-      fill: `hsl(var(--chart-${(i % 5) + 1}))`
-    }));
   }, [leads]);
 
   const weeklyData = useMemo(() => {
@@ -91,6 +80,13 @@ export default function Dashboard() {
     </div>
   );
 
+  const statCards = [
+    { label: 'Total Leads', value: stats.total, icon: Users, color: 'text-primary', change: '+12%', up: true },
+    { label: 'Qualified', value: stats.qualified, icon: Target, color: 'text-accent', change: '+5%', up: true },
+    { label: 'Closed', value: stats.won, icon: Award, color: 'text-yellow-500', change: '-2%', up: false },
+    { label: 'Revenue', value: `$${stats.revenue.toLocaleString()}`, icon: DollarSign, color: 'text-emerald-500', change: '+18%', up: true },
+  ];
+
   return (
     <div className="space-y-8 animate-in fade-in duration-500 pb-20 md:pb-8">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
@@ -104,71 +100,27 @@ export default function Dashboard() {
         </div>
       </div>
 
-      <Collapsible open={isStatsExpanded} onOpenChange={setIsStatsExpanded} className="space-y-2">
-        <div className="flex items-center justify-between md:hidden px-1">
-           <span className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Performance Overview</span>
-           <CollapsibleTrigger asChild>
-              <Button variant="ghost" size="sm" className="h-6 w-6 p-0">
-                 {isStatsExpanded ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
-              </Button>
-           </CollapsibleTrigger>
-        </div>
-        <CollapsibleContent className="space-y-4 md:space-y-0">
-          <div className="grid gap-4 grid-cols-2 lg:grid-cols-4">
-            {[
-              { label: 'Total Leads', value: stats.total, icon: Users, color: 'text-primary', change: '+12%', up: true },
-              { label: 'Qualified', value: stats.qualified, icon: Target, color: 'text-accent', change: '+5%', up: true },
-              { label: 'Closed', value: stats.won, icon: Award, color: 'text-yellow-500', change: '-2%', up: false },
-              { label: 'Revenue', value: `$${(stats.revenue/1000).toFixed(1)}k`, icon: DollarSign, color: 'text-emerald-500', change: '+18%', up: true },
-            ].map((stat, i) => (
-              <Card key={i} className="bg-card/40 border-border/50 backdrop-blur-md group hover:border-primary/50 transition-all hover:translate-y-[-2px]">
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 p-4 pb-2">
-                  <CardTitle className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">{stat.label}</CardTitle>
-                  <stat.icon className={`h-4 w-4 ${stat.color}`} />
-                </CardHeader>
-                <CardContent className="p-4 pt-0">
-                  <div className="text-2xl md:text-3xl font-black font-headline">{stat.value}</div>
-                  <p className="text-[10px] text-muted-foreground flex items-center gap-1 mt-1 font-bold">
-                    {stat.up ? (
-                      <span className="text-emerald-500 flex items-center"><ArrowUpRight className="h-3 w-3" /> {stat.change}</span>
-                    ) : (
-                      <span className="text-rose-500 flex items-center"><ArrowDownRight className="h-3 w-3" /> {stat.change}</span>
-                    )}
-                    growth
-                  </p>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
-        </CollapsibleContent>
-        {/* Force expanded on desktop */}
-        <div className="hidden md:grid gap-4 grid-cols-2 lg:grid-cols-4">
-            {[
-              { label: 'Total Leads', value: stats.total, icon: Users, color: 'text-primary', change: '+12%', up: true },
-              { label: 'Qualified', value: stats.qualified, icon: Target, color: 'text-accent', change: '+5%', up: true },
-              { label: 'Closed', value: stats.won, icon: Award, color: 'text-yellow-500', change: '-2%', up: false },
-              { label: 'Revenue', value: `$${stats.revenue.toLocaleString()}`, icon: DollarSign, color: 'text-emerald-500', change: '+18%', up: true },
-            ].map((stat, i) => (
-              <Card key={i} className="bg-card/40 border-border/50 backdrop-blur-md group hover:border-primary/50 transition-all hover:translate-y-[-2px]">
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 p-4 pb-2">
-                  <CardTitle className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">{stat.label}</CardTitle>
-                  <stat.icon className={`h-4 w-4 ${stat.color}`} />
-                </CardHeader>
-                <CardContent className="p-4 pt-0">
-                  <div className="text-2xl md:text-3xl font-black font-headline">{stat.value}</div>
-                  <p className="text-[10px] text-muted-foreground flex items-center gap-1 mt-1 font-bold">
-                    {stat.up ? (
-                      <span className="text-emerald-500 flex items-center"><ArrowUpRight className="h-3 w-3" /> {stat.change}</span>
-                    ) : (
-                      <span className="text-rose-500 flex items-center"><ArrowDownRight className="h-3 w-3" /> {stat.change}</span>
-                    )}
-                    vs last month
-                  </p>
-                </CardContent>
-              </Card>
-            ))}
-        </div>
-      </Collapsible>
+      <div className="grid gap-4 grid-cols-2 lg:grid-cols-4">
+        {statCards.map((stat, i) => (
+          <Card key={i} className="bg-card/40 border-border/50 backdrop-blur-md group hover:border-primary/50 transition-all hover:translate-y-[-2px]">
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 p-4 pb-2">
+              <CardTitle className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">{stat.label}</CardTitle>
+              <stat.icon className={`h-4 w-4 ${stat.color}`} />
+            </CardHeader>
+            <CardContent className="p-4 pt-0">
+              <div className="text-2xl md:text-3xl font-black font-headline">{stat.value}</div>
+              <p className="text-[10px] text-muted-foreground flex items-center gap-1 mt-1 font-bold">
+                {stat.up ? (
+                  <span className="text-emerald-500 flex items-center"><ArrowUpRight className="h-3 w-3" /> {stat.change}</span>
+                ) : (
+                  <span className="text-rose-500 flex items-center"><ArrowDownRight className="h-3 w-3" /> {stat.change}</span>
+                )}
+                vs last month
+              </p>
+            </CardContent>
+          </Card>
+        ))}
+      </div>
 
       <div className="grid gap-6 md:grid-cols-7">
         <Card className="md:col-span-4 bg-card/30 border-border/50">
@@ -232,7 +184,7 @@ export default function Dashboard() {
           </CardHeader>
           <CardContent className="p-0">
             <div className="divide-y divide-border/30">
-              {leads?.filter(l => l.leadScore > 75 && l.status !== 'won').slice(0, 4).map((lead, i) => (
+              {leads?.filter(l => l.status !== 'won' && l.dealValue > 5000).slice(0, 4).map((lead, i) => (
                 <div key={i} className="flex items-center justify-between p-4 hover:bg-muted/10 transition-colors cursor-pointer group">
                   <div className="flex flex-col">
                     <span className="font-bold text-sm group-hover:text-primary transition-colors">{lead.name}</span>
@@ -240,7 +192,7 @@ export default function Dashboard() {
                   </div>
                   <div className="flex items-center gap-3">
                     <div className="text-right">
-                       <span className="text-[10px] font-black text-primary block">85% SCORE</span>
+                       <span className="text-[10px] font-black text-primary block">PROBABLE</span>
                        <span className="text-[10px] text-muted-foreground font-bold">${lead.dealValue.toLocaleString()}</span>
                     </div>
                     <Badge className="bg-emerald-500/10 text-emerald-500 border-emerald-500/20 text-[9px] font-black">HOT</Badge>
@@ -283,3 +235,10 @@ export default function Dashboard() {
   );
 }
 
+function Badge({ children, className }: { children: React.ReactNode, className?: string }) {
+  return (
+    <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium border ${className}`}>
+      {children}
+    </span>
+  );
+}
