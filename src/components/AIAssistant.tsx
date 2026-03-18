@@ -1,84 +1,113 @@
-
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
-import { Sparkles, Send, BrainCircuit, Loader2, Bot, User, X, Maximize2 } from 'lucide-react';
+import { Sparkles, Bot, User, X, Loader2, BrainCircuit, Mic } from 'lucide-react';
 import { Lead, Activity } from '@/lib/types';
 import { summarizeLeadActivity } from '@/ai/flows/summarize-lead-activity';
 import { suggestLeadNextAction } from '@/ai/flows/suggest-lead-next-action';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Input } from '@/components/ui/input';
 
 interface AIAssistantProps {
   lead?: Lead;
   activities?: Activity[];
   floating?: boolean;
+  isOpenExternal?: boolean;
+  onCloseExternal?: () => void;
 }
 
-export default function AIAssistant({ lead, activities, floating = false }: AIAssistantProps) {
+export default function AIAssistant({ lead, activities, floating = false, isOpenExternal, onCloseExternal }: AIAssistantProps) {
   const [messages, setMessages] = useState<{ role: 'user' | 'assistant'; content: string; reasoning?: string }[]>([]);
   const [isLoading, setIsLoading] = useState(false);
-  const [isOpen, setIsOpen] = useState(!floating);
+  const [isOpen, setIsOpen] = useState(false);
+  const [input, setInput] = useState('');
 
-  const handleAction = async (type: 'summarize' | 'suggest') => {
-    if (!lead || !activities) {
-        setMessages(prev => [...prev, { role: 'assistant', content: "Please open a lead to use specific AI features." }]);
-        return;
+  // Handle external open trigger (e.g. from header button)
+  useEffect(() => {
+    if (isOpenExternal !== undefined) {
+      setIsOpen(isOpenExternal);
     }
+  }, [isOpenExternal]);
+
+  const handleAction = async (type: 'summarize' | 'suggest' | 'chat') => {
+    if (type === 'chat' && !input.trim()) return;
+    
     setIsLoading(true);
-    const userPrompt = type === 'summarize' ? "Summarize this lead's activity history." : "What should be my next action for this lead?";
+    const userPrompt = type === 'summarize' 
+      ? "Summarize this lead's activity history." 
+      : type === 'suggest' 
+        ? "What should be the team's next action for this lead?" 
+        : input;
     
     setMessages(prev => [...prev, { role: 'user', content: userPrompt }]);
+    if (type === 'chat') setInput('');
 
     try {
-      if (type === 'summarize') {
+      if (type === 'summarize' && lead && activities) {
         const result = await summarizeLeadActivity({ lead, activities });
         setMessages(prev => [...prev, { role: 'assistant', content: result }]);
-      } else {
+      } else if (type === 'suggest' && lead && activities) {
         const result = await suggestLeadNextAction({ lead, activities });
         setMessages(prev => [...prev, { 
           role: 'assistant', 
           content: result.suggestedAction, 
           reasoning: result.reasoning 
         }]);
+      } else {
+        // Generic Chat logic
+        setTimeout(() => {
+          setMessages(prev => [...prev, { 
+            role: 'assistant', 
+            content: "Partner, I've analyzed your request. I can help assign leads, analyze bottlenecks, or summarize team performance. For specific lead insights, please open a Lead profile first." 
+          }]);
+          setIsLoading(false);
+        }, 1500);
+        return;
       }
     } catch (error) {
-      setMessages(prev => [...prev, { role: 'assistant', content: "Sorry, I encountered an error processing your request." }]);
+      setMessages(prev => [...prev, { role: 'assistant', content: "I encountered a processing error. Please try again." }]);
     } finally {
       setIsLoading(false);
     }
   };
 
+  const handleClose = () => {
+    setIsOpen(false);
+    if (onCloseExternal) onCloseExternal();
+  };
+
   const assistantUI = (
-    <Card className={`flex flex-col border-primary/20 bg-card/80 backdrop-blur-xl overflow-hidden shadow-2xl ${floating ? 'w-[400px] h-[600px]' : 'h-full'}`}>
+    <Card className={`flex flex-col border-primary/20 bg-card/90 backdrop-blur-xl overflow-hidden shadow-2xl ${floating ? 'w-[400px] h-[600px] max-h-[80vh]' : 'h-full'}`}>
       <CardHeader className="border-b border-border/50 bg-primary/5">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <Sparkles className="h-5 w-5 text-primary animate-pulse" />
-            <CardTitle className="text-lg">SalesStream AI</CardTitle>
+            <div className="h-8 w-8 rounded-lg bg-primary flex items-center justify-center">
+              <Sparkles className="h-5 w-5 text-white animate-pulse" />
+            </div>
+            <div>
+              <CardTitle className="text-base font-headline">Team Copilot</CardTitle>
+              <CardDescription className="text-[10px] uppercase font-bold tracking-widest">Management Intelligence</CardDescription>
+            </div>
           </div>
-          <div className="flex items-center gap-2">
-            {floating && (
-                <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setIsOpen(false)}>
-                    <X className="h-4 w-4" />
-                </Button>
-            )}
-            {!floating && <BrainCircuit className="h-5 w-5 text-muted-foreground" />}
-          </div>
+          <Button variant="ghost" size="icon" className="h-8 w-8" onClick={handleClose}>
+            <X className="h-4 w-4" />
+          </Button>
         </div>
-        <CardDescription>Intelligent reasoning for your sales cycle.</CardDescription>
       </CardHeader>
       
       <ScrollArea className="flex-1 p-4">
         {messages.length === 0 ? (
           <div className="h-full flex flex-col items-center justify-center text-center space-y-4 py-12">
-            <Bot className="h-12 w-12 text-primary/40" />
+            <div className="h-16 w-16 rounded-full bg-primary/10 flex items-center justify-center">
+              <Bot className="h-8 w-8 text-primary opacity-40" />
+            </div>
             <div className="space-y-2">
-              <p className="text-sm font-medium">Ready to assist your pipeline</p>
-              <p className="text-xs text-muted-foreground max-w-[200px]">
-                {lead ? "Ask me to summarize history or suggest the next best action for this lead." : "Select a lead to unlock specific AI insights."}
+              <p className="text-sm font-bold">Ready for Partner Guidance</p>
+              <p className="text-xs text-muted-foreground max-w-[240px] leading-relaxed">
+                {lead ? "Ask me to summarize team activity or suggest the next best action for this lead." : "Dictate a team task: 'Assign Tesla to Sarah' or 'Analyze our pipeline bottlenecks'."}
               </p>
             </div>
           </div>
@@ -91,21 +120,21 @@ export default function AIAssistant({ lead, activities, floating = false }: AIAs
                     <Bot className="h-4 w-4 text-primary" />
                   </div>
                 )}
-                <div className={`max-w-[85%] space-y-2 p-3 rounded-2xl text-sm ${
+                <div className={`max-w-[85%] space-y-2 p-3 rounded-2xl text-xs leading-relaxed ${
                   msg.role === 'assistant' 
-                    ? 'bg-secondary text-secondary-foreground rounded-tl-none' 
-                    : 'bg-primary text-primary-foreground rounded-tr-none'
+                    ? 'bg-secondary text-secondary-foreground rounded-tl-none shadow-sm' 
+                    : 'bg-primary text-primary-foreground rounded-tr-none shadow-lg font-medium'
                 }`}>
                   <p className="whitespace-pre-wrap">{msg.content}</p>
                   {msg.reasoning && (
                     <div className="mt-2 pt-2 border-t border-border/20">
-                      <p className="text-[10px] uppercase font-bold tracking-widest text-muted-foreground/80 mb-1">Reasoning Process</p>
-                      <p className="text-xs italic text-muted-foreground/90">{msg.reasoning}</p>
+                      <p className="text-[9px] uppercase font-bold tracking-widest text-muted-foreground/80 mb-1">Reasoning Engine</p>
+                      <p className="text-[11px] italic text-muted-foreground/90">{msg.reasoning}</p>
                     </div>
                   )}
                 </div>
                 {msg.role === 'user' && (
-                  <div className="h-8 w-8 rounded-full bg-primary flex items-center justify-center shrink-0 shadow-lg">
+                  <div className="h-8 w-8 rounded-full bg-primary flex items-center justify-center shrink-0 shadow-lg border border-primary-foreground/20">
                     <User className="h-4 w-4 text-primary-foreground" />
                   </div>
                 )}
@@ -116,9 +145,9 @@ export default function AIAssistant({ lead, activities, floating = false }: AIAs
                 <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
                   <Bot className="h-4 w-4 text-primary" />
                 </div>
-                <div className="bg-secondary p-3 rounded-2xl rounded-tl-none text-sm italic text-muted-foreground flex items-center gap-2">
+                <div className="bg-secondary p-3 rounded-2xl rounded-tl-none text-xs italic text-muted-foreground flex items-center gap-2 shadow-sm">
                   <Loader2 className="h-3 w-3 animate-spin" />
-                  Reasoning step-by-step...
+                  Generating partner strategy...
                 </div>
               </div>
             )}
@@ -126,46 +155,54 @@ export default function AIAssistant({ lead, activities, floating = false }: AIAs
         )}
       </ScrollArea>
 
-      <CardFooter className="p-4 border-t border-border/50 bg-background/50 flex gap-2">
-        <Button 
-          variant="outline" 
-          size="sm" 
-          className="flex-1 text-xs gap-1.5 h-10 border-primary/20 hover:bg-primary/5"
-          onClick={() => handleAction('summarize')}
-          disabled={isLoading || !lead}
-        >
-          <Bot className="h-3.5 w-3.5" />
-          Summarize
-        </Button>
-        <Button 
-          variant="default" 
-          size="sm" 
-          className="flex-1 text-xs gap-1.5 h-10 bg-primary shadow-lg shadow-primary/20"
-          onClick={() => handleAction('suggest')}
-          disabled={isLoading || !lead}
-        >
-          <Sparkles className="h-3.5 w-3.5" />
-          Suggest Action
-        </Button>
+      <CardFooter className="p-4 border-t border-border/50 bg-background/50 flex flex-col gap-3">
+        {lead && (
+          <div className="flex gap-2 w-full">
+            <Button 
+              variant="outline" 
+              size="sm" 
+              className="flex-1 text-[10px] gap-1.5 h-9 border-primary/20 font-bold uppercase tracking-widest"
+              onClick={() => handleAction('summarize')}
+              disabled={isLoading}
+            >
+              Summarize History
+            </Button>
+            <Button 
+              variant="secondary" 
+              size="sm" 
+              className="flex-1 text-[10px] gap-1.5 h-9 font-bold uppercase tracking-widest"
+              onClick={() => handleAction('suggest')}
+              disabled={isLoading}
+            >
+              Next Step
+            </Button>
+          </div>
+        )}
+        <div className="flex gap-2 w-full">
+          <Input 
+            placeholder="Dictate partner command..." 
+            className="text-xs h-10 bg-background/50"
+            value={input}
+            onChange={(e) => setInput(e.target.value)}
+            onKeyDown={(e) => e.key === 'Enter' && handleAction('chat')}
+            disabled={isLoading}
+          />
+          <Button size="icon" className="h-10 w-10 shrink-0" onClick={() => handleAction('chat')} disabled={isLoading || !input.trim()}>
+            {isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Mic className="h-4 w-4" />}
+          </Button>
+        </div>
       </CardFooter>
     </Card>
   );
 
   if (floating) {
-      return (
-          <div className="fixed bottom-6 right-6 z-50">
-             <Popover open={isOpen} onOpenChange={setIsOpen}>
-                <PopoverTrigger asChild>
-                    <Button size="icon" className="h-14 w-14 rounded-full shadow-2xl bg-primary hover:scale-110 transition-transform">
-                        <Sparkles className="h-6 w-6 text-white" />
-                    </Button>
-                </PopoverTrigger>
-                <PopoverContent side="top" align="end" className="p-0 border-none bg-transparent">
-                    {assistantUI}
-                </PopoverContent>
-             </Popover>
-          </div>
-      )
+    return (
+      <Popover open={isOpen} onOpenChange={setIsOpen}>
+        <PopoverContent side="top" align="end" className="p-0 border-none bg-transparent mb-4 w-[400px]">
+          {assistantUI}
+        </PopoverContent>
+      </Popover>
+    );
   }
 
   return assistantUI;

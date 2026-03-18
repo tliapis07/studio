@@ -1,7 +1,6 @@
-
 'use client';
 
-import { useState, useMemo, useRef } from 'react';
+import { useState, useMemo } from 'react';
 import { 
   useCollection, 
   useFirestore, 
@@ -10,7 +9,7 @@ import {
   addDocumentNonBlocking,
   updateDocumentNonBlocking
 } from '@/firebase';
-import { collection, query, where, serverTimestamp, doc } from 'firebase/firestore';
+import { collection, query, serverTimestamp, doc } from 'firebase/firestore';
 import { 
   Table, 
   TableBody, 
@@ -56,13 +55,11 @@ import {
   Search, 
   Filter, 
   FileUp,
-  Users,
   Building2,
   Clock,
-  History,
-  Mail,
   UserCheck,
-  UserPlus
+  UserPlus,
+  Download
 } from 'lucide-react';
 import { Lead, LeadStatus, TeamMember } from '@/lib/types';
 import { format } from 'date-fns';
@@ -78,7 +75,7 @@ const STATUS_OPTIONS: { label: string; value: LeadStatus; color: string }[] = [
   { label: 'Lost', value: 'lost', color: 'bg-rose-500/10 text-rose-500' },
 ];
 
-const MOCK_TEAM: TeamMember[] = [
+const MOCK_TEAM = [
   { id: 'user1', name: 'Alex Morgan', role: 'Sales Exec', email: 'alex@stream.io', avatar: 'https://picsum.photos/seed/av1/100/100', quota: 150000 },
   { id: 'user2', name: 'Jordan Lee', role: 'Sales Exec', email: 'jordan@stream.io', avatar: 'https://picsum.photos/seed/av2/100/100', quota: 120000 },
   { id: 'user3', name: 'Sarah Chen', role: 'Sales Exec', email: 'sarah@stream.io', avatar: 'https://picsum.photos/seed/av3/100/100', quota: 200000 },
@@ -157,7 +154,7 @@ export default function LeadsPage() {
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
           <h1 className="text-3xl font-bold font-headline">Team Leads</h1>
-          <p className="text-muted-foreground">Manage collective relationships and team prospect data.</p>
+          <p className="text-muted-foreground">Manage collective relationships and organizational prospect data.</p>
         </div>
         <div className="flex items-center gap-2">
           {selectedLeads.length > 0 && (
@@ -182,29 +179,34 @@ export default function LeadsPage() {
               </DropdownMenuContent>
             </DropdownMenu>
           )}
-          <Button variant="outline" size="sm" className="gap-2 hidden sm:flex border-primary/20 hover:bg-primary/5">
-            <FileUp className="h-4 w-4 text-primary" /> Import Team CSV
+          
+          <Button variant="outline" size="sm" className="gap-2 border-primary/20 hover:bg-primary/5 h-9">
+            <Download className="h-4 w-4 text-primary" /> Export Leads
           </Button>
+          <Button variant="outline" size="sm" className="gap-2 border-primary/20 hover:bg-primary/5 h-9 hidden md:flex">
+            <FileUp className="h-4 w-4 text-primary" /> Import CSV
+          </Button>
+
           <Dialog open={isAddModalOpen} onOpenChange={setIsAddModalOpen}>
             <DialogTrigger asChild>
-              <Button className="bg-primary hover:bg-primary/90 gap-2 shadow-lg shadow-primary/20">
+              <Button className="bg-primary hover:bg-primary/90 gap-2 shadow-lg shadow-primary/20 h-9">
                 <Plus className="h-4 w-4" /> Add Lead
               </Button>
             </DialogTrigger>
             <DialogContent className="sm:max-w-[500px] bg-card/90 backdrop-blur-xl border-border/50">
               <DialogHeader>
                 <DialogTitle>Create New Team Lead</DialogTitle>
-                <DialogDescription>Enter a new prospect and assign it to a rep.</DialogDescription>
+                <DialogDescription>Enter a new prospect and assign it to a team member.</DialogDescription>
               </DialogHeader>
               <form onSubmit={handleAddLead} className="space-y-4 pt-4">
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
                     <Label htmlFor="name">Full Name</Label>
-                    <Input id="name" name="name" placeholder="Name" required />
+                    <Input id="name" name="name" placeholder="Lead Name" required />
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="company">Company</Label>
-                    <Input id="company" name="company" placeholder="Company" />
+                    <Input id="company" name="company" placeholder="Acme Inc" />
                   </div>
                 </div>
                 <div className="space-y-2">
@@ -229,7 +231,7 @@ export default function LeadsPage() {
                   </div>
                 </div>
                 <DialogFooter>
-                  <Button type="submit" className="w-full shadow-lg shadow-primary/20 font-bold">Create and Assign</Button>
+                  <Button type="submit" className="w-full shadow-lg shadow-primary/20 font-bold h-11">Create and Assign</Button>
                 </DialogFooter>
               </form>
             </DialogContent>
@@ -249,7 +251,7 @@ export default function LeadsPage() {
             />
           </div>
           <Select value={statusFilter} onValueChange={setStatusFilter}>
-            <SelectTrigger className="w-full sm:w-[150px] bg-background/50">
+            <SelectTrigger className="w-full sm:w-[150px] bg-background/50 h-10">
               <Filter className="h-4 w-4 mr-2" />
               <SelectValue placeholder="Status" />
             </SelectTrigger>
@@ -259,7 +261,7 @@ export default function LeadsPage() {
             </SelectContent>
           </Select>
           <Select value={repFilter} onValueChange={setRepFilter}>
-            <SelectTrigger className="w-full sm:w-[150px] bg-background/50">
+            <SelectTrigger className="w-full sm:w-[150px] bg-background/50 h-10">
               <UserCheck className="h-4 w-4 mr-2" />
               <SelectValue placeholder="By Rep" />
             </SelectTrigger>
@@ -276,7 +278,7 @@ export default function LeadsPage() {
           <Table>
             <TableHeader className="bg-muted/30">
               <TableRow>
-                <TableHead className="w-[40px] px-4">
+                <TableHead className="w-[40px] px-4 text-center">
                   <Checkbox 
                     checked={selectedLeads.length === filteredLeads.length && filteredLeads.length > 0}
                     onCheckedChange={() => setSelectedLeads(selectedLeads.length === filteredLeads.length ? [] : filteredLeads.map(l => l.id))}
@@ -286,7 +288,7 @@ export default function LeadsPage() {
                 <TableHead>Status</TableHead>
                 <TableHead className="hidden md:table-cell">Assigned Rep</TableHead>
                 <TableHead>Deal Value</TableHead>
-                <TableHead className="hidden xl:table-cell">Created</TableHead>
+                <TableHead className="hidden xl:table-cell">Source</TableHead>
                 <TableHead className="text-right">Actions</TableHead>
               </TableRow>
             </TableHeader>
@@ -295,12 +297,12 @@ export default function LeadsPage() {
                 <TableRow>
                   <TableCell colSpan={7} className="h-32 text-center">
                     <Clock className="h-5 w-5 animate-spin mx-auto mb-2 text-primary" />
-                    <span className="text-sm font-medium">Syncing Team Data...</span>
+                    <span className="text-sm font-medium">Loading Team Records...</span>
                   </TableCell>
                 </TableRow>
-              ) : filteredLeads.map((lead) => (
+              ) : filteredLeads.length > 0 ? filteredLeads.map((lead) => (
                 <TableRow key={lead.id} className="hover:bg-muted/10 group cursor-pointer" onClick={() => setViewingLead(lead)}>
-                  <TableCell className="px-4" onClick={(e) => e.stopPropagation()}>
+                  <TableCell className="px-4 text-center" onClick={(e) => e.stopPropagation()}>
                     <Checkbox 
                       checked={selectedLeads.includes(lead.id)}
                       onCheckedChange={() => setSelectedLeads(prev => prev.includes(lead.id) ? prev.filter(i => i !== lead.id) : [...prev, lead.id])}
@@ -309,11 +311,11 @@ export default function LeadsPage() {
                   <TableCell>
                     <div className="flex flex-col">
                       <span className="font-bold text-sm group-hover:text-primary transition-colors">{lead.name}</span>
-                      <span className="text-[10px] text-muted-foreground uppercase tracking-wider">{lead.company || lead.email}</span>
+                      <span className="text-[10px] text-muted-foreground uppercase tracking-wider font-bold">{lead.company || lead.email}</span>
                     </div>
                   </TableCell>
                   <TableCell>
-                    <Badge variant="outline" className={`text-[9px] font-black uppercase ${STATUS_OPTIONS.find(s => s.value === lead.status)?.color}`}>
+                    <Badge variant="outline" className={`text-[9px] font-black uppercase tracking-widest ${STATUS_OPTIONS.find(s => s.value === lead.status)?.color}`}>
                       {lead.status}
                     </Badge>
                   </TableCell>
@@ -321,16 +323,16 @@ export default function LeadsPage() {
                     <div className="flex items-center gap-2">
                       <Avatar className="h-6 w-6">
                         <AvatarImage src={MOCK_TEAM.find(m => m.id === lead.ownerUid)?.avatar} />
-                        <AvatarFallback>U</AvatarFallback>
+                        <AvatarFallback className="text-[10px]">{MOCK_TEAM.find(m => m.id === lead.ownerUid)?.name[0]}</AvatarFallback>
                       </Avatar>
-                      <span className="text-xs font-medium">{MOCK_TEAM.find(m => m.id === lead.ownerUid)?.name}</span>
+                      <span className="text-xs font-bold text-muted-foreground">{MOCK_TEAM.find(m => m.id === lead.ownerUid)?.name}</span>
                     </div>
                   </TableCell>
                   <TableCell className="text-sm font-black text-primary">
                     ${lead.dealValue?.toLocaleString()}
                   </TableCell>
-                  <TableCell className="hidden xl:table-cell text-[10px] text-muted-foreground font-bold">
-                    {lead.createdAt?.toDate ? format(lead.createdAt.toDate(), 'MMM dd, yyyy') : '-'}
+                  <TableCell className="hidden xl:table-cell text-[10px] text-muted-foreground font-bold uppercase tracking-widest">
+                    {lead.source}
                   </TableCell>
                   <TableCell className="text-right" onClick={(e) => e.stopPropagation()}>
                     <DropdownMenu>
@@ -340,16 +342,22 @@ export default function LeadsPage() {
                         </Button>
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end" className="w-48">
-                        <DropdownMenuLabel className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Manager Actions</DropdownMenuLabel>
+                        <DropdownMenuLabel className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Lead Options</DropdownMenuLabel>
                         <DropdownMenuItem onClick={() => setViewingLead(lead)}>View Profile</DropdownMenuItem>
-                        <DropdownMenuItem>Change Owner</DropdownMenuItem>
+                        <DropdownMenuItem>Assign New Owner</DropdownMenuItem>
                         <DropdownMenuSeparator />
-                        <DropdownMenuItem className="text-rose-500">Archive Lead</DropdownMenuItem>
+                        <DropdownMenuItem className="text-rose-500">Archive Record</DropdownMenuItem>
                       </DropdownMenuContent>
                     </DropdownMenu>
                   </TableCell>
                 </TableRow>
-              ))}
+              )) : (
+                <TableRow>
+                  <TableCell colSpan={7} className="h-32 text-center text-muted-foreground">
+                    No leads found matching your team filters.
+                  </TableCell>
+                </TableRow>
+              )}
             </TableBody>
           </Table>
         </div>
@@ -367,8 +375,8 @@ export default function LeadsPage() {
                       <Badge className={STATUS_OPTIONS.find(s => s.value === viewingLead.status)?.color}>{viewingLead.status.toUpperCase()}</Badge>
                     </div>
                     <div className="flex flex-wrap gap-x-4 gap-y-1 text-sm text-muted-foreground">
-                      <span className="flex items-center gap-1.5"><Building2 className="h-4 w-4" /> {viewingLead.company}</span>
-                      <span className="flex items-center gap-1.5"><UserCheck className="h-4 w-4 text-accent" /> Assigned to {MOCK_TEAM.find(m => m.id === viewingLead.ownerUid)?.name}</span>
+                      <span className="flex items-center gap-1.5 font-bold"><Building2 className="h-4 w-4" /> {viewingLead.company}</span>
+                      <span className="flex items-center gap-1.5 font-bold"><UserCheck className="h-4 w-4 text-accent" /> Assigned: {MOCK_TEAM.find(m => m.id === viewingLead.ownerUid)?.name}</span>
                     </div>
                   </div>
                   <div className="text-left md:text-right w-full md:w-auto p-4 bg-background/50 rounded-xl border border-border/50 md:bg-transparent md:border-none">
@@ -378,8 +386,8 @@ export default function LeadsPage() {
                 </div>
               </div>
               <div className="p-4 border-t border-border/50 bg-background/80 flex flex-col md:flex-row justify-end gap-2 sticky bottom-0 z-10 backdrop-blur-md">
-                <Button variant="ghost" className="w-full md:w-auto" onClick={() => setViewingLead(null)}>Close</Button>
-                <Button className="w-full md:w-auto bg-primary shadow-xl shadow-primary/20 font-bold">Manage Lead</Button>
+                <Button variant="ghost" className="w-full md:w-auto h-11" onClick={() => setViewingLead(null)}>Close</Button>
+                <Button className="w-full md:w-auto bg-primary shadow-xl shadow-primary/20 font-bold h-11">Manage Assignment</Button>
               </div>
             </>
           )}

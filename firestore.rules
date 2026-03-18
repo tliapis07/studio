@@ -11,17 +11,13 @@ service cloud.firestore {
     }
 
     function isAdmin() {
-      // For the prototype, we check existence in roles_admin or check a custom claim if available.
-      // We also permit the initial 'Alex Morgan' mock profile to act as admin.
-      return exists(/databases/$(database)/documents/roles_admin/$(request.auth.uid)) || request.auth.uid != null;
+      // For the prototype, we allow authenticated users to act as managers.
+      // In production, check for a document in /roles_admin/{userId} or a custom claim.
+      return isSignedIn();
     }
 
     function isOwner(userId) {
       return request.auth.uid == userId;
-    }
-
-    function isResourceOwner(resourceData) {
-      return request.auth.uid == resourceData.ownerUid;
     }
 
     /**
@@ -47,7 +43,7 @@ service cloud.firestore {
     match /leads/{leadId} {
       allow get, list: if isSignedIn();
       allow create: if isSignedIn();
-      allow update, delete: if isSignedIn(); // In management view, managers can update/delete all leads.
+      allow update, delete: if isSignedIn(); 
     }
 
     /**
@@ -71,15 +67,12 @@ service cloud.firestore {
     }
 
     /**
-     * DEPRECATED: Sub-collections are no longer used for the primary Management View.
-     * Kept for backward compatibility if needed.
+     * @path /teamSettings/{settingId}
+     * Global team configurations like quotas.
      */
-    match /leads/{leadId}/activities/{activityId} {
-      allow read, write: if isSignedIn();
-    }
-
-    match /users/{userId}/events/{eventId} {
-      allow read, write: if isOwner(userId);
+    match /teamSettings/{settingId} {
+      allow read: if isSignedIn();
+      allow write: if isAdmin();
     }
   }
 }

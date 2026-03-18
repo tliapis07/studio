@@ -1,59 +1,44 @@
-
 'use client';
 
 import { useState } from 'react';
 import { SidebarProvider, Sidebar, SidebarContent, SidebarHeader, SidebarTrigger, SidebarInset } from '@/components/ui/sidebar';
 import { NavMain } from '@/components/nav-main';
-import { TrendingUp, User, LayoutDashboard, Layers, Users, Calendar as CalendarIcon, Settings, BarChart3, Plus, Sparkles, MessageSquare, Mic, Loader2, Briefcase, FileText } from 'lucide-react';
+import { TrendingUp, User, LayoutDashboard, Layers, Users, Calendar as CalendarIcon, Settings, BarChart3, Plus, Sparkles, LogOut, FileText, Info } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Toaster } from '@/components/ui/toaster';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import AIAssistant from '@/components/AIAssistant';
+import { useUser, useAuth } from '@/firebase';
+import { signOut } from 'firebase/auth';
 import { 
-  Popover,
-  PopoverContent,
-  PopoverTrigger 
-} from '@/components/ui/popover';
-import { Input } from '@/components/ui/input';
-import { processCRMTask } from '@/ai/flows/process-crm-task';
-import { toast } from '@/hooks/use-toast';
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger 
+} from '@/components/ui/dropdown-menu';
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
-  const [aiTaskInput, setAiTaskInput] = useState('');
-  const [isProcessingTask, setIsProcessingTask] = useState(false);
+  const router = useRouter();
+  const { user } = useUser();
+  const auth = useAuth();
+  const [isAiOpen, setIsAiOpen] = useState(false);
 
   const mobileNavItems = [
-    { icon: LayoutDashboard, label: 'Dashboard', href: '/dashboard' },
-    { icon: Layers, label: 'Pipeline', href: '/dashboard/pipeline' },
+    { icon: LayoutDashboard, label: 'Dash', href: '/dashboard' },
+    { icon: Layers, label: 'Pipe', href: '/dashboard/pipeline' },
     { icon: Users, label: 'Leads', href: '/dashboard/leads' },
-    { icon: BarChart3, label: 'Analytics', href: '/dashboard/analytics' },
-    { icon: CalendarIcon, label: 'Calendar', href: '/dashboard/calendar' },
+    { icon: BarChart3, label: 'Stats', href: '/dashboard/analytics' },
+    { icon: CalendarIcon, label: 'Plan', href: '/dashboard/calendar' },
   ];
 
-  const handleAiTaskSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!aiTaskInput.trim()) return;
-    
-    setIsProcessingTask(true);
-    try {
-      const result = await processCRMTask({ command: aiTaskInput });
-      toast({
-        title: "Team Action Identified",
-        description: result.confirmationMessage,
-      });
-      setAiTaskInput('');
-    } catch (err) {
-      toast({
-        variant: "destructive",
-        title: "AI Parsing Error",
-        description: "Could not interpret command."
-      });
-    } finally {
-      setIsProcessingTask(false);
-    }
+  const handleSignOut = async () => {
+    await signOut(auth);
+    router.push('/');
   };
 
   return (
@@ -65,7 +50,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           </div>
           <div className="flex flex-col gap-0.5 overflow-hidden">
             <span className="font-semibold text-sm leading-none font-headline text-primary">SalesStream</span>
-            <span className="text-[10px] text-muted-foreground">Team Management View</span>
+            <span className="text-[10px] text-muted-foreground uppercase tracking-widest font-bold">Partner View</span>
           </div>
         </SidebarHeader>
         <SidebarContent>
@@ -81,18 +66,42 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                <span className="font-bold text-lg font-headline">SalesStream</span>
             </div>
           </div>
-          <div className="flex items-center gap-4">
-            <Button variant="outline" size="sm" className="hidden lg:flex gap-2 border-primary/20 text-xs">
-              <FileText className="h-4 w-4 text-primary" /> Reports
+          <div className="flex items-center gap-3">
+            <Button 
+              variant="outline" 
+              size="sm" 
+              className="hidden lg:flex gap-2 border-primary/20 text-xs h-9"
+              onClick={() => setIsAiOpen(true)}
+            >
+              <Sparkles className="h-4 w-4 text-primary" /> AI Assistant
             </Button>
-            <div className="hidden sm:flex flex-col items-end">
-              <span className="text-sm font-medium">Alex Morgan</span>
-              <span className="text-xs text-muted-foreground uppercase tracking-wider">Managing Partner</span>
-            </div>
-            <Avatar className="h-9 w-9 border border-border">
-              <AvatarImage src="https://picsum.photos/seed/av1/100/100" />
-              <AvatarFallback><User /></AvatarFallback>
-            </Avatar>
+            
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="ghost" className="flex items-center gap-3 px-2 h-10 hover:bg-muted/50 rounded-lg">
+                  <div className="hidden sm:flex flex-col items-end">
+                    <span className="text-sm font-bold leading-none">{user?.displayName || 'Partner'}</span>
+                    <span className="text-[9px] text-muted-foreground uppercase tracking-widest font-black mt-1">Management</span>
+                  </div>
+                  <Avatar className="h-8 w-8 border border-border">
+                    <AvatarImage src={user?.photoURL || ''} />
+                    <AvatarFallback className="bg-primary/10 text-primary font-bold">{user?.displayName?.[0] || 'P'}</AvatarFallback>
+                  </Avatar>
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-56 mt-2">
+                <DropdownMenuLabel>Account</DropdownMenuLabel>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem asChild>
+                  <Link href="/dashboard/settings" className="cursor-pointer">
+                    <Settings className="h-4 w-4 mr-2" /> Settings
+                  </Link>
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={handleSignOut} className="text-rose-500 cursor-pointer">
+                  <LogOut className="h-4 w-4 mr-2" /> Sign Out
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
           </div>
         </header>
 
@@ -100,63 +109,24 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           {children}
         </main>
 
-        <div className="fixed bottom-24 right-6 md:bottom-10 md:right-10 z-50 flex flex-col gap-3">
-          <Popover>
-            <PopoverTrigger asChild>
-              <Button size="icon" className="h-14 w-14 rounded-full shadow-2xl bg-primary hover:scale-110 transition-transform">
-                <Plus className="h-6 w-6 text-white" />
-              </Button>
-            </PopoverTrigger>
-            <PopoverContent side="top" align="end" className="w-80 p-4 bg-card/90 backdrop-blur-xl border-primary/20 space-y-4">
-              <div className="space-y-2">
-                <h4 className="text-sm font-bold flex items-center gap-2">
-                  <Sparkles className="h-4 w-4 text-primary" /> Dictate Team Task
-                </h4>
-                <form onSubmit={handleAiTaskSubmit} className="flex gap-2">
-                  <Input 
-                    placeholder="e.g. 'Assign Tesla lead to Sarah'" 
-                    className="text-xs bg-background/50 h-9"
-                    value={aiTaskInput}
-                    onChange={(e) => setAiTaskInput(e.target.value)}
-                    disabled={isProcessingTask}
-                  />
-                  <Button size="icon" type="submit" className="h-9 w-9 shrink-0 shadow-md" disabled={isProcessingTask}>
-                    {isProcessingTask ? <Loader2 className="h-4 w-4 animate-spin" /> : <Mic className="h-4 w-4" />}
-                  </Button>
-                </form>
-              </div>
-              <div className="flex flex-col gap-1 border-t border-border/50 pt-2">
-                <Button variant="ghost" className="justify-start gap-2 h-9 text-xs">
-                  <Plus className="h-4 w-4 text-primary" /> Add Team Lead
-                </Button>
-                <Button variant="ghost" className="justify-start gap-2 h-9 text-xs">
-                  <MessageSquare className="h-4 w-4 text-accent" /> Log Team Activity
-                </Button>
-                <Button variant="ghost" className="justify-start gap-2 h-9 text-xs">
-                  <CalendarIcon className="h-4 w-4 text-purple-500" /> Schedule Team Meeting
-                </Button>
-              </div>
-            </PopoverContent>
-          </Popover>
-          <AIAssistant floating />
-        </div>
+        <AIAssistant floating isOpenExternal={isAiOpen} onCloseExternal={() => setIsAiOpen(false)} />
 
-        <nav className="md:hidden fixed bottom-0 left-0 right-0 h-20 bg-card/80 backdrop-blur-xl border-t border-border/50 flex items-center justify-around px-2 z-40">
+        <nav className="md:hidden fixed bottom-0 left-0 right-0 h-16 bg-card/80 backdrop-blur-xl border-t border-border/50 flex items-center justify-around px-2 z-40">
           {mobileNavItems.map((item) => (
-            <Link key={item.href} href={item.href} className="flex flex-col items-center gap-1 group">
-              <div className={`p-2 rounded-xl transition-all ${pathname === item.href ? 'bg-primary text-white scale-110' : 'text-muted-foreground hover:text-primary'}`}>
+            <Link key={item.href} href={item.href} className="flex flex-col items-center gap-1">
+              <div className={`p-1.5 rounded-lg transition-all ${pathname === item.href ? 'bg-primary text-white scale-110' : 'text-muted-foreground hover:text-primary'}`}>
                 <item.icon className="h-5 w-5" />
               </div>
-              <span className={`text-[9px] font-bold uppercase tracking-widest ${pathname === item.href ? 'text-primary' : 'text-muted-foreground'}`}>
+              <span className={`text-[8px] font-bold uppercase tracking-widest ${pathname === item.href ? 'text-primary font-black' : 'text-muted-foreground'}`}>
                 {item.label}
               </span>
             </Link>
           ))}
           <Link href="/dashboard/settings" className="flex flex-col items-center gap-1">
-             <div className={`p-2 rounded-xl ${pathname === '/dashboard/settings' ? 'bg-primary text-white' : 'text-muted-foreground'}`}>
+             <div className={`p-1.5 rounded-lg ${pathname === '/dashboard/settings' ? 'bg-primary text-white' : 'text-muted-foreground'}`}>
                <Settings className="h-5 w-5" />
              </div>
-             <span className="text-[9px] font-bold uppercase tracking-widest text-muted-foreground">Settings</span>
+             <span className="text-[8px] font-bold uppercase tracking-widest text-muted-foreground">Sets</span>
           </Link>
         </nav>
       </SidebarInset>

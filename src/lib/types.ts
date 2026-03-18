@@ -1,4 +1,3 @@
-
 export type LeadStatus = 'new' | 'contacted' | 'qualified' | 'proposal' | 'negotiated' | 'won' | 'lost';
 
 export interface TeamMember {
@@ -8,6 +7,13 @@ export interface TeamMember {
   email: string;
   avatar: string;
   quota: number;
+}
+
+export interface TeamSettings {
+  id: string;
+  totalTeamQuota: number;
+  monthlyTarget: number;
+  updatedAt: any;
 }
 
 export interface Lead {
@@ -30,11 +36,6 @@ export interface Lead {
   customFields: Record<string, any>;
   notesCount: number;
   callsCount: number;
-  location?: {
-    lat: number;
-    lng: number;
-    address?: string;
-  };
 }
 
 export interface Activity {

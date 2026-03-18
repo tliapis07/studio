@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from 'react';
 import { useCollection, useFirestore, useUser, useMemoFirebase } from '@/firebase';
-import { collection, query, where, orderBy, limit } from 'firebase/firestore';
+import { collection, query, orderBy, limit, doc, getDoc } from 'firebase/firestore';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { 
   Users, 
@@ -16,7 +16,7 @@ import {
   Sparkles,
   Zap,
   History,
-  Briefcase
+  FileText
 } from 'lucide-react';
 import { 
   BarChart, 
@@ -30,14 +30,15 @@ import {
   AreaChart,
   Area
 } from 'recharts';
-import { Lead, TeamMember, Activity } from '@/lib/types';
+import { Lead, Activity, TeamSettings } from '@/lib/types';
 import { format, startOfWeek, endOfWeek, eachDayOfInterval, isSameDay } from 'date-fns';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { useDoc } from '@/firebase';
 
-const MOCK_TEAM: TeamMember[] = [
+const MOCK_TEAM = [
   { id: 'user1', name: 'Alex Morgan', role: 'Sales Exec', email: 'alex@stream.io', avatar: 'https://picsum.photos/seed/av1/100/100', quota: 150000 },
   { id: 'user2', name: 'Jordan Lee', role: 'Sales Exec', email: 'jordan@stream.io', avatar: 'https://picsum.photos/seed/av2/100/100', quota: 120000 },
   { id: 'user3', name: 'Sarah Chen', role: 'Sales Exec', email: 'sarah@stream.io', avatar: 'https://picsum.photos/seed/av3/100/100', quota: 200000 },
@@ -58,8 +59,14 @@ export default function Dashboard() {
     return query(collection(db, 'activities'), orderBy('createdAt', 'desc'), limit(10));
   }, [db, user]);
 
+  const teamSettingsRef = useMemoFirebase(() => {
+    if (!db) return null;
+    return doc(db, 'teamSettings', 'global');
+  }, [db]);
+
   const { data: leads, isLoading: leadsLoading } = useCollection<Lead>(leadsQuery);
   const { data: recentActivities } = useCollection<Activity>(activitiesQuery);
+  const { data: settings } = useDoc<TeamSettings>(teamSettingsRef);
 
   const stats = useMemo(() => {
     if (!leads) return { total: 0, qualified: 0, won: 0, revenue: 0 };
@@ -103,7 +110,7 @@ export default function Dashboard() {
   if (isUserLoading || (leadsLoading && !leads)) return (
     <div className="flex flex-col h-full items-center justify-center p-8 text-center space-y-4">
       <div className="h-12 w-12 border-4 border-primary border-t-transparent rounded-full animate-spin" />
-      <p className="text-muted-foreground font-headline font-bold uppercase tracking-widest text-xs">Synchronizing Team Data...</p>
+      <p className="text-muted-foreground font-headline font-bold uppercase tracking-widest text-xs">Syncing Team Data...</p>
     </div>
   );
 
@@ -118,15 +125,15 @@ export default function Dashboard() {
     <div className="space-y-8 animate-in fade-in duration-500 pb-20 md:pb-8">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
-          <h1 className="text-3xl md:text-4xl font-black font-headline tracking-tight text-primary">Team Center</h1>
-          <p className="text-sm md:text-base text-muted-foreground">Hello, {user?.displayName || 'Partner'}. Here is your team's pipeline velocity.</p>
+          <h1 className="text-3xl md:text-4xl font-black font-headline tracking-tight text-primary">Partner Center</h1>
+          <p className="text-sm md:text-base text-muted-foreground">Hello, Partner. Here is your team's pipeline velocity.</p>
         </div>
         <div className="flex items-center gap-2">
-           <Button size="sm" variant="outline" className="gap-2 border-primary/20 hover:bg-primary/5">
+           <Button size="sm" variant="outline" className="gap-2 border-primary/20 hover:bg-primary/5 h-9">
              <History className="h-4 w-4 text-primary" /> Team History
            </Button>
-           <Button size="sm" className="bg-primary gap-2 shadow-lg shadow-primary/20">
-             <TrendingUp className="h-4 w-4" /> Generate Team Report
+           <Button size="sm" className="bg-primary gap-2 shadow-lg shadow-primary/20 h-9">
+             <FileText className="h-4 w-4" /> Generate Team Report
            </Button>
         </div>
       </div>
@@ -158,7 +165,7 @@ export default function Dashboard() {
           <CardHeader className="flex flex-row items-center justify-between">
             <div>
               <CardTitle className="text-lg">Team Inbound Velocity</CardTitle>
-              <CardDescription>Real-time lead arrival trends across the team.</CardDescription>
+              <CardDescription>Real-time lead arrival trends across the organization.</CardDescription>
             </div>
             <Select value={repFilter} onValueChange={setRepFilter}>
               <SelectTrigger className="w-[140px] h-8 text-xs bg-background/50">
@@ -202,7 +209,8 @@ export default function Dashboard() {
                { icon: Zap, text: 'High Velocity: 8 team leads predicted to close this week.', color: 'text-primary' },
                { icon: Award, text: 'Top Rep this week: Sarah – 4 qualified leads.', color: 'text-yellow-500' },
                { icon: Target, text: 'Bottleneck: Only 18% Qualified → Proposal across the team.', color: 'text-accent' },
-               { icon: Clock, text: 'At Risk: 3 proposals stalled for > 10 days.', color: 'text-rose-500' }
+               { icon: Clock, text: 'At Risk: 3 proposals stalled for > 10 days.', color: 'text-rose-500' },
+               { icon: TrendingUp, text: 'Growth Alert: Referral source is up 40% this quarter.', color: 'text-emerald-500' }
              ].map((insight, i) => (
                <div key={i} className="flex gap-4 items-start p-3 rounded-xl bg-background/50 border border-border/50 group hover:border-primary/20 transition-colors">
                   <div className={`mt-0.5 p-2 rounded-lg bg-muted/30 ${insight.color}`}>
@@ -212,7 +220,7 @@ export default function Dashboard() {
                </div>
              ))}
              <Button variant="outline" className="w-full text-xs font-bold gap-2 border-primary/20 hover:bg-primary/5">
-                <Sparkles className="h-3 w-3 text-primary" /> Generate Strategy
+                <Sparkles className="h-3 w-3 text-primary" /> Generate Team Strategy
              </Button>
           </CardContent>
         </Card>
@@ -221,9 +229,12 @@ export default function Dashboard() {
       <div className="grid gap-6 md:grid-cols-2">
         <Card className="bg-card/40 border-border/50 overflow-hidden shadow-xl">
           <CardHeader className="bg-primary/5 border-b border-border/50 p-4">
-            <CardTitle className="text-sm font-bold uppercase tracking-widest flex items-center gap-2">
-              <Target className="h-4 w-4 text-primary" /> Team Quota Attainment
-            </CardTitle>
+            <div className="flex items-center justify-between">
+              <CardTitle className="text-sm font-bold uppercase tracking-widest flex items-center gap-2">
+                <Target className="h-4 w-4 text-primary" /> Team Quota Attainment
+              </CardTitle>
+              <Button variant="ghost" size="sm" className="h-7 text-[10px] font-black uppercase">Edit Target</Button>
+            </div>
           </CardHeader>
           <CardContent className="p-6 space-y-6">
             {teamQuotaData.map((rep) => (
@@ -232,7 +243,7 @@ export default function Dashboard() {
                   <div className="flex items-center gap-3">
                     <Avatar className="h-8 w-8">
                       <AvatarImage src={rep.avatar} />
-                      <AvatarFallback>{rep.name[0]}</AvatarFallback>
+                      <AvatarFallback className="bg-muted text-xs">{rep.name[0]}</AvatarFallback>
                     </Avatar>
                     <div className="flex flex-col">
                       <span className="text-sm font-bold">{rep.name}</span>
@@ -241,7 +252,9 @@ export default function Dashboard() {
                   </div>
                   <div className="text-right">
                     <span className="text-sm font-black text-primary">{rep.percent}%</span>
-                    <span className="text-[10px] text-muted-foreground block uppercase">${rep.currentRevenue.toLocaleString()} / ${rep.quota/1000}k</span>
+                    <span className="text-[10px] text-muted-foreground block uppercase font-bold">
+                      ${rep.currentRevenue.toLocaleString()} / ${(rep.quota / 1000).toFixed(0)}k
+                    </span>
                   </div>
                 </div>
                 <Progress value={rep.percent} className="h-2 bg-muted/30" />
@@ -258,12 +271,12 @@ export default function Dashboard() {
           </CardHeader>
           <CardContent className="p-0">
             <div className="divide-y divide-border/30">
-              {recentActivities?.map((activity) => (
+              {recentActivities && recentActivities.length > 0 ? recentActivities.map((activity) => (
                 <div key={activity.id} className="flex gap-4 items-center p-4 hover:bg-muted/10 transition-colors">
                   <div className="h-8 w-8 rounded-full bg-muted/30 flex items-center justify-center shrink-0 border border-border/50 overflow-hidden">
                     <Avatar className="h-full w-full">
                       <AvatarImage src={MOCK_TEAM.find(m => m.id === activity.ownerUid)?.avatar} />
-                      <AvatarFallback>{activity.ownerName?.[0] || 'T'}</AvatarFallback>
+                      <AvatarFallback className="text-[10px]">{activity.ownerUid?.[0]}</AvatarFallback>
                     </Avatar>
                   </div>
                   <div className="flex flex-col flex-1">
@@ -275,8 +288,8 @@ export default function Dashboard() {
                     </span>
                   </div>
                 </div>
-              )) || (
-                <div className="p-8 text-center text-xs text-muted-foreground italic">No team activity recorded.</div>
+              )) : (
+                <div className="p-12 text-center text-xs text-muted-foreground italic">No team activity recorded.</div>
               )}
             </div>
           </CardContent>
