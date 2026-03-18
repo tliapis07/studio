@@ -1,4 +1,3 @@
-
 'use client';
 
 import Link from 'next/link';
@@ -9,9 +8,8 @@ import {
   BarChart3, 
   Calendar as CalendarIcon, 
   Settings, 
-  PlusCircle,
-  FileUp,
-  Layers
+  Layers,
+  GraduationCap
 } from 'lucide-react';
 import { 
   SidebarGroup, 
@@ -27,11 +25,10 @@ const items = [
   { title: 'Leads', url: '/dashboard/leads', icon: Users },
   { title: 'Analytics', url: '/dashboard/analytics', icon: BarChart3 },
   { title: 'Calendar', url: '/dashboard/calendar', icon: CalendarIcon },
+  { title: 'Training Materials', url: '/dashboard/training', icon: GraduationCap },
 ];
 
 const secondaryItems = [
-  { title: 'Add Lead', url: '/dashboard/leads/new', icon: PlusCircle },
-  { title: 'Import Leads', url: '/dashboard/import', icon: FileUp },
   { title: 'Settings', url: '/dashboard/settings', icon: Settings },
 ];
 
@@ -47,8 +44,8 @@ export function NavMain() {
             <SidebarMenuItem key={item.title}>
               <SidebarMenuButton asChild isActive={pathname === item.url} tooltip={item.title}>
                 <Link href={item.url}>
-                  <item.icon />
-                  <span>{item.title}</span>
+                  <item.icon className="w-6 h-6" />
+                  <span className="text-sm font-medium">{item.title}</span>
                 </Link>
               </SidebarMenuButton>
             </SidebarMenuItem>
@@ -56,14 +53,14 @@ export function NavMain() {
         </SidebarMenu>
       </SidebarGroup>
       <SidebarGroup className="mt-auto">
-        <SidebarGroupLabel>Quick Actions</SidebarGroupLabel>
+        <SidebarGroupLabel>System</SidebarGroupLabel>
         <SidebarMenu>
           {secondaryItems.map((item) => (
             <SidebarMenuItem key={item.title}>
               <SidebarMenuButton asChild isActive={pathname === item.url} tooltip={item.title}>
                 <Link href={item.url}>
-                  <item.icon />
-                  <span>{item.title}</span>
+                  <item.icon className="w-6 h-6" />
+                  <span className="text-sm font-medium">{item.title}</span>
                 </Link>
               </SidebarMenuButton>
             </SidebarMenuItem>

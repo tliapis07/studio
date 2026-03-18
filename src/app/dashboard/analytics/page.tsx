@@ -80,7 +80,7 @@ export default function TeamAnalyticsPage() {
   }, [leads]);
 
   const tabInfo: Record<string, { desc: string; icon: any }> = {
-    'Overview': { desc: 'Team-wide performance metrics and organizational quota health.', icon: Target },
+    'Overview': { desc: 'Team performance overview and revenue targets.', icon: Target },
     'Pipeline': { desc: 'Step-by-step conversion rates and stage velocity across the team.', icon: Zap },
     'Sources': { desc: 'Lead acquisition performance by channel for all reps.', icon: Calendar },
     'Forecasting': { desc: 'Predictive revenue trends weighted by pipeline stage win rates.', icon: Sparkles },
@@ -90,13 +90,13 @@ export default function TeamAnalyticsPage() {
     <div className="space-y-8 pb-20 md:pb-8">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-bold font-headline">Team Analytics</h1>
-          <p className="text-muted-foreground">High-level intelligence and organizational-wide diagnostics.</p>
+          <h1 className="text-3xl font-bold font-headline tracking-tight">Partner Analytics</h1>
+          <p className="text-muted-foreground text-sm font-medium">High-level intelligence and organizational-wide diagnostics.</p>
         </div>
-        <Button size="sm" className="bg-primary shadow-lg shadow-primary/20 h-9 font-bold px-6">Export Partner Report</Button>
+        <Button size="lg" className="bg-primary shadow-xl shadow-primary/20 h-12 font-black px-8 rounded-xl text-xs uppercase tracking-widest">Export Partner Report</Button>
       </div>
 
-      <div className="grid gap-4 grid-cols-2 lg:grid-cols-5">
+      <div className="grid gap-6 grid-cols-1 sm:grid-cols-2 lg:grid-cols-5">
         {[
           { label: 'Team Win Rate', value: '32%', change: '+4%', icon: Target, info: 'Percentage of leads successfully closed as WON across the entire team.' },
           { label: 'Avg Deal Size', value: '$5.2k', change: '+8%', icon: DollarSign, info: 'Mean monetary value of won deals.' },
@@ -104,27 +104,27 @@ export default function TeamAnalyticsPage() {
           { label: 'Sales Velocity', value: '1.2x', change: '+15%', icon: Zap, info: 'Rate at which the team generates revenue.' },
           { label: 'Pipeline Coverage', value: '3.4x', change: '+0.2', icon: ShieldCheck, info: 'Pipeline value divided by remaining team quota.' },
         ].map((stat, i) => (
-          <Card key={i} className="bg-card/50 border-border/50">
-            <CardHeader className="p-4 flex flex-row items-center justify-between pb-2 space-y-0">
-              <CardTitle className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground flex items-center gap-1.5">
+          <Card key={i} className="bg-card/50 border-border/50 shadow-sm border-2">
+            <CardHeader className="p-5 flex flex-row items-center justify-between pb-3 space-y-0">
+              <CardTitle className="text-[11px] font-black uppercase tracking-widest text-muted-foreground flex items-center gap-2">
                 {stat.label}
                 <TooltipProvider>
                   <UITooltip>
                     <TooltipTrigger asChild>
-                      <Info className="h-3 w-3 cursor-help text-muted-foreground/50 hover:text-primary transition-colors" />
+                      <Info className="h-4 w-4 cursor-help text-muted-foreground/40 hover:text-primary transition-colors" />
                     </TooltipTrigger>
-                    <TooltipContent side="top" className="max-w-xs text-[10px] font-medium leading-relaxed">
+                    <TooltipContent side="top" className="max-w-xs text-[11px] font-bold leading-relaxed bg-popover border-2 border-border p-3">
                       {stat.info}
                     </TooltipContent>
                   </UITooltip>
                 </TooltipProvider>
               </CardTitle>
-              <stat.icon className="h-3.5 w-3.5 text-primary" />
+              <stat.icon className="h-5 w-5 text-primary opacity-80" />
             </CardHeader>
-            <CardContent className="p-4 pt-0">
-              <div className="text-xl font-bold">{stat.value}</div>
-              <p className={`text-[10px] mt-1 font-bold ${stat.change.startsWith('+') ? 'text-emerald-500' : 'text-rose-500'}`}>
-                {stat.change} <span className="text-muted-foreground/60 font-medium">vs last mo</span>
+            <CardContent className="p-5 pt-0">
+              <div className="text-3xl font-black">{stat.value}</div>
+              <p className={`text-[11px] mt-1.5 font-black ${stat.change.startsWith('+') ? 'text-emerald-500' : 'text-rose-500'}`}>
+                {stat.change} <span className="text-muted-foreground/50 font-bold ml-1">vs last mo</span>
               </p>
             </CardContent>
           </Card>
@@ -132,43 +132,43 @@ export default function TeamAnalyticsPage() {
       </div>
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-        <div className="flex flex-col gap-4">
-          <TabsList className="bg-card/30 border border-border/50 p-1 w-full md:w-fit justify-start h-11">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-6">
+          <TabsList className="bg-card/30 border-2 border-border/50 p-1.5 h-14 rounded-2xl">
             {Object.keys(tabInfo).map((tab) => (
-              <TabsTrigger key={tab} value={tab} className="px-6 gap-2 text-xs font-bold uppercase tracking-widest h-9">
+              <TabsTrigger key={tab} value={tab} className="px-8 gap-3 text-xs font-black uppercase tracking-widest h-11 data-[state=active]:bg-primary data-[state=active]:text-white rounded-xl transition-all">
                 {tab}
               </TabsTrigger>
             ))}
           </TabsList>
-          <div className="flex items-center gap-2 text-xs text-muted-foreground bg-primary/5 p-3 rounded-lg border border-primary/10 w-fit">
-            <Info className="h-4 w-4 text-primary" />
+          <div className="flex items-center gap-3 text-xs font-bold text-muted-foreground bg-primary/5 px-5 py-3 rounded-xl border-2 border-primary/10 w-fit">
+            <tabInfo[activeTab].icon className="h-5 w-5 text-primary" />
             <span>{tabInfo[activeTab].desc}</span>
           </div>
         </div>
 
-        <TabsContent value="Overview" className="space-y-6 m-0 animate-in fade-in slide-in-from-top-2 duration-300">
+        <TabsContent value="Overview" className="space-y-6 m-0 animate-in fade-in slide-in-from-top-4 duration-500">
           <div className="grid gap-6 md:grid-cols-3">
-            <Card className="md:col-span-2 bg-card/50 border-border/50">
-              <CardHeader>
-                <CardTitle className="text-lg">Rep Performance Hub</CardTitle>
-                <CardDescription>Individual win rates and quota attainment for active sales force.</CardDescription>
+            <Card className="md:col-span-2 bg-card/50 border-2 border-border/50 rounded-2xl shadow-lg">
+              <CardHeader className="p-8 pb-4">
+                <CardTitle className="text-xl font-black">Rep Performance Hub</CardTitle>
+                <CardDescription className="text-sm font-medium">Individual win rates and quota attainment for active sales force.</CardDescription>
               </CardHeader>
-              <CardContent>
-                <div className="space-y-4">
+              <CardContent className="p-8 pt-4">
+                <div className="space-y-5">
                   {teamMetrics.map((rep, i) => (
-                    <div key={i} className="flex items-center justify-between p-4 rounded-xl bg-muted/20 border border-border/50">
-                      <div className="flex items-center gap-3">
-                        <div className="h-8 w-8 rounded-full bg-primary/20 flex items-center justify-center font-bold text-primary text-xs">
+                    <div key={i} className="flex items-center justify-between p-6 rounded-2xl bg-muted/20 border-2 border-border/50 hover:border-primary/30 transition-all group">
+                      <div className="flex items-center gap-4">
+                        <div className="h-12 w-12 rounded-2xl bg-primary/10 flex items-center justify-center font-black text-primary text-sm group-hover:bg-primary group-hover:text-white transition-all">
                           {rep.name[0]}
                         </div>
                         <div>
-                          <p className="text-sm font-bold">{rep.name}</p>
-                          <p className="text-[10px] text-muted-foreground uppercase font-black tracking-widest">Win Rate: {rep.winRate}</p>
+                          <p className="text-base font-black">{rep.name}</p>
+                          <p className="text-[11px] text-muted-foreground uppercase font-black tracking-widest">Win Rate: <span className="text-primary">{rep.winRate}</span></p>
                         </div>
                       </div>
                       <div className="text-right">
-                        <p className="text-sm font-black text-primary">${rep.revenue.toLocaleString()}</p>
-                        <p className="text-[10px] text-muted-foreground uppercase font-bold">{rep.quota}% of Quota</p>
+                        <p className="text-lg font-black text-primary">${rep.revenue.toLocaleString()}</p>
+                        <p className="text-[11px] text-muted-foreground uppercase font-black tracking-widest">{rep.quota}% of Quota</p>
                       </div>
                     </div>
                   ))}
@@ -177,46 +177,46 @@ export default function TeamAnalyticsPage() {
             </Card>
 
             <div className="space-y-6">
-              <Card className="bg-primary/5 border-primary/20">
-                <CardHeader className="pb-2">
-                  <div className="flex items-center gap-2 text-primary">
-                    <Sparkles className="h-4 w-4" />
-                    <CardTitle className="text-xs font-bold uppercase tracking-widest">Manager AI Insight</CardTitle>
+              <Card className="bg-primary/5 border-2 border-primary/20 rounded-2xl shadow-xl">
+                <CardHeader className="p-6 pb-2">
+                  <div className="flex items-center gap-3 text-primary">
+                    <Sparkles className="h-5 w-5 animate-pulse" />
+                    <CardTitle className="text-xs font-black uppercase tracking-[0.2em]">Manager AI Insight</CardTitle>
                   </div>
                 </CardHeader>
-                <CardContent className="space-y-4">
-                  <p className="text-sm leading-relaxed">
-                    Team Bottleneck: only <span className="font-bold text-primary">18%</span> Qualified → Proposal across the team. 
+                <CardContent className="p-6 space-y-5">
+                  <p className="text-sm leading-relaxed font-medium">
+                    Team Bottleneck: only <span className="font-black text-primary underline decoration-2">18%</span> Qualified → Proposal across the team. 
                   </p>
-                  <div className="bg-background/50 p-3 rounded-lg border border-primary/10">
-                    <p className="text-[11px] italic leading-relaxed text-muted-foreground">
+                  <div className="bg-background/80 p-5 rounded-2xl border-2 border-primary/10 shadow-inner">
+                    <p className="text-[12px] italic leading-relaxed text-muted-foreground font-medium">
                       "Partner, the current proposal conversion is 25% below baseline. Consider reviewing team proposal templates and pricing flexibility for next week's reviews."
                     </p>
                   </div>
-                  <Button variant="ghost" className="w-full text-[10px] uppercase font-bold tracking-widest h-8 hover:bg-primary/10">Analyze Bottleneck</Button>
+                  <Button variant="outline" className="w-full text-[11px] uppercase font-black tracking-widest h-11 border-2 border-primary/20 hover:bg-primary hover:text-white transition-all rounded-xl shadow-sm">Analyze Bottleneck</Button>
                 </CardContent>
               </Card>
 
-              <Card className="bg-card/50 border-border/50">
-                <CardHeader className="p-4 pb-2">
-                  <CardTitle className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Engagement Heatmap</CardTitle>
+              <Card className="bg-card/50 border-2 border-border/50 rounded-2xl shadow-lg">
+                <CardHeader className="p-6 pb-2">
+                  <CardTitle className="text-[11px] font-black uppercase tracking-widest text-muted-foreground">Engagement Heatmap</CardTitle>
                 </CardHeader>
-                <CardContent className="p-4">
-                  <div className="grid grid-cols-7 gap-1">
+                <CardContent className="p-6">
+                  <div className="grid grid-cols-7 gap-1.5">
                     {Array.from({ length: 28 }).map((_, i) => (
                       <div 
                         key={i} 
-                        className={`aspect-square rounded-[2px] ${
+                        className={`aspect-square rounded-md shadow-sm transition-all hover:scale-110 ${
                           i % 7 === 1 ? 'bg-primary' : 
                           i % 7 === 2 ? 'bg-primary/70' : 
-                          i % 7 === 3 ? 'bg-primary/40' : 'bg-muted/20'
+                          i % 7 === 3 ? 'bg-primary/40' : 'bg-muted/30'
                         }`}
                       />
                     ))}
                   </div>
-                  <div className="flex justify-between items-center mt-3">
-                    <span className="text-[9px] text-muted-foreground uppercase font-bold">Mon</span>
-                    <span className="text-[9px] text-muted-foreground uppercase font-bold">Sun</span>
+                  <div className="flex justify-between items-center mt-4">
+                    <span className="text-[10px] text-muted-foreground uppercase font-black">Mon</span>
+                    <span className="text-[10px] text-muted-foreground uppercase font-black">Sun</span>
                   </div>
                 </CardContent>
               </Card>
@@ -224,24 +224,24 @@ export default function TeamAnalyticsPage() {
           </div>
         </TabsContent>
 
-        <TabsContent value="Pipeline" className="m-0 animate-in fade-in slide-in-from-top-2 duration-300">
-           <Card className="bg-card/50 border-border/50">
-              <CardHeader>
-                <CardTitle className="text-lg">Team Conversion Funnel</CardTitle>
-                <CardDescription>Collective movement efficiency across pipeline stages for the entire organization.</CardDescription>
+        <TabsContent value="Pipeline" className="m-0 animate-in fade-in slide-in-from-top-4 duration-500">
+           <Card className="bg-card/50 border-2 border-border/50 rounded-2xl shadow-xl overflow-hidden">
+              <CardHeader className="p-8">
+                <CardTitle className="text-xl font-black">Team Conversion Funnel</CardTitle>
+                <CardDescription className="text-sm font-medium">Collective movement efficiency across pipeline stages for the entire organization.</CardDescription>
               </CardHeader>
-              <CardContent className="h-[400px]">
+              <CardContent className="h-[450px] p-8 pt-0">
                 <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={funnelData} layout="vertical" margin={{ left: 40, right: 40, top: 20 }}>
-                    <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="hsl(var(--border))" />
+                  <BarChart data={funnelData} layout="vertical" margin={{ left: 60, right: 60, top: 20 }}>
+                    <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="hsl(var(--border))" opacity={0.5} />
                     <XAxis type="number" hide />
-                    <YAxis dataKey="stage" type="category" fontSize={10} fontWeight="bold" tickLine={false} axisLine={false} />
+                    <YAxis dataKey="stage" type="category" fontSize={11} fontWeight="black" tickLine={false} axisLine={false} />
                     <Tooltip 
                       cursor={{ fill: 'transparent' }} 
-                      contentStyle={{ backgroundColor: 'hsl(var(--card))', borderRadius: '12px', border: '1px solid hsl(var(--border))' }} 
-                      itemStyle={{ color: 'hsl(var(--primary))', fontWeight: 'bold' }}
+                      contentStyle={{ backgroundColor: 'hsl(var(--popover))', borderRadius: '16px', border: '2px solid hsl(var(--border))', boxShadow: '0 10px 30px rgba(0,0,0,0.2)' }} 
+                      itemStyle={{ color: 'hsl(var(--primary))', fontWeight: 'black' }}
                     />
-                    <Bar dataKey="count" radius={[0, 4, 4, 0]} barSize={32}>
+                    <Bar dataKey="count" radius={[0, 8, 8, 0]} barSize={40}>
                       {funnelData.map((entry, index) => (
                         <Cell key={`cell-${index}`} fill={`hsl(var(--primary), ${1 - index * 0.15})`} />
                       ))}

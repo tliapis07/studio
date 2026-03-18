@@ -64,3 +64,12 @@ export interface CalendarEvent {
   status: 'scheduled' | 'completed' | 'cancelled';
   createdAt: any;
 }
+
+export interface TrainingMaterial {
+  id: string;
+  userId: string;
+  title: string;
+  subject: string;
+  content: string;
+  createdAt: any;
+}
