@@ -18,7 +18,8 @@ import {
   FileJson,
   Calendar,
   Mail,
-  Zap
+  Zap,
+  Plus
 } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
 
@@ -177,4 +178,3 @@ export default function SettingsPage() {
     </div>
   );
 }
-
