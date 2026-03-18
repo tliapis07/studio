@@ -1,3 +1,16 @@
 {
-  "placeholderImages": []
+  "placeholderImages": [
+    {
+      "id": "crm-hero",
+      "description": "Professional sales environment",
+      "imageUrl": "https://picsum.photos/seed/crm1/1200/800",
+      "imageHint": "office sales"
+    },
+    {
+      "id": "avatar-1",
+      "description": "User avatar",
+      "imageUrl": "https://picsum.photos/seed/av1/100/100",
+      "imageHint": "person portrait"
+    }
+  ]
 }
