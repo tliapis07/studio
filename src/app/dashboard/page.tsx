@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useMemo, useState } from 'react';
@@ -16,7 +15,6 @@ import {
   DollarSign,
   Sparkles,
   Zap,
-  ChevronDown,
   History,
   Briefcase
 } from 'lucide-react';
@@ -46,20 +44,19 @@ const MOCK_TEAM: TeamMember[] = [
 ];
 
 export default function Dashboard() {
-  const { user } = useUser();
+  const { user, isUserLoading } = useUser();
   const db = useFirestore();
   const [repFilter, setRepFilter] = useState('all');
 
   const leadsQuery = useMemoFirebase(() => {
-    if (!db) return null;
-    // Managers see all leads
+    if (!db || !user) return null;
     return query(collection(db, 'leads'));
-  }, [db]);
+  }, [db, user]);
 
   const activitiesQuery = useMemoFirebase(() => {
-    if (!db) return null;
+    if (!db || !user) return null;
     return query(collection(db, 'activities'), orderBy('createdAt', 'desc'), limit(10));
-  }, [db]);
+  }, [db, user]);
 
   const { data: leads, isLoading: leadsLoading } = useCollection<Lead>(leadsQuery);
   const { data: recentActivities } = useCollection<Activity>(activitiesQuery);
@@ -103,10 +100,10 @@ export default function Dashboard() {
     });
   }, [leads]);
 
-  if (leadsLoading) return (
+  if (isUserLoading || (leadsLoading && !leads)) return (
     <div className="flex flex-col h-full items-center justify-center p-8 text-center space-y-4">
       <div className="h-12 w-12 border-4 border-primary border-t-transparent rounded-full animate-spin" />
-      <p className="text-muted-foreground font-headline font-bold">Synchronizing Team Data...</p>
+      <p className="text-muted-foreground font-headline font-bold uppercase tracking-widest text-xs">Synchronizing Team Data...</p>
     </div>
   );
 
@@ -271,7 +268,7 @@ export default function Dashboard() {
                   </div>
                   <div className="flex flex-col flex-1">
                     <p className="text-xs text-foreground font-medium">
-                      <span className="font-bold text-primary">{activity.ownerName || 'Rep'}</span> {activity.content}
+                      <span className="font-bold text-primary">{MOCK_TEAM.find(m => m.id === activity.ownerUid)?.name || 'Rep'}</span> {activity.content}
                     </p>
                     <span className="text-[9px] text-muted-foreground uppercase font-black tracking-widest mt-0.5">
                       {activity.createdAt?.toDate ? format(activity.createdAt.toDate(), 'h:mm a') : 'Just now'}
