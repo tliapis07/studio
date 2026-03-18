@@ -1,13 +1,19 @@
 
 'use client';
 
-import { useState } from 'react';
-import { useCollection, useFirestore, useUser, useMemoFirebase, updateDocumentNonBlocking } from '@/firebase';
-import { collection, query, where, doc } from 'firebase/firestore';
+import { useState, useMemo } from 'react';
+import { 
+  useCollection, 
+  useFirestore, 
+  useUser, 
+  useMemoFirebase, 
+  updateDocumentNonBlocking 
+} from '@/firebase';
+import { collection, query, where, doc, serverTimestamp } from 'firebase/firestore';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Plus, MoreHorizontal, DollarSign, Clock } from 'lucide-react';
+import { Plus, MoreHorizontal, DollarSign, Clock, Users, Target } from 'lucide-react';
 import { Lead, LeadStatus } from '@/lib/types';
 import Link from 'next/link';
 import { toast } from '@/hooks/use-toast';
@@ -24,6 +30,7 @@ const STAGES: { label: string; value: LeadStatus; color: string }[] = [
 export default function PipelinePage() {
   const { user } = useUser();
   const db = useFirestore();
+  const [draggedLead, setDraggedLead] = useState<string | null>(null);
   
   const leadsQuery = useMemoFirebase(() => {
     if (!db || !user) return null;
@@ -37,12 +44,30 @@ export default function PipelinePage() {
     const leadRef = doc(db, 'leads', leadId);
     updateDocumentNonBlocking(leadRef, { 
       status: newStatus,
-      updatedAt: new Date()
+      updatedAt: serverTimestamp()
     });
     toast({
       title: "Pipeline Updated",
-      description: `Lead status changed to ${newStatus}`,
+      description: `Lead moved to ${newStatus.toUpperCase()}`,
     });
+  };
+
+  const handleDragStart = (e: React.DragEvent, id: string) => {
+    setDraggedLead(id);
+    e.dataTransfer.setData('leadId', id);
+    e.dataTransfer.effectAllowed = 'move';
+  };
+
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+  };
+
+  const handleDrop = (e: React.DragEvent, status: LeadStatus) => {
+    e.preventDefault();
+    const id = e.dataTransfer.getData('leadId');
+    if (id) moveLead(id, status);
+    setDraggedLead(null);
   };
 
   if (isLoading) return <div className="flex h-96 items-center justify-center"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div></div>;
@@ -52,89 +77,85 @@ export default function PipelinePage() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold font-headline">Visual Pipeline</h1>
-          <p className="text-muted-foreground">Drag and drop leads to progress through your sales stages.</p>
+          <p className="text-muted-foreground">Manage deal velocity with precision and clarity.</p>
         </div>
-        <Button className="gap-2">
-          <Plus className="h-4 w-4" /> Add Lead
-        </Button>
+        <div className="flex items-center gap-4">
+          <div className="hidden lg:flex items-center gap-6 px-4 py-2 bg-card/30 rounded-lg border border-border/50">
+             <div className="flex flex-col">
+                <span className="text-[10px] font-bold text-muted-foreground uppercase">Active Pipeline</span>
+                <span className="text-sm font-bold">${leads?.reduce((acc, l) => acc + (l.status !== 'won' ? l.dealValue : 0), 0).toLocaleString()}</span>
+             </div>
+             <div className="flex flex-col">
+                <span className="text-[10px] font-bold text-muted-foreground uppercase">Won Deals</span>
+                <span className="text-sm font-bold text-emerald-500">${leads?.filter(l => l.status === 'won').reduce((acc, l) => acc + l.dealValue, 0).toLocaleString()}</span>
+             </div>
+          </div>
+          <Button className="gap-2 bg-primary">
+            <Plus className="h-4 w-4" /> New Deal
+          </Button>
+        </div>
       </div>
 
-      <div className="flex gap-4 overflow-x-auto pb-6 -mx-6 px-6">
+      <div className="flex gap-4 overflow-x-auto pb-6 -mx-6 px-6 h-[calc(100vh-14rem)]">
         {STAGES.map((stage) => (
-          <div key={stage.value} className="flex flex-col gap-4 min-w-[300px] w-[300px]">
-            <div className="flex items-center justify-between px-2">
+          <div 
+            key={stage.value} 
+            className="flex flex-col gap-4 min-w-[320px] w-[320px]"
+            onDragOver={handleDragOver}
+            onDrop={(e) => handleDrop(e, stage.value)}
+          >
+            <div className="flex items-center justify-between px-2 bg-card/20 p-2 rounded-t-lg border-b-2 border-primary/20">
               <div className="flex items-center gap-2">
-                <div className={`h-2 w-2 rounded-full ${stage.color}`} />
-                <h3 className="text-sm font-bold uppercase tracking-wider text-muted-foreground">{stage.label}</h3>
+                <div className={`h-2.5 w-2.5 rounded-full ${stage.color} animate-pulse`} />
+                <h3 className="text-xs font-black uppercase tracking-widest text-foreground">{stage.label}</h3>
               </div>
-              <Badge variant="secondary" className="rounded-full">
+              <Badge variant="secondary" className="rounded-full bg-background/50 border-border/50 text-[10px] font-bold h-6 w-6 flex items-center justify-center p-0">
                 {leads?.filter(l => l.status === stage.value).length || 0}
               </Badge>
             </div>
             
-            <div className="flex-1 flex flex-col gap-3 p-2 rounded-xl bg-muted/20 border border-dashed border-border/50 min-h-[600px]">
+            <div className={`flex-1 flex flex-col gap-3 p-3 rounded-b-xl bg-muted/10 border-x border-b border-border/20 transition-colors ${draggedLead ? 'bg-primary/5 border-dashed border-primary/30' : ''}`}>
               {leads?.filter(l => l.status === stage.value).map((lead) => (
                 <Card 
                   key={lead.id} 
-                  className="group shadow-none hover:shadow-lg transition-all border-border/50 cursor-grab active:cursor-grabbing"
+                  draggable
+                  onDragStart={(e) => handleDragStart(e, lead.id)}
+                  className={`group shadow-none hover:shadow-xl hover:-translate-y-1 transition-all border-border/50 cursor-grab active:cursor-grabbing bg-card/60 backdrop-blur-sm ${draggedLead === lead.id ? 'opacity-40 grayscale' : ''}`}
                 >
-                  <CardHeader className="p-3 pb-2 space-y-0">
+                  <CardHeader className="p-4 pb-2 space-y-0">
                     <div className="flex justify-between items-start">
-                      <Link href={`/dashboard/leads/${lead.id}`} className="text-sm font-bold group-hover:text-primary hover:underline">
+                      <Link href={`/dashboard/leads/${lead.id}`} className="text-sm font-bold group-hover:text-primary transition-colors">
                         {lead.name}
                       </Link>
-                      <Badge variant="outline" className="text-[10px] h-4 px-1">{lead.leadScore}</Badge>
+                      <Badge variant="outline" className="text-[10px] h-4 px-1.5 font-bold border-primary/20 bg-primary/5">{lead.leadScore}</Badge>
                     </div>
-                    <CardDescription className="text-[11px] font-medium">{lead.company}</CardDescription>
+                    <CardDescription className="text-[11px] font-medium flex items-center gap-1 mt-0.5">
+                      <Users className="h-3 w-3" />
+                      {lead.company}
+                    </CardDescription>
                   </CardHeader>
-                  <CardContent className="p-3 pt-0">
-                    <div className="flex items-center justify-between mt-3 text-[10px] text-muted-foreground">
-                      <div className="flex items-center gap-1">
-                        <DollarSign className="h-3 w-3" />
-                        <span className="font-semibold text-foreground">${lead.dealValue?.toLocaleString() || 0}</span>
+                  <CardContent className="p-4 pt-0">
+                    <div className="flex items-center justify-between mt-3">
+                      <div className="flex items-center gap-1.5">
+                        <DollarSign className="h-4 w-4 text-primary" />
+                        <span className="text-sm font-black text-foreground">${lead.dealValue?.toLocaleString() || 0}</span>
                       </div>
-                      <div className="flex items-center gap-1">
-                        <Clock className="h-3 w-3" />
+                      <div className="flex items-center gap-1 text-[10px] text-muted-foreground uppercase font-bold">
+                        <Target className="h-3 w-3" />
                         <span>{lead.source}</span>
                       </div>
                     </div>
-                    <div className="flex gap-1 flex-wrap mt-2">
+                    <div className="flex gap-1.5 flex-wrap mt-3">
                       {lead.tags?.slice(0, 2).map(tag => (
-                        <Badge key={tag} variant="secondary" className="text-[9px] px-1.5 py-0 h-4">{tag}</Badge>
+                        <Badge key={tag} variant="secondary" className="text-[9px] px-2 py-0 h-4 rounded-md font-bold uppercase tracking-tighter">{tag}</Badge>
                       ))}
-                    </div>
-                    <div className="mt-3 pt-3 border-t border-border/50 grid grid-cols-2 gap-1">
-                       <Button 
-                        variant="ghost" 
-                        size="sm" 
-                        className="h-6 text-[9px]"
-                        onClick={() => {
-                          const currentIndex = STAGES.findIndex(s => s.value === lead.status);
-                          if (currentIndex > 0) moveLead(lead.id, STAGES[currentIndex - 1].value);
-                        }}
-                        disabled={STAGES.findIndex(s => s.value === lead.status) === 0}
-                       >
-                         Previous
-                       </Button>
-                       <Button 
-                        variant="ghost" 
-                        size="sm" 
-                        className="h-6 text-[9px]"
-                        onClick={() => {
-                          const currentIndex = STAGES.findIndex(s => s.value === lead.status);
-                          if (currentIndex < STAGES.length - 1) moveLead(lead.id, STAGES[currentIndex + 1].value);
-                        }}
-                        disabled={STAGES.findIndex(s => s.value === lead.status) === STAGES.length - 1}
-                       >
-                         Next
-                       </Button>
                     </div>
                   </CardContent>
                 </Card>
               ))}
               {leads?.filter(l => l.status === stage.value).length === 0 && (
-                <div className="flex flex-col items-center justify-center h-24 text-muted-foreground/30 italic text-xs">
-                  No deals
+                <div className="flex flex-col items-center justify-center h-32 text-muted-foreground/20 italic text-xs border-2 border-dashed border-border/20 rounded-xl">
+                  Drag leads here
                 </div>
               )}
             </div>
