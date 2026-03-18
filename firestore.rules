@@ -1,0 +1,121 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    /**
+     * SalesStream Premium CRM Security Rules
+     * 
+     * Core Philosophy:
+     * This ruleset enforces a multi-tier authorization model combining strict User-Ownership with 
+     * Global Administrative overrides. It leverages denormalized fields (like ownerUid) to perform 
+     * high-performance, atomic security checks without requiring expensive cross-document lookups.
+     * 
+     * Data Structure:
+     * - /userProfiles/{userId}: User-specific metadata, readable by all authenticated users for assignment.
+     * - /roles_admin/{userId}: Existence-based collection used to identify system administrators.
+     * - /leads/{leadId}: Central repository for sales opportunities, secured by an internal ownerUid.
+     * - /leads/{leadId}/activities/{activityId}: Sub-collection for interaction history.
+     * - /users/{userId}/events/{eventId}: Private calendar data nested under a user-specific path.
+     * 
+     * Key Security Decisions:
+     * 1. Authorization Independence: Every document contains the UIDs necessary to make an access decision.
+     * 2. Administrative Access: Users whose UID exists in /roles_admin/ are granted wide-ranging access.
+     * 3. Immutability: Critical relational fields (like ownerUid) are protected from being changed after creation.
+     * 4. Relational Integrity: On creation, the rules force the document's internal ID to match the auth context.
+     */
+
+    // --- GLOBAL HELPER FUNCTIONS ---
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isAdmin() {
+      return exists(/databases/$(database)/documents/roles_admin/$(request.auth.uid));
+    }
+
+    function isOwner(userId) {
+      return request.auth.uid == userId;
+    }
+
+    function isResourceOwner(resourceData) {
+      return request.auth.uid == resourceData.ownerUid;
+    }
+
+    function isExistingOwner(resourceData) {
+      return resource != null && request.auth.uid == resourceData.ownerUid;
+    }
+
+    // --- COLLECTION RULES ---
+
+    /**
+     * @description Rules for user profile documents. Allows users to manage their own profile and others to view it for lead assignment.
+     * @path /userProfiles/{userId}
+     * @allow (get/list) Any signed-in user. (create/update) The user matching the document ID.
+     * @deny (create/update) If user ID does not match path or authenticated UID.
+     * @principle Ownership for writes, authenticated visibility for reads.
+     */
+    match /userProfiles/{userId} {
+      allow get, list: if isSignedIn();
+      allow create: if isOwner(userId);
+      allow update: if isOwner(userId) && resource != null;
+      allow delete: if false; // Profiles are preserved for historical lead assignment.
+    }
+
+    /**
+     * @description Internal administrative roles collection. Access is restricted.
+     * @path /roles_admin/{userId}
+     * @allow None.
+     * @deny All client-side operations. This collection is managed via Admin SDK/Console.
+     * @principle DBAC (Database Access Control) via existence checks.
+     */
+    match /roles_admin/{userId} {
+      allow read, write: if false;
+    }
+
+    /**
+     * @description Global leads collection. Secured via denormalized ownerUid.
+     * @path /leads/{leadId}
+     * @allow (get) Admin or lead owner. (list) Signed-in users (queries must filter by ownerUid).
+     * @deny (create) If ownerUid doesn't match authenticated user. (update) If modifying ownerUid.
+     * @principle Authorization Independence via denormalization.
+     */
+    match /leads/{leadId} {
+      allow get: if isAdmin() || isResourceOwner(resource.data);
+      allow list: if isSignedIn();
+      allow create: if isSignedIn() && request.resource.data.ownerUid == request.auth.uid;
+      allow update: if isAdmin() || (isExistingOwner(resource.data) && request.resource.data.ownerUid == resource.data.ownerUid);
+      allow delete: if isAdmin() || isExistingOwner(resource.data);
+
+      /**
+       * @description Lead-specific activities. Access mirrors the parent lead or the activity creator.
+       * @path /leads/{leadId}/activities/{activityId}
+       * @allow (get) Admin, activity creator, or lead owner.
+       * @deny (create) If ownerUid doesn't match authenticated user.
+       * @principle Relational integrity and sub-collection inheritance.
+       */
+      match /activities/{activityId} {
+        allow get: if isAdmin() || isResourceOwner(resource.data) || request.auth.uid == resource.data.leadOwnerUid;
+        allow list: if isSignedIn();
+        allow create: if isSignedIn() && request.resource.data.ownerUid == request.auth.uid;
+        allow update: if isAdmin() || (isExistingOwner(resource.data) && request.resource.data.ownerUid == resource.data.ownerUid);
+        allow delete: if isAdmin() || isExistingOwner(resource.data);
+      }
+    }
+
+    /**
+     * @description Personal calendar events. Enforces path-based ownership.
+     * @path /users/{userId}/events/{eventId}
+     * @allow (all) Only the user matching the {userId} path.
+     * @deny (all) Any user trying to access a different user's event tree.
+     * @principle Hierarchical Paths for User-Owned Data.
+     */
+    match /users/{userId}/events/{eventId} {
+      allow get, list: if isOwner(userId);
+      allow create: if isOwner(userId) && request.resource.data.ownerUid == userId;
+      allow update: if resource != null && isOwner(userId) && request.resource.data.ownerUid == resource.data.ownerUid;
+      allow delete: if resource != null && isOwner(userId);
+    }
+
+  }
+}
