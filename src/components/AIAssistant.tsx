@@ -4,22 +4,29 @@
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
-import { Sparkles, Send, BrainCircuit, Loader2, Bot, User } from 'lucide-react';
+import { Sparkles, Send, BrainCircuit, Loader2, Bot, User, X, Maximize2 } from 'lucide-react';
 import { Lead, Activity } from '@/lib/types';
 import { summarizeLeadActivity } from '@/ai/flows/summarize-lead-activity';
 import { suggestLeadNextAction } from '@/ai/flows/suggest-lead-next-action';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 
 interface AIAssistantProps {
-  lead: Lead;
-  activities: Activity[];
+  lead?: Lead;
+  activities?: Activity[];
+  floating?: boolean;
 }
 
-export default function AIAssistant({ lead, activities }: AIAssistantProps) {
+export default function AIAssistant({ lead, activities, floating = false }: AIAssistantProps) {
   const [messages, setMessages] = useState<{ role: 'user' | 'assistant'; content: string; reasoning?: string }[]>([]);
   const [isLoading, setIsLoading] = useState(false);
+  const [isOpen, setIsOpen] = useState(!floating);
 
   const handleAction = async (type: 'summarize' | 'suggest') => {
+    if (!lead || !activities) {
+        setMessages(prev => [...prev, { role: 'assistant', content: "Please open a lead to use specific AI features." }]);
+        return;
+    }
     setIsLoading(true);
     const userPrompt = type === 'summarize' ? "Summarize this lead's activity history." : "What should be my next action for this lead?";
     
@@ -44,17 +51,24 @@ export default function AIAssistant({ lead, activities }: AIAssistantProps) {
     }
   };
 
-  return (
-    <Card className="h-full flex flex-col border-primary/20 bg-card/50 backdrop-blur-sm overflow-hidden">
+  const assistantUI = (
+    <Card className={`flex flex-col border-primary/20 bg-card/80 backdrop-blur-xl overflow-hidden shadow-2xl ${floating ? 'w-[400px] h-[600px]' : 'h-full'}`}>
       <CardHeader className="border-b border-border/50 bg-primary/5">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
             <Sparkles className="h-5 w-5 text-primary animate-pulse" />
-            <CardTitle className="text-lg">AI Sales Copilot</CardTitle>
+            <CardTitle className="text-lg">SalesStream AI</CardTitle>
           </div>
-          <BrainCircuit className="h-5 w-5 text-muted-foreground" />
+          <div className="flex items-center gap-2">
+            {floating && (
+                <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setIsOpen(false)}>
+                    <X className="h-4 w-4" />
+                </Button>
+            )}
+            {!floating && <BrainCircuit className="h-5 w-5 text-muted-foreground" />}
+          </div>
         </div>
-        <CardDescription>Systematic reasoning for smarter sales outcomes.</CardDescription>
+        <CardDescription>Intelligent reasoning for your sales cycle.</CardDescription>
       </CardHeader>
       
       <ScrollArea className="flex-1 p-4">
@@ -62,9 +76,9 @@ export default function AIAssistant({ lead, activities }: AIAssistantProps) {
           <div className="h-full flex flex-col items-center justify-center text-center space-y-4 py-12">
             <Bot className="h-12 w-12 text-primary/40" />
             <div className="space-y-2">
-              <p className="text-sm font-medium">Ready to assist your sales cycle</p>
+              <p className="text-sm font-medium">Ready to assist your pipeline</p>
               <p className="text-xs text-muted-foreground max-w-[200px]">
-                Ask me to summarize history or suggest the next best action.
+                {lead ? "Ask me to summarize history or suggest the next best action for this lead." : "Select a lead to unlock specific AI insights."}
               </p>
             </div>
           </div>
@@ -118,22 +132,41 @@ export default function AIAssistant({ lead, activities }: AIAssistantProps) {
           size="sm" 
           className="flex-1 text-xs gap-1.5 h-10 border-primary/20 hover:bg-primary/5"
           onClick={() => handleAction('summarize')}
-          disabled={isLoading}
+          disabled={isLoading || !lead}
         >
           <Bot className="h-3.5 w-3.5" />
-          Summarize History
+          Summarize
         </Button>
         <Button 
           variant="default" 
           size="sm" 
           className="flex-1 text-xs gap-1.5 h-10 bg-primary shadow-lg shadow-primary/20"
           onClick={() => handleAction('suggest')}
-          disabled={isLoading}
+          disabled={isLoading || !lead}
         >
           <Sparkles className="h-3.5 w-3.5" />
-          Suggest Next Step
+          Suggest Action
         </Button>
       </CardFooter>
     </Card>
   );
+
+  if (floating) {
+      return (
+          <div className="fixed bottom-6 right-6 z-50">
+             <Popover open={isOpen} onOpenChange={setIsOpen}>
+                <PopoverTrigger asChild>
+                    <Button size="icon" className="h-14 w-14 rounded-full shadow-2xl bg-primary hover:scale-110 transition-transform">
+                        <Sparkles className="h-6 w-6 text-white" />
+                    </Button>
+                </PopoverTrigger>
+                <PopoverContent side="top" align="end" className="p-0 border-none bg-transparent">
+                    {assistantUI}
+                </PopoverContent>
+             </Popover>
+          </div>
+      )
+  }
+
+  return assistantUI;
 }

@@ -6,6 +6,7 @@ import { NavMain } from '@/components/nav-main';
 import { TrendingUp, User } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Toaster } from '@/components/ui/toaster';
+import AIAssistant from '@/components/AIAssistant';
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   return (
@@ -25,7 +26,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         </SidebarContent>
       </Sidebar>
       <SidebarInset>
-        <header className="flex h-16 shrink-0 items-center justify-between px-6 transition-[width,height] ease-linear group-has-[[data-collapsible=icon]]/sidebar-wrapper:h-12 border-b border-border/50">
+        <header className="flex h-16 shrink-0 items-center justify-between px-6 transition-[width,height] ease-linear group-has-[[data-collapsible=icon]]/sidebar-wrapper:h-12 border-b border-border/50 sticky top-0 bg-background/80 backdrop-blur-md z-30">
           <div className="flex items-center gap-2">
             <SidebarTrigger />
           </div>
@@ -43,6 +44,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         <main className="flex-1 p-6 overflow-y-auto">
           {children}
         </main>
+        <AIAssistant floating />
       </SidebarInset>
       <Toaster />
     </SidebarProvider>

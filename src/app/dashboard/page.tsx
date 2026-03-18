@@ -1,8 +1,10 @@
 
 'use client';
 
+import { useMemo } from 'react';
+import { useCollection, useFirestore, useUser, useMemoFirebase } from '@/firebase';
+import { collection, query, where } from 'firebase/firestore';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { 
   Users, 
   Target, 
@@ -21,35 +23,59 @@ import {
   CartesianGrid, 
   Tooltip, 
   ResponsiveContainer,
-  LineChart,
-  Line,
   Cell
 } from 'recharts';
-
-const data = [
-  { name: 'Mon', leads: 4 },
-  { name: 'Tue', leads: 7 },
-  { name: 'Wed', leads: 5 },
-  { name: 'Thu', leads: 9 },
-  { name: 'Fri', leads: 12 },
-  { name: 'Sat', leads: 3 },
-  { name: 'Sun', leads: 2 },
-];
-
-const pipelineData = [
-  { name: 'New', value: 45, fill: 'hsl(var(--chart-1))' },
-  { name: 'Contacted', value: 32, fill: 'hsl(var(--chart-2))' },
-  { name: 'Qualified', value: 18, fill: 'hsl(var(--chart-3))' },
-  { name: 'Proposal', value: 12, fill: 'hsl(var(--chart-4))' },
-  { name: 'Won', value: 24, fill: 'hsl(var(--chart-5))' },
-];
+import { Lead } from '@/lib/types';
 
 export default function Dashboard() {
+  const { user } = useUser();
+  const db = useFirestore();
+
+  const leadsQuery = useMemoFirebase(() => {
+    if (!db || !user) return null;
+    return query(collection(db, 'leads'), where('ownerUid', '==', user.uid));
+  }, [db, user]);
+
+  const { data: leads, isLoading } = useCollection<Lead>(leadsQuery);
+
+  const stats = useMemo(() => {
+    if (!leads) return { total: 0, qualified: 0, won: 0, revenue: 0 };
+    return {
+      total: leads.length,
+      qualified: leads.filter(l => l.status === 'qualified').length,
+      won: leads.filter(l => l.status === 'won').length,
+      revenue: leads.filter(l => l.status === 'won').reduce((acc, l) => acc + (l.dealValue || 0), 0)
+    };
+  }, [leads]);
+
+  const pipelineData = useMemo(() => {
+    const stages = ['new', 'contacted', 'qualified', 'proposal', 'negotiated', 'won'];
+    return stages.map((stage, i) => ({
+      name: stage.charAt(0).toUpperCase() + stage.slice(1),
+      value: leads?.filter(l => l.status === stage).length || 0,
+      fill: `hsl(var(--chart-${(i % 5) + 1}))`
+    }));
+  }, [leads]);
+
+  const weeklyData = [
+    { name: 'Mon', leads: 4 },
+    { name: 'Tue', leads: 7 },
+    { name: 'Wed', leads: 5 },
+    { name: 'Thu', leads: 9 },
+    { name: 'Fri', leads: 12 },
+    { name: 'Sat', leads: 3 },
+    { name: 'Sun', leads: 2 },
+  ];
+
+  if (isLoading) return <div className="p-8 text-center text-muted-foreground animate-pulse">Loading dashboard insights...</div>;
+
   return (
     <div className="space-y-8">
-      <div>
-        <h1 className="text-3xl font-bold font-headline">Executive Overview</h1>
-        <p className="text-muted-foreground">Welcome back, Alex. Here is what's happening with your pipeline today.</p>
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div>
+          <h1 className="text-3xl font-bold font-headline">Executive Overview</h1>
+          <p className="text-muted-foreground">Welcome back, {user?.displayName || 'Alex'}. Here is your sales velocity today.</p>
+        </div>
       </div>
 
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
@@ -59,7 +85,7 @@ export default function Dashboard() {
             <Users className="h-4 w-4 text-primary" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">128</div>
+            <div className="text-2xl font-bold">{stats.total}</div>
             <p className="text-xs text-muted-foreground flex items-center gap-1 mt-1">
               <span className="text-emerald-500 flex items-center"><ArrowUpRight className="h-3 w-3" /> +12%</span> from last month
             </p>
@@ -71,7 +97,7 @@ export default function Dashboard() {
             <Target className="h-4 w-4 text-accent" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">42</div>
+            <div className="text-2xl font-bold">{stats.qualified}</div>
             <p className="text-xs text-muted-foreground flex items-center gap-1 mt-1">
               <span className="text-emerald-500 flex items-center"><ArrowUpRight className="h-3 w-3" /> +5%</span> from last month
             </p>
@@ -83,7 +109,7 @@ export default function Dashboard() {
             <Award className="h-4 w-4 text-yellow-500" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">24</div>
+            <div className="text-2xl font-bold">{stats.won}</div>
             <p className="text-xs text-muted-foreground flex items-center gap-1 mt-1">
               <span className="text-rose-500 flex items-center"><ArrowDownRight className="h-3 w-3" /> -2%</span> from last month
             </p>
@@ -95,7 +121,7 @@ export default function Dashboard() {
             <TrendingUp className="h-4 w-4 text-emerald-500" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">$142,500</div>
+            <div className="text-2xl font-bold">${stats.revenue.toLocaleString()}</div>
             <p className="text-xs text-muted-foreground flex items-center gap-1 mt-1">
               <span className="text-emerald-500 flex items-center"><ArrowUpRight className="h-3 w-3" /> +18%</span> from last month
             </p>
@@ -111,7 +137,7 @@ export default function Dashboard() {
           </CardHeader>
           <CardContent className="h-[300px]">
             <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={data}>
+              <BarChart data={weeklyData}>
                 <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="hsl(var(--border))" />
                 <XAxis dataKey="name" stroke="hsl(var(--muted-foreground))" fontSize={12} tickLine={false} axisLine={false} />
                 <YAxis stroke="hsl(var(--muted-foreground))" fontSize={12} tickLine={false} axisLine={false} />
@@ -154,40 +180,32 @@ export default function Dashboard() {
         <Card className="bg-card/50">
           <CardHeader className="flex flex-row items-center justify-between">
             <div className="space-y-1">
-              <CardTitle>Upcoming Tasks</CardTitle>
-              <CardDescription>Priority follow-ups for the next 48 hours.</CardDescription>
+              <CardTitle>Priority Follow-ups</CardTitle>
+              <CardDescription>Leads requiring immediate attention.</CardDescription>
             </div>
             <Clock className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent className="space-y-4">
-            {[
-              { name: 'Sarah Jenkins', action: 'Send Proposal', time: 'Today, 2:00 PM', priority: 'High' },
-              { name: 'Mark Wilson', action: 'Introduction Call', time: 'Today, 4:30 PM', priority: 'Medium' },
-              { name: 'TechSolutions Inc', action: 'Follow-up Email', time: 'Tomorrow, 10:00 AM', priority: 'Low' },
-            ].map((task, i) => (
+            {leads?.filter(l => l.leadScore > 70).slice(0, 3).map((lead, i) => (
               <div key={i} className="flex items-center justify-between p-3 rounded-lg border border-border/50 bg-background/50">
                 <div className="flex flex-col">
-                  <span className="font-medium text-sm">{task.name}</span>
-                  <span className="text-xs text-muted-foreground">{task.action}</span>
+                  <span className="font-medium text-sm">{lead.name}</span>
+                  <span className="text-xs text-muted-foreground">{lead.company}</span>
                 </div>
                 <div className="text-right">
-                  <span className="text-xs font-semibold block">{task.time}</span>
-                  <span className={`text-[10px] uppercase tracking-wider px-1.5 py-0.5 rounded ${
-                    task.priority === 'High' ? 'bg-rose-500/10 text-rose-500' : 
-                    task.priority === 'Medium' ? 'bg-amber-500/10 text-amber-500' : 
-                    'bg-emerald-500/10 text-emerald-500'
-                  }`}>{task.priority}</span>
+                  <span className="text-xs font-semibold block">Score: {lead.leadScore}</span>
+                  <Badge variant="outline" className="text-[10px] bg-primary/10 text-primary">HOT</Badge>
                 </div>
               </div>
-            ))}
+            )) || <div className="text-center text-xs py-8 text-muted-foreground">No high priority leads</div>}
           </CardContent>
         </Card>
 
         <Card className="bg-card/50">
           <CardHeader className="flex flex-row items-center justify-between">
             <div className="space-y-1">
-              <CardTitle>Recent Activity</CardTitle>
-              <CardDescription>Latest interactions across your team.</CardDescription>
+              <CardTitle>Global Activity</CardTitle>
+              <CardDescription>Latest interactions across your CRM.</CardDescription>
             </div>
             <PhoneCall className="h-4 w-4 text-muted-foreground" />
           </CardHeader>

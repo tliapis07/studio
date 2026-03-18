@@ -10,7 +10,8 @@ import {
   Calendar as CalendarIcon, 
   Settings, 
   PlusCircle,
-  FileUp
+  FileUp,
+  Layers
 } from 'lucide-react';
 import { 
   SidebarGroup, 
@@ -22,6 +23,7 @@ import {
 
 const items = [
   { title: 'Dashboard', url: '/dashboard', icon: LayoutDashboard },
+  { title: 'Pipeline', url: '/dashboard/pipeline', icon: Layers },
   { title: 'Leads', url: '/dashboard/leads', icon: Users },
   { title: 'Analytics', url: '/dashboard/analytics', icon: BarChart3 },
   { title: 'Calendar', url: '/dashboard/calendar', icon: CalendarIcon },
