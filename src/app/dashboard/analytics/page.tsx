@@ -1,6 +1,7 @@
+
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { 
@@ -16,31 +17,32 @@ import {
   Cell,
   Legend,
   AreaChart,
-  Area,
-  LineChart,
-  Line
+  Area
 } from 'recharts';
 import { 
-  TrendingUp, 
-  Users, 
-  DollarSign, 
   Target, 
+  DollarSign, 
   Zap, 
   Clock, 
   ShieldCheck, 
-  ArrowUpRight, 
   Sparkles,
-  Filter
+  Info,
+  Calendar
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
+import {
+  Tooltip as UITooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 
 const funnelData = [
-  { stage: 'New', count: 450, rate: '100%' },
-  { stage: 'Contacted', count: 380, rate: '84%' },
-  { stage: 'Qualified', count: 240, rate: '63%' },
-  { stage: 'Proposal', count: 120, rate: '50%' },
-  { stage: 'Won', count: 85, rate: '70%' },
+  { stage: 'New', count: 450 },
+  { stage: 'Contacted', count: 380 },
+  { stage: 'Qualified', count: 240 },
+  { stage: 'Proposal', count: 120 },
+  { stage: 'Won', count: 85 },
 ];
 
 const revenueForecastData = [
@@ -60,23 +62,23 @@ const sourceData = [
 const COLORS = ['hsl(var(--primary))', 'hsl(var(--accent))', 'hsl(var(--chart-3))', 'hsl(var(--chart-4))'];
 
 export default function AnalyticsPage() {
-  const [activeTab, setActiveTab] = useState('overview');
+  const [activeTab, setActiveTab] = useState('Overview');
+
+  const tabInfo: Record<string, { desc: string; icon: any }> = {
+    'Overview': { desc: 'High-level performance metrics and revenue health.', icon: Target },
+    'Pipeline': { desc: 'Step-by-step conversion rates between sales stages.', icon: Zap },
+    'Sources': { desc: 'Lead acquisition performance by channel.', icon: Calendar },
+    'Forecasting': { desc: 'Predictive revenue trends for the next quarter.', icon: Sparkles },
+  };
 
   return (
     <div className="space-y-8 pb-20 md:pb-8">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-bold font-headline">Sales Intelligence</h1>
-          <p className="text-muted-foreground">Predictive insights and pipeline performance analytics.</p>
+          <h1 className="text-3xl font-bold font-headline">Analytics</h1>
+          <p className="text-muted-foreground">Deep-dive intelligence and pipeline diagnostics.</p>
         </div>
-        <div className="flex items-center gap-2">
-          <Button variant="outline" size="sm" className="gap-2">
-            <Filter className="h-4 w-4" /> Filter Range
-          </Button>
-          <Button size="sm" className="bg-primary">
-            Export Report
-          </Button>
-        </div>
+        <Button size="sm" className="bg-primary">Export Report</Button>
       </div>
 
       <div className="grid gap-4 grid-cols-2 lg:grid-cols-5">
@@ -103,19 +105,35 @@ export default function AnalyticsPage() {
       </div>
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-        <TabsList className="bg-card/30 border border-border/50 p-1 w-full md:w-auto overflow-x-auto justify-start">
-          <TabsTrigger value="overview">Overview</TabsTrigger>
-          <TabsTrigger value="funnel">Conversion Funnel</TabsTrigger>
-          <TabsTrigger value="sources">Lead Sources</TabsTrigger>
-          <TabsTrigger value="forecast">Forecasting</TabsTrigger>
-        </TabsList>
+        <div className="flex flex-col gap-2">
+          <TabsList className="bg-card/30 border border-border/50 p-1 w-full md:w-auto justify-start overflow-hidden">
+            {Object.keys(tabInfo).map((tab) => (
+              <TabsTrigger key={tab} value={tab} className="px-6">{tab}</TabsTrigger>
+            ))}
+          </TabsList>
+          <div className="flex items-center gap-2 px-1">
+            <TooltipProvider>
+              <UITooltip>
+                <TooltipTrigger asChild>
+                  <div className="flex items-center gap-1.5 cursor-help">
+                    <Info className="h-3.5 w-3.5 text-primary" />
+                    <span className="text-xs text-muted-foreground font-medium">{tabInfo[activeTab].desc}</span>
+                  </div>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p className="text-xs">Detailed view for {activeTab}</p>
+                </TooltipContent>
+              </UITooltip>
+            </TooltipProvider>
+          </div>
+        </div>
 
-        <TabsContent value="overview" className="space-y-6">
+        <TabsContent value="Overview" className="space-y-6 m-0">
           <div className="grid gap-6 md:grid-cols-3">
             <Card className="md:col-span-2 bg-card/50 border-border/50">
               <CardHeader>
                 <CardTitle className="text-lg">Revenue Projection</CardTitle>
-                <CardDescription>Estimated revenue based on pipeline weighted by stage probability.</CardDescription>
+                <CardDescription>Pipeline weighted by stage probability.</CardDescription>
               </CardHeader>
               <CardContent className="h-[300px]">
                 <ResponsiveContainer width="100%" height="100%">
@@ -131,7 +149,6 @@ export default function AnalyticsPage() {
                     <YAxis fontSize={12} tickLine={false} axisLine={false} tickFormatter={(v) => `$${v/1000}k`} />
                     <Tooltip contentStyle={{ backgroundColor: 'hsl(var(--card))', borderRadius: '8px' }} />
                     <Area type="monotone" dataKey="projected" stroke="hsl(var(--primary))" fillOpacity={1} fill="url(#colorProjected)" strokeWidth={2} />
-                    <Area type="monotone" dataKey="actual" stroke="hsl(var(--accent))" fill="transparent" strokeWidth={2} strokeDasharray="5 5" />
                   </AreaChart>
                 </ResponsiveContainer>
               </CardContent>
@@ -150,15 +167,15 @@ export default function AnalyticsPage() {
                     Bottleneck detected: only <span className="font-bold text-primary">18%</span> of Qualified leads move to Proposal. 
                   </p>
                   <div className="bg-background/50 p-3 rounded-lg border border-primary/10">
-                    <p className="text-[11px] font-bold text-muted-foreground uppercase mb-1">Recommendation</p>
-                    <p className="text-xs italic">Consider automating follow-up emails after demos to increase conversion velocity.</p>
+                    <p className="text-xs italic">Update your proposal templates to improve conversion velocity.</p>
                   </div>
                 </CardContent>
               </Card>
 
               <Card className="bg-card/50 border-border/50">
                 <CardHeader>
-                  <CardTitle className="text-sm font-bold uppercase tracking-widest text-muted-foreground">Activity Intensity</CardTitle>
+                  <CardTitle className="text-sm font-bold uppercase tracking-widest text-muted-foreground">Engagement Heatmap</CardTitle>
+                  <CardDescription className="text-[10px]">Peak team activity hours across the week.</CardDescription>
                 </CardHeader>
                 <CardContent>
                   <div className="grid grid-cols-7 gap-1">
@@ -166,22 +183,27 @@ export default function AnalyticsPage() {
                       <div 
                         key={i} 
                         className={`aspect-square rounded-[2px] ${
-                          i % 5 === 0 ? 'bg-primary' : 
-                          i % 3 === 0 ? 'bg-primary/60' : 
-                          i % 2 === 0 ? 'bg-primary/20' : 'bg-muted/20'
+                          i % 7 === 1 ? 'bg-primary' : 
+                          i % 7 === 2 ? 'bg-primary/70' : 
+                          i % 7 === 3 ? 'bg-primary/40' : 'bg-muted/20'
                         }`}
-                        title={`Day ${i+1}: ${Math.floor(Math.random() * 20)} activities`}
+                        title={`Activity Intensity: ${i % 7 * 20}%`}
                       />
                     ))}
                   </div>
-                  <p className="text-[10px] text-muted-foreground mt-4 text-center">Peak activity detected on Tuesdays 10AM - 2PM</p>
+                  <div className="flex justify-between mt-2 text-[8px] uppercase font-bold text-muted-foreground">
+                    <span>Mon</span>
+                    <span>Wed</span>
+                    <span>Fri</span>
+                    <span>Sun</span>
+                  </div>
                 </CardContent>
               </Card>
             </div>
           </div>
         </TabsContent>
 
-        <TabsContent value="funnel" className="space-y-6">
+        <TabsContent value="Pipeline" className="space-y-6 m-0">
            <Card className="bg-card/50 border-border/50">
               <CardHeader>
                 <CardTitle>Conversion Funnel</CardTitle>
@@ -205,7 +227,7 @@ export default function AnalyticsPage() {
            </Card>
         </TabsContent>
 
-        <TabsContent value="sources" className="space-y-6">
+        <TabsContent value="Sources" className="space-y-6 m-0">
           <div className="grid gap-6 md:grid-cols-2">
             <Card className="bg-card/50 border-border/50">
               <CardHeader>
@@ -261,4 +283,3 @@ export default function AnalyticsPage() {
     </div>
   );
 }
-

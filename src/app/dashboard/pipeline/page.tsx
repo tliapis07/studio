@@ -1,7 +1,7 @@
 
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState } from 'react';
 import { 
   useCollection, 
   useFirestore, 
@@ -10,10 +10,10 @@ import {
   updateDocumentNonBlocking 
 } from '@/firebase';
 import { collection, query, where, doc, serverTimestamp } from 'firebase/firestore';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardDescription } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Plus, MoreHorizontal, DollarSign, Clock, Users, Target } from 'lucide-react';
+import { Plus, DollarSign, Users, Target } from 'lucide-react';
 import { Lead, LeadStatus } from '@/lib/types';
 import Link from 'next/link';
 import { toast } from '@/hooks/use-toast';
@@ -76,24 +76,12 @@ export default function PipelinePage() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold font-headline">Visual Pipeline</h1>
-          <p className="text-muted-foreground">Manage deal velocity with precision and clarity.</p>
+          <h1 className="text-3xl font-bold font-headline">Pipeline</h1>
+          <p className="text-muted-foreground">Manage deal velocity and visual stages.</p>
         </div>
-        <div className="flex items-center gap-4">
-          <div className="hidden lg:flex items-center gap-6 px-4 py-2 bg-card/30 rounded-lg border border-border/50">
-             <div className="flex flex-col">
-                <span className="text-[10px] font-bold text-muted-foreground uppercase">Active Pipeline</span>
-                <span className="text-sm font-bold">${leads?.reduce((acc, l) => acc + (l.status !== 'won' ? l.dealValue : 0), 0).toLocaleString()}</span>
-             </div>
-             <div className="flex flex-col">
-                <span className="text-[10px] font-bold text-muted-foreground uppercase">Won Deals</span>
-                <span className="text-sm font-bold text-emerald-500">${leads?.filter(l => l.status === 'won').reduce((acc, l) => acc + l.dealValue, 0).toLocaleString()}</span>
-             </div>
-          </div>
-          <Button className="gap-2 bg-primary">
-            <Plus className="h-4 w-4" /> New Deal
-          </Button>
-        </div>
+        <Button className="gap-2 bg-primary">
+          <Plus className="h-4 w-4" /> New Deal
+        </Button>
       </div>
 
       <div className="flex gap-4 overflow-x-auto pb-6 -mx-6 px-6 h-[calc(100vh-14rem)]">
@@ -127,7 +115,6 @@ export default function PipelinePage() {
                       <Link href={`/dashboard/leads/${lead.id}`} className="text-sm font-bold group-hover:text-primary transition-colors">
                         {lead.name}
                       </Link>
-                      <Badge variant="outline" className="text-[10px] h-4 px-1.5 font-bold border-primary/20 bg-primary/5">{lead.leadScore}</Badge>
                     </div>
                     <CardDescription className="text-[11px] font-medium flex items-center gap-1 mt-0.5">
                       <Users className="h-3 w-3" />
@@ -145,19 +132,9 @@ export default function PipelinePage() {
                         <span>{lead.source}</span>
                       </div>
                     </div>
-                    <div className="flex gap-1.5 flex-wrap mt-3">
-                      {lead.tags?.slice(0, 2).map(tag => (
-                        <Badge key={tag} variant="secondary" className="text-[9px] px-2 py-0 h-4 rounded-md font-bold uppercase tracking-tighter">{tag}</Badge>
-                      ))}
-                    </div>
                   </CardContent>
                 </Card>
               ))}
-              {leads?.filter(l => l.status === stage.value).length === 0 && (
-                <div className="flex flex-col items-center justify-center h-32 text-muted-foreground/20 italic text-xs border-2 border-dashed border-border/20 rounded-xl">
-                  Drag leads here
-                </div>
-              )}
             </div>
           </div>
         ))}

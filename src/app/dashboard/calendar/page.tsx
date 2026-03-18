@@ -10,8 +10,6 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { 
-  ChevronLeft, 
-  ChevronRight, 
   Plus, 
   Clock, 
   Calendar as CalendarIcon,
@@ -20,7 +18,7 @@ import {
   FileText
 } from 'lucide-react';
 import { Lead, CalendarEvent } from '@/lib/types';
-import { format, isSameDay, startOfMonth, endOfMonth, eachDayOfInterval } from 'date-fns';
+import { format, isSameDay } from 'date-fns';
 
 export default function CalendarPage() {
   const { user } = useUser();
@@ -78,11 +76,11 @@ export default function CalendarPage() {
   }, [events, leads]);
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-8 pb-24 md:pb-8">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold font-headline">Sales Calendar</h1>
-          <p className="text-muted-foreground">Manage follow-ups, meetings, and critical task deadlines.</p>
+          <h1 className="text-3xl font-bold font-headline">Calendar</h1>
+          <p className="text-muted-foreground">Synchronized follow-ups and meetings.</p>
         </div>
         <Button className="gap-2 bg-primary">
           <Plus className="h-4 w-4" /> New Event
@@ -166,7 +164,7 @@ export default function CalendarPage() {
             <CardContent className="p-0">
               <ScrollArea className="h-[600px] px-6">
                 <div className="space-y-6 pb-6">
-                  {upcomingTasks.map((task) => (
+                  {upcomingTasks.length > 0 ? upcomingTasks.map((task) => (
                     <div key={task.id} className="relative pl-6 before:absolute before:left-0 before:top-2 before:bottom-[-24px] before:w-px before:bg-border">
                       <div className="absolute left-[-4px] top-2 h-2 w-2 rounded-full bg-primary" />
                       <span className="text-[10px] font-bold text-primary uppercase">
@@ -178,7 +176,7 @@ export default function CalendarPage() {
                         {format(task.startAt?.toDate ? task.startAt.toDate() : new Date(task.startAt), 'h:mm a')}
                       </div>
                     </div>
-                  ))}
+                  )) : <div className="py-8 text-center text-xs text-muted-foreground italic">No upcoming tasks.</div>}
                 </div>
               </ScrollArea>
             </CardContent>

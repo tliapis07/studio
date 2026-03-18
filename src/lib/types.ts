@@ -10,7 +10,6 @@ export interface Lead {
   company?: string;
   status: LeadStatus;
   tags: string[];
-  leadScore: number;
   dealValue: number;
   source: string;
   nextFollowUpAt?: any; // Firestore Timestamp or Date

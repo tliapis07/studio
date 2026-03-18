@@ -1,8 +1,10 @@
+
 'use client';
 
+import { useState } from 'react';
 import { SidebarProvider, Sidebar, SidebarContent, SidebarHeader, SidebarTrigger, SidebarInset } from '@/components/ui/sidebar';
 import { NavMain } from '@/components/nav-main';
-import { TrendingUp, User, LayoutDashboard, Layers, Users, Calendar as CalendarIcon, Settings, BarChart3, Plus, Sparkles, MessageSquare } from 'lucide-react';
+import { TrendingUp, User, LayoutDashboard, Layers, Users, Calendar as CalendarIcon, Settings, BarChart3, Plus, Sparkles, MessageSquare, Mic, Loader2 } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Toaster } from '@/components/ui/toaster';
 import { Button } from '@/components/ui/button';
@@ -14,17 +16,45 @@ import {
   PopoverContent,
   PopoverTrigger 
 } from '@/components/ui/popover';
+import { Input } from '@/components/ui/input';
+import { processCRMTask } from '@/ai/flows/process-crm-task';
+import { toast } from '@/hooks/use-toast';
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
+  const [aiTaskInput, setAiTaskInput] = useState('');
+  const [isProcessingTask, setIsProcessingTask] = useState(false);
 
   const mobileNavItems = [
     { icon: LayoutDashboard, label: 'Home', href: '/dashboard' },
     { icon: Layers, label: 'Pipeline', href: '/dashboard/pipeline' },
     { icon: Users, label: 'Leads', href: '/dashboard/leads' },
     { icon: CalendarIcon, label: 'Calendar', href: '/dashboard/calendar' },
-    { icon: BarChart3, label: 'Stats', href: '/dashboard/analytics' },
+    { icon: BarChart3, label: 'Analytics', href: '/dashboard/analytics' },
   ];
+
+  const handleAiTaskSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!aiTaskInput.trim()) return;
+    
+    setIsProcessingTask(true);
+    try {
+      const result = await processCRMTask({ command: aiTaskInput });
+      toast({
+        title: "AI Action Identified",
+        description: result.confirmationMessage,
+      });
+      setAiTaskInput('');
+    } catch (err) {
+      toast({
+        variant: "destructive",
+        title: "AI Error",
+        description: "Could not interpret command."
+      });
+    } finally {
+      setIsProcessingTask(false);
+    }
+  };
 
   return (
     <SidebarProvider className="dark">
@@ -67,7 +97,6 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           {children}
         </main>
 
-        {/* Floating Action Button (FAB) for Mobile */}
         <div className="fixed bottom-24 right-6 md:bottom-10 md:right-10 z-50 flex flex-col gap-3">
           <Popover>
             <PopoverTrigger asChild>
@@ -75,16 +104,33 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                 <Plus className="h-6 w-6 text-white" />
               </Button>
             </PopoverTrigger>
-            <PopoverContent side="top" align="end" className="w-56 p-2 bg-card/90 backdrop-blur-xl border-primary/20">
-              <div className="flex flex-col gap-1">
-                <Button variant="ghost" className="justify-start gap-2 h-10 text-xs">
-                  <Users className="h-4 w-4 text-primary" /> Add Lead
+            <PopoverContent side="top" align="end" className="w-80 p-4 bg-card/90 backdrop-blur-xl border-primary/20 space-y-4">
+              <div className="space-y-2">
+                <h4 className="text-sm font-bold flex items-center gap-2">
+                  <Sparkles className="h-4 w-4 text-primary" /> Quick AI Task
+                </h4>
+                <form onSubmit={handleAiTaskSubmit} className="flex gap-2">
+                  <Input 
+                    placeholder="e.g. 'Add lead Sarah from Acme'" 
+                    className="text-xs bg-background/50 h-9"
+                    value={aiTaskInput}
+                    onChange={(e) => setAiTaskInput(e.target.value)}
+                    disabled={isProcessingTask}
+                  />
+                  <Button size="icon" type="submit" className="h-9 w-9 shrink-0" disabled={isProcessingTask}>
+                    {isProcessingTask ? <Loader2 className="h-4 w-4 animate-spin" /> : <Mic className="h-4 w-4" />}
+                  </Button>
+                </form>
+              </div>
+              <div className="flex flex-col gap-1 border-t border-border/50 pt-2">
+                <Button variant="ghost" className="justify-start gap-2 h-9 text-xs">
+                  <Users className="h-4 w-4 text-primary" /> New Lead
                 </Button>
-                <Button variant="ghost" className="justify-start gap-2 h-10 text-xs">
+                <Button variant="ghost" className="justify-start gap-2 h-9 text-xs">
                   <MessageSquare className="h-4 w-4 text-accent" /> Log Activity
                 </Button>
-                <Button variant="ghost" className="justify-start gap-2 h-10 text-xs">
-                  <CalendarIcon className="h-4 w-4 text-purple-500" /> Schedule Meeting
+                <Button variant="ghost" className="justify-start gap-2 h-9 text-xs">
+                  <CalendarIcon className="h-4 w-4 text-purple-500" /> Event
                 </Button>
               </div>
             </PopoverContent>
@@ -92,7 +138,6 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           <AIAssistant floating />
         </div>
 
-        {/* Bottom Navigation for Mobile */}
         <nav className="md:hidden fixed bottom-0 left-0 right-0 h-20 bg-card/80 backdrop-blur-xl border-t border-border/50 flex items-center justify-around px-2 z-40">
           {mobileNavItems.map((item) => (
             <Link key={item.href} href={item.href} className="flex flex-col items-center gap-1 group">
@@ -116,4 +161,3 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     </SidebarProvider>
   );
 }
-
