@@ -31,6 +31,7 @@ import {
   Tooltip as UITooltip,
   TooltipProvider,
   TooltipTrigger,
+  TooltipContent,
 } from "@/components/ui/tooltip";
 
 const MOCK_TEAM = [

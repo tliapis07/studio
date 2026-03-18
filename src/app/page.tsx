@@ -82,7 +82,7 @@ export default function LoginPage() {
               SalesStream
             </h1>
             <p className="text-muted-foreground text-xl font-medium leading-tight">
-              TeleSales Companion: The high-performance partner portal for sales team management.
+              SalesStream: The high-performance partner portal for sales team management.
             </p>
           </div>
 
