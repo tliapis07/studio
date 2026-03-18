@@ -29,7 +29,6 @@ import { Lead } from '@/lib/types';
 import { Button } from '@/components/ui/button';
 import {
   Tooltip as UITooltip,
-  TooltipContent,
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
@@ -86,6 +85,8 @@ export default function TeamAnalyticsPage() {
     'Forecasting': { desc: 'Predictive revenue trends weighted by pipeline stage win rates.', icon: Sparkles },
   };
 
+  const ActiveIcon = tabInfo[activeTab].icon;
+
   return (
     <div className="space-y-8 pb-20 md:pb-8">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
@@ -99,7 +100,7 @@ export default function TeamAnalyticsPage() {
       <div className="grid gap-6 grid-cols-1 sm:grid-cols-2 lg:grid-cols-5">
         {[
           { label: 'Team Win Rate', value: '32%', change: '+4%', icon: Target, info: 'Percentage of leads successfully closed as WON across the entire team.' },
-          { label: 'Avg Deal Size', value: '$5.2k', change: '+8%', icon: DollarSign, info: 'Mean monetary value of won deals.' },
+          { label: 'Avg Deal Size', value: '$5.2k', change: '+8%', icon: DollarSign, iconColor: 'text-primary', info: 'Mean monetary value of won deals.' },
           { label: 'Sales Cycle', value: '42d', change: '-5d', icon: Clock, info: 'Average time from Lead Creation to Close WON.' },
           { label: 'Sales Velocity', value: '1.2x', change: '+15%', icon: Zap, info: 'Rate at which the team generates revenue.' },
           { label: 'Pipeline Coverage', value: '3.4x', change: '+0.2', icon: ShieldCheck, info: 'Pipeline value divided by remaining team quota.' },
@@ -141,7 +142,7 @@ export default function TeamAnalyticsPage() {
             ))}
           </TabsList>
           <div className="flex items-center gap-3 text-xs font-bold text-muted-foreground bg-primary/5 px-5 py-3 rounded-xl border-2 border-primary/10 w-fit">
-            <tabInfo[activeTab].icon className="h-5 w-5 text-primary" />
+            <ActiveIcon className="h-5 w-5 text-primary" />
             <span>{tabInfo[activeTab].desc}</span>
           </div>
         </div>
