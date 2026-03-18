@@ -22,10 +22,17 @@ import {
   Mail,
   Zap,
   Briefcase,
-  Target
+  Target,
+  Info
 } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
 import { useUser } from '@/firebase';
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 
 export default function SettingsPage() {
   const { user } = useUser();
@@ -44,6 +51,13 @@ export default function SettingsPage() {
     { id: 'user3', name: 'Sarah Chen', role: 'Sales Exec', email: 'sarah@stream.io', quota: 200000 },
   ];
 
+  const tabInfo: Record<string, string> = {
+    'profile': 'Manage your personal partner identity and account security.',
+    'team': 'Configure your sales force, set monthly targets, and manage access.',
+    'ai': 'Configure global team intelligence settings and predictive models.',
+    'data': 'Bulk export organizational records and manage database health.'
+  };
+
   return (
     <div className="max-w-4xl mx-auto space-y-8 pb-24 md:pb-8">
       <div>
@@ -52,12 +66,18 @@ export default function SettingsPage() {
       </div>
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-        <TabsList className="bg-card/30 p-1 border border-border/50 w-full md:w-fit justify-start h-11">
-          <TabsTrigger value="profile" className="gap-2 px-6 h-9 font-bold text-xs uppercase tracking-widest"><User className="h-4 w-4" /> Partner Profile</TabsTrigger>
-          <TabsTrigger value="team" className="gap-2 px-6 h-9 font-bold text-xs uppercase tracking-widest"><Users className="h-4 w-4" /> Team Management</TabsTrigger>
-          <TabsTrigger value="ai" className="gap-2 px-6 h-9 font-bold text-xs uppercase tracking-widest"><Sparkles className="h-4 w-4" /> Team AI & Sync</TabsTrigger>
-          <TabsTrigger value="data" className="gap-2 px-6 h-9 font-bold text-xs uppercase tracking-widest"><Database className="h-4 w-4" /> Team Data</TabsTrigger>
-        </TabsList>
+        <div className="flex flex-col gap-4">
+          <TabsList className="bg-card/30 p-1 border border-border/50 w-full md:w-fit justify-start h-11">
+            <TabsTrigger value="profile" className="gap-2 px-6 h-9 font-bold text-xs uppercase tracking-widest"><User className="h-4 w-4" /> Partner Profile</TabsTrigger>
+            <TabsTrigger value="team" className="gap-2 px-6 h-9 font-bold text-xs uppercase tracking-widest"><Users className="h-4 w-4" /> Team Management</TabsTrigger>
+            <TabsTrigger value="ai" className="gap-2 px-6 h-9 font-bold text-xs uppercase tracking-widest"><Sparkles className="h-4 w-4" /> Team AI & Sync</TabsTrigger>
+            <TabsTrigger value="data" className="gap-2 px-6 h-9 font-bold text-xs uppercase tracking-widest"><Database className="h-4 w-4" /> Team Data</TabsTrigger>
+          </TabsList>
+          <div className="flex items-center gap-2 text-xs text-muted-foreground bg-primary/5 p-3 rounded-lg border border-primary/10 w-fit">
+            <Info className="h-4 w-4 text-primary" />
+            <span>{tabInfo[activeTab]}</span>
+          </div>
+        </div>
 
         <TabsContent value="profile" className="space-y-6 animate-in fade-in duration-300">
           <Card className="bg-card/50 border-border/50 shadow-xl">
@@ -109,7 +129,7 @@ export default function SettingsPage() {
                 <div key={i} className="flex items-center justify-between p-4 rounded-xl bg-muted/10 border border-border/50 group hover:border-primary/30 transition-all">
                   <div className="flex items-center gap-4">
                     <Avatar className="h-12 w-12 border-2 border-primary/20">
-                      <AvatarImage src={member.avatar} />
+                      <AvatarImage src={member.avatar || `https://picsum.photos/seed/${member.id}/100/100`} />
                       <AvatarFallback className="font-bold">{member.name[0]}</AvatarFallback>
                     </Avatar>
                     <div>
@@ -173,7 +193,7 @@ export default function SettingsPage() {
                   </Button>
                   <Button variant="outline" className="h-24 flex flex-col gap-2 border-border/50 hover:bg-accent/5 group" onClick={() => handleExport('JSON')}>
                      <FileJson className="h-6 w-6 text-accent group-hover:scale-110 transition-transform" />
-                     <span className="text-[10px] font-black uppercase tracking-widest) JSON Archive</span>
+                     <span className="text-[10px] font-black uppercase tracking-widest">JSON Archive</span>
                   </Button>
                </div>
             </CardContent>
