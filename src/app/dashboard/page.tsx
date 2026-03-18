@@ -1,7 +1,6 @@
-
 'use client';
 
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { useCollection, useFirestore, useUser, useMemoFirebase } from '@/firebase';
 import { collection, query, where } from 'firebase/firestore';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
@@ -13,8 +12,11 @@ import {
   ArrowUpRight, 
   ArrowDownRight,
   Clock,
-  PhoneCall,
-  DollarSign
+  DollarSign,
+  Sparkles,
+  Zap,
+  ChevronDown,
+  ChevronUp
 } from 'lucide-react';
 import { 
   BarChart, 
@@ -30,10 +32,13 @@ import {
 } from 'recharts';
 import { Lead } from '@/lib/types';
 import { format, startOfWeek, endOfWeek, eachDayOfInterval, isSameDay } from 'date-fns';
+import { Button } from '@/components/ui/button';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 
 export default function Dashboard() {
   const { user } = useUser();
   const db = useFirestore();
+  const [isStatsExpanded, setIsStatsExpanded] = useState(true);
 
   const leadsQuery = useMemoFirebase(() => {
     if (!db || !user) return null;
@@ -82,53 +87,96 @@ export default function Dashboard() {
   if (isLoading) return (
     <div className="flex flex-col h-full items-center justify-center p-8 text-center space-y-4">
       <div className="h-12 w-12 border-4 border-primary border-t-transparent rounded-full animate-spin" />
-      <p className="text-muted-foreground font-headline font-bold">Synchronizing Pipeline Intelligence...</p>
+      <p className="text-muted-foreground font-headline font-bold">Initializing Sales Environment...</p>
     </div>
   );
 
   return (
-    <div className="space-y-8 animate-in fade-in duration-500">
+    <div className="space-y-8 animate-in fade-in duration-500 pb-20 md:pb-8">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
-          <h1 className="text-4xl font-black font-headline tracking-tight">Executive Overview</h1>
-          <p className="text-muted-foreground">Welcome back, {user?.displayName || 'Sales Professional'}. Here is your velocity today.</p>
+          <h1 className="text-3xl md:text-4xl font-black font-headline tracking-tight text-primary">Sales Center</h1>
+          <p className="text-sm md:text-base text-muted-foreground">Hello, {user?.displayName || 'Partner'}. Here is your pipeline velocity.</p>
+        </div>
+        <div className="hidden md:flex items-center gap-2">
+           <Button size="sm" variant="outline" className="gap-2"><Clock className="h-4 w-4" /> History</Button>
+           <Button size="sm" className="bg-primary gap-2"><TrendingUp className="h-4 w-4" /> Reports</Button>
         </div>
       </div>
 
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-        {[
-          { label: 'Total Leads', value: stats.total, icon: Users, color: 'text-primary', change: '+12%', up: true },
-          { label: 'Qualified Leads', value: stats.qualified, icon: Target, color: 'text-accent', change: '+5%', up: true },
-          { label: 'Closed Deals', value: stats.won, icon: Award, color: 'text-yellow-500', change: '-2%', up: false },
-          { label: 'Total Revenue', value: `$${stats.revenue.toLocaleString()}`, icon: DollarSign, color: 'text-emerald-500', change: '+18%', up: true },
-        ].map((stat, i) => (
-          <Card key={i} className="bg-card/50 border-border/50 backdrop-blur-sm group hover:border-primary/50 transition-colors">
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-xs font-bold uppercase tracking-widest text-muted-foreground">{stat.label}</CardTitle>
-              <stat.icon className={`h-4 w-4 ${stat.color}`} />
-            </CardHeader>
-            <CardContent>
-              <div className="text-3xl font-black font-headline">{stat.value}</div>
-              <p className="text-[10px] text-muted-foreground flex items-center gap-1 mt-1 font-bold">
-                {stat.up ? (
-                  <span className="text-emerald-500 flex items-center"><ArrowUpRight className="h-3 w-3" /> {stat.change}</span>
-                ) : (
-                  <span className="text-rose-500 flex items-center"><ArrowDownRight className="h-3 w-3" /> {stat.change}</span>
-                )}
-                vs last month
-              </p>
-            </CardContent>
-          </Card>
-        ))}
-      </div>
+      <Collapsible open={isStatsExpanded} onOpenChange={setIsStatsExpanded} className="space-y-2">
+        <div className="flex items-center justify-between md:hidden px-1">
+           <span className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Performance Overview</span>
+           <CollapsibleTrigger asChild>
+              <Button variant="ghost" size="sm" className="h-6 w-6 p-0">
+                 {isStatsExpanded ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+              </Button>
+           </CollapsibleTrigger>
+        </div>
+        <CollapsibleContent className="space-y-4 md:space-y-0">
+          <div className="grid gap-4 grid-cols-2 lg:grid-cols-4">
+            {[
+              { label: 'Total Leads', value: stats.total, icon: Users, color: 'text-primary', change: '+12%', up: true },
+              { label: 'Qualified', value: stats.qualified, icon: Target, color: 'text-accent', change: '+5%', up: true },
+              { label: 'Closed', value: stats.won, icon: Award, color: 'text-yellow-500', change: '-2%', up: false },
+              { label: 'Revenue', value: `$${(stats.revenue/1000).toFixed(1)}k`, icon: DollarSign, color: 'text-emerald-500', change: '+18%', up: true },
+            ].map((stat, i) => (
+              <Card key={i} className="bg-card/40 border-border/50 backdrop-blur-md group hover:border-primary/50 transition-all hover:translate-y-[-2px]">
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 p-4 pb-2">
+                  <CardTitle className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">{stat.label}</CardTitle>
+                  <stat.icon className={`h-4 w-4 ${stat.color}`} />
+                </CardHeader>
+                <CardContent className="p-4 pt-0">
+                  <div className="text-2xl md:text-3xl font-black font-headline">{stat.value}</div>
+                  <p className="text-[10px] text-muted-foreground flex items-center gap-1 mt-1 font-bold">
+                    {stat.up ? (
+                      <span className="text-emerald-500 flex items-center"><ArrowUpRight className="h-3 w-3" /> {stat.change}</span>
+                    ) : (
+                      <span className="text-rose-500 flex items-center"><ArrowDownRight className="h-3 w-3" /> {stat.change}</span>
+                    )}
+                    growth
+                  </p>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        </CollapsibleContent>
+        {/* Force expanded on desktop */}
+        <div className="hidden md:grid gap-4 grid-cols-2 lg:grid-cols-4">
+            {[
+              { label: 'Total Leads', value: stats.total, icon: Users, color: 'text-primary', change: '+12%', up: true },
+              { label: 'Qualified', value: stats.qualified, icon: Target, color: 'text-accent', change: '+5%', up: true },
+              { label: 'Closed', value: stats.won, icon: Award, color: 'text-yellow-500', change: '-2%', up: false },
+              { label: 'Revenue', value: `$${stats.revenue.toLocaleString()}`, icon: DollarSign, color: 'text-emerald-500', change: '+18%', up: true },
+            ].map((stat, i) => (
+              <Card key={i} className="bg-card/40 border-border/50 backdrop-blur-md group hover:border-primary/50 transition-all hover:translate-y-[-2px]">
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 p-4 pb-2">
+                  <CardTitle className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">{stat.label}</CardTitle>
+                  <stat.icon className={`h-4 w-4 ${stat.color}`} />
+                </CardHeader>
+                <CardContent className="p-4 pt-0">
+                  <div className="text-2xl md:text-3xl font-black font-headline">{stat.value}</div>
+                  <p className="text-[10px] text-muted-foreground flex items-center gap-1 mt-1 font-bold">
+                    {stat.up ? (
+                      <span className="text-emerald-500 flex items-center"><ArrowUpRight className="h-3 w-3" /> {stat.change}</span>
+                    ) : (
+                      <span className="text-rose-500 flex items-center"><ArrowDownRight className="h-3 w-3" /> {stat.change}</span>
+                    )}
+                    vs last month
+                  </p>
+                </CardContent>
+              </Card>
+            ))}
+        </div>
+      </Collapsible>
 
       <div className="grid gap-6 md:grid-cols-7">
-        <Card className="md:col-span-4 bg-card/50 border-border/50">
+        <Card className="md:col-span-4 bg-card/30 border-border/50">
           <CardHeader>
-            <CardTitle>Lead Inbound Velocity</CardTitle>
-            <CardDescription>Frequency of new leads arriving this week.</CardDescription>
+            <CardTitle className="text-lg">Inbound Velocity</CardTitle>
+            <CardDescription>Real-time lead arrival trends.</CardDescription>
           </CardHeader>
-          <CardContent className="h-[350px]">
+          <CardContent className="h-[300px]">
             <ResponsiveContainer width="100%" height="100%">
               <AreaChart data={weeklyData}>
                 <defs>
@@ -150,85 +198,79 @@ export default function Dashboard() {
           </CardContent>
         </Card>
         
-        <Card className="md:col-span-3 bg-card/50 border-border/50">
+        <Card className="md:col-span-3 bg-card/30 border-border/50">
           <CardHeader>
-            <CardTitle>Pipeline Distribution</CardTitle>
-            <CardDescription>Current state of all active deals.</CardDescription>
+            <CardTitle className="text-lg">AI Sales Insights</CardTitle>
+            <CardDescription>Predictive analysis of your current pipeline.</CardDescription>
           </CardHeader>
-          <CardContent className="h-[350px]">
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={pipelineData} layout="vertical" margin={{ left: -10 }}>
-                <XAxis type="number" hide />
-                <YAxis dataKey="name" type="category" stroke="hsl(var(--muted-foreground))" fontSize={10} fontWeight="bold" tickLine={false} axisLine={false} width={80} />
-                <Tooltip 
-                  cursor={{ fill: 'transparent' }}
-                  contentStyle={{ backgroundColor: 'hsl(var(--card))', borderColor: 'hsl(var(--border))', borderRadius: '12px' }}
-                />
-                <Bar dataKey="value" radius={[0, 6, 6, 0]} barSize={20}>
-                  {pipelineData.map((entry, index) => (
-                    <Cell key={`cell-${index}`} fill={entry.fill} />
-                  ))}
-                </Bar>
-              </BarChart>
-            </ResponsiveContainer>
+          <CardContent className="space-y-6">
+             {[
+               { icon: Zap, text: 'High Velocity: 8 leads predicted to close this week.', color: 'text-primary' },
+               { icon: Target, text: 'Opportunity: Win rate for LinkedIn leads up 15%.', color: 'text-accent' },
+               { icon: Clock, text: 'At Risk: 3 proposals stalled for > 10 days.', color: 'text-rose-500' }
+             ].map((insight, i) => (
+               <div key={i} className="flex gap-4 items-start p-3 rounded-xl bg-background/50 border border-border/50 group hover:border-primary/20 transition-colors">
+                  <div className={`mt-0.5 p-2 rounded-lg bg-muted/30 ${insight.color}`}>
+                     <insight.icon className="h-4 w-4" />
+                  </div>
+                  <p className="text-xs font-medium leading-relaxed">{insight.text}</p>
+               </div>
+             ))}
+             <Button variant="outline" className="w-full text-xs font-bold gap-2">
+                <Sparkles className="h-3 w-3 text-primary" /> Generate Strategy
+             </Button>
           </CardContent>
         </Card>
       </div>
 
       <div className="grid gap-6 md:grid-cols-2">
-        <Card className="bg-card/50 border-border/50 overflow-hidden">
-          <CardHeader className="flex flex-row items-center justify-between bg-primary/5 border-b border-border/50 p-4">
-            <div className="space-y-0.5">
-              <CardTitle className="text-sm font-bold uppercase tracking-widest">Priority Follow-ups</CardTitle>
-              <CardDescription className="text-[10px]">High engagement leads needing attention.</CardDescription>
-            </div>
-            <Clock className="h-4 w-4 text-primary" />
+        <Card className="bg-card/40 border-border/50 overflow-hidden shadow-xl">
+          <CardHeader className="bg-primary/5 border-b border-border/50 p-4">
+            <CardTitle className="text-sm font-bold uppercase tracking-widest flex items-center gap-2">
+              <Clock className="h-4 w-4 text-primary" /> High-Probability Leads
+            </CardTitle>
           </CardHeader>
           <CardContent className="p-0">
-            <div className="divide-y divide-border/50">
-              {leads?.filter(l => l.leadScore > 70 && l.status !== 'won').slice(0, 4).map((lead, i) => (
-                <div key={i} className="flex items-center justify-between p-4 hover:bg-muted/10 transition-colors">
+            <div className="divide-y divide-border/30">
+              {leads?.filter(l => l.leadScore > 75 && l.status !== 'won').slice(0, 4).map((lead, i) => (
+                <div key={i} className="flex items-center justify-between p-4 hover:bg-muted/10 transition-colors cursor-pointer group">
                   <div className="flex flex-col">
-                    <span className="font-bold text-sm">{lead.name}</span>
+                    <span className="font-bold text-sm group-hover:text-primary transition-colors">{lead.name}</span>
                     <span className="text-[10px] text-muted-foreground uppercase tracking-wider">{lead.company}</span>
                   </div>
                   <div className="flex items-center gap-3">
                     <div className="text-right">
-                       <span className="text-[10px] font-bold block text-primary">{lead.leadScore} SCORE</span>
-                       <span className="text-[10px] text-muted-foreground">${lead.dealValue.toLocaleString()}</span>
+                       <span className="text-[10px] font-black text-primary block">85% SCORE</span>
+                       <span className="text-[10px] text-muted-foreground font-bold">${lead.dealValue.toLocaleString()}</span>
                     </div>
-                    <Badge variant="outline" className="text-[9px] bg-emerald-500/10 text-emerald-500 border-emerald-500/20 font-black">HOT</Badge>
+                    <Badge className="bg-emerald-500/10 text-emerald-500 border-emerald-500/20 text-[9px] font-black">HOT</Badge>
                   </div>
                 </div>
-              )) || <div className="p-12 text-center text-xs text-muted-foreground">No high priority leads today.</div>}
+              )) || <div className="p-8 text-center text-xs text-muted-foreground italic">Pipeline is clear.</div>}
             </div>
           </CardContent>
         </Card>
 
-        <Card className="bg-card/50 border-border/50 overflow-hidden">
-          <CardHeader className="flex flex-row items-center justify-between bg-accent/5 border-b border-border/50 p-4">
-            <div className="space-y-0.5">
-              <CardTitle className="text-sm font-bold uppercase tracking-widest">Stream Activity</CardTitle>
-              <CardDescription className="text-[10px]">Real-time pipeline progression.</CardDescription>
-            </div>
-            <TrendingUp className="h-4 w-4 text-accent" />
+        <Card className="bg-card/40 border-border/50 overflow-hidden shadow-xl">
+          <CardHeader className="bg-accent/5 border-b border-border/50 p-4">
+            <CardTitle className="text-sm font-bold uppercase tracking-widest flex items-center gap-2">
+              <TrendingUp className="h-4 w-4 text-accent" /> Stream Activity
+            </CardTitle>
           </CardHeader>
           <CardContent className="p-0">
-            <div className="divide-y divide-border/50">
+            <div className="divide-y divide-border/30">
               {[
-                { type: 'won', user: 'System', detail: 'Acme Corp deal closed!', time: '12m ago' },
-                { type: 'status', user: 'Alex Morgan', detail: 'Sarah Jenkins moved to Proposal', time: '45m ago' },
-                { type: 'note', user: 'Alex Morgan', detail: 'Added technical specs for Wilson Ltd', time: '2h ago' },
-                { type: 'lead', user: 'Website', detail: 'New lead arrived: James Chen', time: '3h ago' },
+                { detail: 'Acme Corp deal closed!', time: '12m ago' },
+                { detail: 'Sarah Jenkins moved to Proposal', time: '45m ago' },
+                { detail: 'Note added for Wilson Ltd', time: '2h ago' },
+                { detail: 'New lead arrived: James Chen', time: '3h ago' },
               ].map((activity, i) => (
                 <div key={i} className="flex gap-4 items-center p-4 hover:bg-muted/10 transition-colors">
-                  <div className="h-8 w-8 rounded-full bg-muted/50 flex items-center justify-center shrink-0 border border-border/50">
-                    <PhoneCall className="h-3.5 w-3.5 text-muted-foreground" />
+                  <div className="h-8 w-8 rounded-full bg-muted/30 flex items-center justify-center shrink-0 border border-border/50">
+                    <TrendingUp className="h-3.5 w-3.5 text-accent" />
                   </div>
                   <div className="flex flex-col flex-1">
-                    <p className="text-xs">
-                      <span className="font-bold text-foreground">{activity.user}</span> <span className="text-muted-foreground">{activity.detail}</span>
-                    </p>
+                    <p className="text-xs text-foreground font-medium">{activity.detail}</p>
                     <span className="text-[9px] text-muted-foreground uppercase font-black tracking-widest mt-0.5">{activity.time}</span>
                   </div>
                 </div>
@@ -240,3 +282,4 @@ export default function Dashboard() {
     </div>
   );
 }
+
