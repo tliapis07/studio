@@ -4,7 +4,7 @@
 import { useState } from 'react';
 import { SidebarProvider, Sidebar, SidebarContent, SidebarHeader, SidebarTrigger, SidebarInset } from '@/components/ui/sidebar';
 import { NavMain } from '@/components/nav-main';
-import { TrendingUp, User, LayoutDashboard, Layers, Users, Calendar as CalendarIcon, Settings, BarChart3, Plus, Sparkles, MessageSquare, Mic, Loader2 } from 'lucide-react';
+import { TrendingUp, User, LayoutDashboard, Layers, Users, Calendar as CalendarIcon, Settings, BarChart3, Plus, Sparkles, MessageSquare, Mic, Loader2, Briefcase, FileText } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Toaster } from '@/components/ui/toaster';
 import { Button } from '@/components/ui/button';
@@ -26,11 +26,11 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const [isProcessingTask, setIsProcessingTask] = useState(false);
 
   const mobileNavItems = [
-    { icon: LayoutDashboard, label: 'Home', href: '/dashboard' },
+    { icon: LayoutDashboard, label: 'Dashboard', href: '/dashboard' },
     { icon: Layers, label: 'Pipeline', href: '/dashboard/pipeline' },
     { icon: Users, label: 'Leads', href: '/dashboard/leads' },
-    { icon: CalendarIcon, label: 'Calendar', href: '/dashboard/calendar' },
     { icon: BarChart3, label: 'Analytics', href: '/dashboard/analytics' },
+    { icon: CalendarIcon, label: 'Calendar', href: '/dashboard/calendar' },
   ];
 
   const handleAiTaskSubmit = async (e: React.FormEvent) => {
@@ -41,14 +41,14 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     try {
       const result = await processCRMTask({ command: aiTaskInput });
       toast({
-        title: "AI Action Identified",
+        title: "Team Action Identified",
         description: result.confirmationMessage,
       });
       setAiTaskInput('');
     } catch (err) {
       toast({
         variant: "destructive",
-        title: "AI Error",
+        title: "AI Parsing Error",
         description: "Could not interpret command."
       });
     } finally {
@@ -65,7 +65,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           </div>
           <div className="flex flex-col gap-0.5 overflow-hidden">
             <span className="font-semibold text-sm leading-none font-headline text-primary">SalesStream</span>
-            <span className="text-[10px] text-muted-foreground">Premium CRM</span>
+            <span className="text-[10px] text-muted-foreground">Team Management View</span>
           </div>
         </SidebarHeader>
         <SidebarContent>
@@ -82,9 +82,12 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             </div>
           </div>
           <div className="flex items-center gap-4">
+            <Button variant="outline" size="sm" className="hidden lg:flex gap-2 border-primary/20 text-xs">
+              <FileText className="h-4 w-4 text-primary" /> Reports
+            </Button>
             <div className="hidden sm:flex flex-col items-end">
               <span className="text-sm font-medium">Alex Morgan</span>
-              <span className="text-xs text-muted-foreground uppercase tracking-wider">Pro Account</span>
+              <span className="text-xs text-muted-foreground uppercase tracking-wider">Managing Partner</span>
             </div>
             <Avatar className="h-9 w-9 border border-border">
               <AvatarImage src="https://picsum.photos/seed/av1/100/100" />
@@ -107,30 +110,30 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             <PopoverContent side="top" align="end" className="w-80 p-4 bg-card/90 backdrop-blur-xl border-primary/20 space-y-4">
               <div className="space-y-2">
                 <h4 className="text-sm font-bold flex items-center gap-2">
-                  <Sparkles className="h-4 w-4 text-primary" /> Quick AI Task
+                  <Sparkles className="h-4 w-4 text-primary" /> Dictate Team Task
                 </h4>
                 <form onSubmit={handleAiTaskSubmit} className="flex gap-2">
                   <Input 
-                    placeholder="e.g. 'Add lead Sarah from Acme'" 
+                    placeholder="e.g. 'Assign Tesla lead to Sarah'" 
                     className="text-xs bg-background/50 h-9"
                     value={aiTaskInput}
                     onChange={(e) => setAiTaskInput(e.target.value)}
                     disabled={isProcessingTask}
                   />
-                  <Button size="icon" type="submit" className="h-9 w-9 shrink-0" disabled={isProcessingTask}>
+                  <Button size="icon" type="submit" className="h-9 w-9 shrink-0 shadow-md" disabled={isProcessingTask}>
                     {isProcessingTask ? <Loader2 className="h-4 w-4 animate-spin" /> : <Mic className="h-4 w-4" />}
                   </Button>
                 </form>
               </div>
               <div className="flex flex-col gap-1 border-t border-border/50 pt-2">
                 <Button variant="ghost" className="justify-start gap-2 h-9 text-xs">
-                  <Users className="h-4 w-4 text-primary" /> New Lead
+                  <Plus className="h-4 w-4 text-primary" /> Add Team Lead
                 </Button>
                 <Button variant="ghost" className="justify-start gap-2 h-9 text-xs">
-                  <MessageSquare className="h-4 w-4 text-accent" /> Log Activity
+                  <MessageSquare className="h-4 w-4 text-accent" /> Log Team Activity
                 </Button>
                 <Button variant="ghost" className="justify-start gap-2 h-9 text-xs">
-                  <CalendarIcon className="h-4 w-4 text-purple-500" /> Event
+                  <CalendarIcon className="h-4 w-4 text-purple-500" /> Schedule Team Meeting
                 </Button>
               </div>
             </PopoverContent>
@@ -144,7 +147,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
               <div className={`p-2 rounded-xl transition-all ${pathname === item.href ? 'bg-primary text-white scale-110' : 'text-muted-foreground hover:text-primary'}`}>
                 <item.icon className="h-5 w-5" />
               </div>
-              <span className={`text-[10px] font-bold uppercase tracking-widest ${pathname === item.href ? 'text-primary' : 'text-muted-foreground'}`}>
+              <span className={`text-[9px] font-bold uppercase tracking-widest ${pathname === item.href ? 'text-primary' : 'text-muted-foreground'}`}>
                 {item.label}
               </span>
             </Link>
@@ -153,7 +156,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
              <div className={`p-2 rounded-xl ${pathname === '/dashboard/settings' ? 'bg-primary text-white' : 'text-muted-foreground'}`}>
                <Settings className="h-5 w-5" />
              </div>
-             <span className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Settings</span>
+             <span className="text-[9px] font-bold uppercase tracking-widest text-muted-foreground">Settings</span>
           </Link>
         </nav>
       </SidebarInset>

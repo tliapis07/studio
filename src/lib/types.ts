@@ -1,9 +1,20 @@
 
 export type LeadStatus = 'new' | 'contacted' | 'qualified' | 'proposal' | 'negotiated' | 'won' | 'lost';
 
+export interface TeamMember {
+  id: string;
+  name: string;
+  role: string;
+  email: string;
+  avatar: string;
+  quota: number;
+}
+
 export interface Lead {
   id: string;
   ownerUid: string;
+  ownerName?: string;
+  ownerAvatar?: string;
   name: string;
   email?: string;
   phone?: string;
@@ -30,6 +41,7 @@ export interface Activity {
   id: string;
   leadId: string;
   ownerUid: string;
+  ownerName?: string;
   type: 'note' | 'call' | 'status_change' | 'tag_added' | 'event_created';
   content: string;
   createdAt: any;
@@ -40,6 +52,7 @@ export interface Activity {
 export interface CalendarEvent {
   id: string;
   ownerUid: string;
+  ownerName?: string;
   leadId?: string;
   title: string;
   description: string;
@@ -49,15 +62,4 @@ export interface CalendarEvent {
   eventType: 'follow-up' | 'meeting' | 'task' | 'reminder';
   status: 'scheduled' | 'completed' | 'cancelled';
   createdAt: any;
-}
-
-export interface DashboardStats {
-  totalLeads: number;
-  qualifiedLeads: number;
-  closedDeals: number;
-  totalRevenue: number;
-  revenueChange: number;
-  leadsChange: number;
-  qualifiedChange: number;
-  dealsChange: number;
 }

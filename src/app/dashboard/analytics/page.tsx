@@ -1,7 +1,9 @@
 
 'use client';
 
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
+import { useCollection, useFirestore, useMemoFirebase } from '@/firebase';
+import { collection, query } from 'firebase/firestore';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { 
@@ -27,9 +29,11 @@ import {
   ShieldCheck, 
   Sparkles,
   Info,
-  Calendar
+  Calendar,
+  Users,
+  Briefcase
 } from 'lucide-react';
-import { Button } from '@/components/ui/button';
+import { Lead, TeamMember } from '@/lib/types';
 import {
   Tooltip as UITooltip,
   TooltipContent,
@@ -37,57 +41,87 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 
-const funnelData = [
-  { stage: 'New', count: 450 },
-  { stage: 'Contacted', count: 380 },
-  { stage: 'Qualified', count: 240 },
-  { stage: 'Proposal', count: 120 },
-  { stage: 'Won', count: 85 },
-];
-
-const revenueForecastData = [
-  { month: 'Current', actual: 67000, projected: 67000 },
-  { month: 'Month 1', projected: 82000 },
-  { month: 'Month 2', projected: 95000 },
-  { month: 'Month 3', projected: 110000 },
-];
-
-const sourceData = [
-  { name: 'Website', value: 45, winRate: '22%', revenue: 42000 },
-  { name: 'Referral', value: 25, winRate: '45%', revenue: 58000 },
-  { name: 'Cold Call', value: 20, winRate: '12%', revenue: 15000 },
-  { name: 'LinkedIn', value: 10, winRate: '18%', revenue: 22000 },
+const MOCK_TEAM: TeamMember[] = [
+  { id: 'user1', name: 'Alex Morgan', role: 'Sales Exec', email: 'alex@stream.io', avatar: 'https://picsum.photos/seed/av1/100/100', quota: 150000 },
+  { id: 'user2', name: 'Jordan Lee', role: 'Sales Exec', email: 'jordan@stream.io', avatar: 'https://picsum.photos/seed/av2/100/100', quota: 120000 },
+  { id: 'user3', name: 'Sarah Chen', role: 'Sales Exec', email: 'sarah@stream.io', avatar: 'https://picsum.photos/seed/av3/100/100', quota: 200000 },
 ];
 
 const COLORS = ['hsl(var(--primary))', 'hsl(var(--accent))', 'hsl(var(--chart-3))', 'hsl(var(--chart-4))'];
 
-export default function AnalyticsPage() {
+export default function TeamAnalyticsPage() {
   const [activeTab, setActiveTab] = useState('Overview');
+  const db = useFirestore();
+
+  const leadsQuery = useMemoFirebase(() => {
+    if (!db) return null;
+    return query(collection(db, 'leads'));
+  }, [db]);
+
+  const { data: leads } = useCollection<Lead>(leadsQuery);
+
+  const teamMetrics = useMemo(() => {
+    if (!leads) return [];
+    return MOCK_TEAM.map(member => {
+      const memberLeads = leads.filter(l => l.ownerUid === member.id);
+      const won = memberLeads.filter(l => l.status === 'won');
+      const revenue = won.reduce((acc, l) => acc + l.dealValue, 0);
+      const winRate = memberLeads.length ? Math.round((won.length / memberLeads.length) * 100) : 0;
+      return {
+        name: member.name,
+        revenue,
+        winRate: `${winRate}%`,
+        quota: Math.round((revenue / member.quota) * 100),
+        velocity: '12 days'
+      };
+    });
+  }, [leads]);
+
+  const funnelData = useMemo(() => {
+    if (!leads) return [];
+    return [
+      { stage: 'New', count: leads.filter(l => l.status === 'new').length },
+      { stage: 'Contacted', count: leads.filter(l => l.status === 'contacted').length },
+      { stage: 'Qualified', count: leads.filter(l => l.status === 'qualified').length },
+      { stage: 'Proposal', count: leads.filter(l => l.status === 'proposal').length },
+      { stage: 'Won', count: leads.filter(l => l.status === 'won').length },
+    ];
+  }, [leads]);
+
+  const sourceData = useMemo(() => {
+    if (!leads) return [];
+    const sources = ['Website', 'Referral', 'Cold Call', 'LinkedIn'];
+    return sources.map(s => ({
+      name: s,
+      value: leads.filter(l => l.source === s).length,
+      revenue: leads.filter(l => l.source === s && l.status === 'won').reduce((acc, l) => acc + l.dealValue, 0)
+    }));
+  }, [leads]);
 
   const tabInfo: Record<string, { desc: string; icon: any }> = {
-    'Overview': { desc: 'High-level performance metrics and revenue health.', icon: Target },
-    'Pipeline': { desc: 'Step-by-step conversion rates between sales stages.', icon: Zap },
-    'Sources': { desc: 'Lead acquisition performance by channel.', icon: Calendar },
-    'Forecasting': { desc: 'Predictive revenue trends for the next quarter.', icon: Sparkles },
+    'Overview': { desc: 'Team-wide performance metrics and quota health.', icon: Target },
+    'Pipeline': { desc: 'Step-by-step conversion rates across the organization.', icon: Zap },
+    'Sources': { desc: 'Lead acquisition performance by channel for the team.', icon: Calendar },
+    'Forecasting': { desc: 'Predictive revenue trends by representative.', icon: Sparkles },
   };
 
   return (
     <div className="space-y-8 pb-20 md:pb-8">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-bold font-headline">Analytics</h1>
-          <p className="text-muted-foreground">Deep-dive intelligence and pipeline diagnostics.</p>
+          <h1 className="text-3xl font-bold font-headline">Team Analytics</h1>
+          <p className="text-muted-foreground">High-level intelligence and organization-wide diagnostics.</p>
         </div>
-        <Button size="sm" className="bg-primary">Export Report</Button>
+        <Button size="sm" className="bg-primary shadow-lg shadow-primary/20">Export Manager Report</Button>
       </div>
 
       <div className="grid gap-4 grid-cols-2 lg:grid-cols-5">
         {[
-          { label: 'Win Rate', value: '32%', change: '+4%', icon: Target },
-          { label: 'Avg Deal', value: '$5.2k', change: '+8%', icon: DollarSign },
+          { label: 'Team Win Rate', value: '32%', change: '+4%', icon: Target },
+          { label: 'Avg Deal Size', value: '$5.2k', change: '+8%', icon: DollarSign },
           { label: 'Sales Cycle', value: '42d', change: '-5d', icon: Clock },
-          { label: 'Velocity', value: '1.2x', change: '+15%', icon: Zap },
-          { label: 'Coverage', value: '3.4x', change: '+0.2', icon: ShieldCheck },
+          { label: 'Sales Velocity', value: '1.2x', change: '+15%', icon: Zap },
+          { label: 'Pipeline Coverage', value: '3.4x', change: '+0.2', icon: ShieldCheck },
         ].map((stat, i) => (
           <Card key={i} className="bg-card/50 border-border/50">
             <CardHeader className="p-4 flex flex-row items-center justify-between pb-2 space-y-0">
@@ -105,52 +139,39 @@ export default function AnalyticsPage() {
       </div>
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-        <div className="flex flex-col gap-2">
-          <TabsList className="bg-card/30 border border-border/50 p-1 w-full md:w-auto justify-start overflow-hidden">
-            {Object.keys(tabInfo).map((tab) => (
-              <TabsTrigger key={tab} value={tab} className="px-6">{tab}</TabsTrigger>
-            ))}
-          </TabsList>
-          <div className="flex items-center gap-2 px-1">
-            <TooltipProvider>
-              <UITooltip>
-                <TooltipTrigger asChild>
-                  <div className="flex items-center gap-1.5 cursor-help">
-                    <Info className="h-3.5 w-3.5 text-primary" />
-                    <span className="text-xs text-muted-foreground font-medium">{tabInfo[activeTab].desc}</span>
-                  </div>
-                </TooltipTrigger>
-                <TooltipContent>
-                  <p className="text-xs">Detailed view for {activeTab}</p>
-                </TooltipContent>
-              </UITooltip>
-            </TooltipProvider>
-          </div>
-        </div>
+        <TabsList className="bg-card/30 border border-border/50 p-1 w-full md:w-auto justify-start">
+          {Object.keys(tabInfo).map((tab) => (
+            <TabsTrigger key={tab} value={tab} className="px-6">{tab}</TabsTrigger>
+          ))}
+        </TabsList>
 
         <TabsContent value="Overview" className="space-y-6 m-0">
           <div className="grid gap-6 md:grid-cols-3">
             <Card className="md:col-span-2 bg-card/50 border-border/50">
               <CardHeader>
-                <CardTitle className="text-lg">Revenue Projection</CardTitle>
-                <CardDescription>Pipeline weighted by stage probability.</CardDescription>
+                <CardTitle className="text-lg">Rep Performance Overview</CardTitle>
+                <CardDescription>Individual metrics across the sales force.</CardDescription>
               </CardHeader>
-              <CardContent className="h-[300px]">
-                <ResponsiveContainer width="100%" height="100%">
-                  <AreaChart data={revenueForecastData}>
-                    <defs>
-                      <linearGradient id="colorProjected" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="5%" stopColor="hsl(var(--primary))" stopOpacity={0.3}/>
-                        <stop offset="95%" stopColor="hsl(var(--primary))" stopOpacity={0}/>
-                      </linearGradient>
-                    </defs>
-                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="hsl(var(--border))" />
-                    <XAxis dataKey="month" fontSize={12} tickLine={false} axisLine={false} />
-                    <YAxis fontSize={12} tickLine={false} axisLine={false} tickFormatter={(v) => `$${v/1000}k`} />
-                    <Tooltip contentStyle={{ backgroundColor: 'hsl(var(--card))', borderRadius: '8px' }} />
-                    <Area type="monotone" dataKey="projected" stroke="hsl(var(--primary))" fillOpacity={1} fill="url(#colorProjected)" strokeWidth={2} />
-                  </AreaChart>
-                </ResponsiveContainer>
+              <CardContent>
+                <div className="space-y-4">
+                  {teamMetrics.map((rep, i) => (
+                    <div key={i} className="flex items-center justify-between p-4 rounded-xl bg-muted/20 border border-border/50">
+                      <div className="flex items-center gap-3">
+                        <div className="h-8 w-8 rounded-full bg-primary/20 flex items-center justify-center font-bold text-primary text-xs">
+                          {rep.name[0]}
+                        </div>
+                        <div>
+                          <p className="text-sm font-bold">{rep.name}</p>
+                          <p className="text-[10px] text-muted-foreground uppercase">Win Rate: {rep.winRate}</p>
+                        </div>
+                      </div>
+                      <div className="text-right">
+                        <p className="text-sm font-black text-primary">${rep.revenue.toLocaleString()}</p>
+                        <p className="text-[10px] text-muted-foreground uppercase">{rep.quota}% of Quota</p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
               </CardContent>
             </Card>
 
@@ -159,23 +180,22 @@ export default function AnalyticsPage() {
                 <CardHeader className="pb-2">
                   <div className="flex items-center gap-2 text-primary">
                     <Sparkles className="h-4 w-4" />
-                    <CardTitle className="text-xs font-bold uppercase tracking-widest">AI Opportunity Insight</CardTitle>
+                    <CardTitle className="text-xs font-bold uppercase tracking-widest">Manager AI Insight</CardTitle>
                   </div>
                 </CardHeader>
                 <CardContent className="space-y-4">
                   <p className="text-sm leading-relaxed">
-                    Bottleneck detected: only <span className="font-bold text-primary">18%</span> of Qualified leads move to Proposal. 
+                    Team Bottleneck: only <span className="font-bold text-primary">18%</span> Qualified → Proposal across the team. 
                   </p>
                   <div className="bg-background/50 p-3 rounded-lg border border-primary/10">
-                    <p className="text-xs italic">Update your proposal templates to improve conversion velocity.</p>
+                    <p className="text-xs italic">Consider unified proposal training to improve conversion velocity.</p>
                   </div>
                 </CardContent>
               </Card>
 
               <Card className="bg-card/50 border-border/50">
                 <CardHeader>
-                  <CardTitle className="text-sm font-bold uppercase tracking-widest text-muted-foreground">Engagement Heatmap</CardTitle>
-                  <CardDescription className="text-[10px]">Peak team activity hours across the week.</CardDescription>
+                  <CardTitle className="text-sm font-bold uppercase tracking-widest text-muted-foreground">Team Engagement Heatmap</CardTitle>
                 </CardHeader>
                 <CardContent>
                   <div className="grid grid-cols-7 gap-1">
@@ -187,15 +207,8 @@ export default function AnalyticsPage() {
                           i % 7 === 2 ? 'bg-primary/70' : 
                           i % 7 === 3 ? 'bg-primary/40' : 'bg-muted/20'
                         }`}
-                        title={`Activity Intensity: ${i % 7 * 20}%`}
                       />
                     ))}
-                  </div>
-                  <div className="flex justify-between mt-2 text-[8px] uppercase font-bold text-muted-foreground">
-                    <span>Mon</span>
-                    <span>Wed</span>
-                    <span>Fri</span>
-                    <span>Sun</span>
                   </div>
                 </CardContent>
               </Card>
@@ -206,8 +219,8 @@ export default function AnalyticsPage() {
         <TabsContent value="Pipeline" className="space-y-6 m-0">
            <Card className="bg-card/50 border-border/50">
               <CardHeader>
-                <CardTitle>Conversion Funnel</CardTitle>
-                <CardDescription>Movement efficiency between pipeline stages.</CardDescription>
+                <CardTitle>Team Conversion Funnel</CardTitle>
+                <CardDescription>Collective movement efficiency across pipeline stages.</CardDescription>
               </CardHeader>
               <CardContent className="h-[400px]">
                 <ResponsiveContainer width="100%" height="100%">
@@ -225,59 +238,6 @@ export default function AnalyticsPage() {
                 </ResponsiveContainer>
               </CardContent>
            </Card>
-        </TabsContent>
-
-        <TabsContent value="Sources" className="space-y-6 m-0">
-          <div className="grid gap-6 md:grid-cols-2">
-            <Card className="bg-card/50 border-border/50">
-              <CardHeader>
-                <CardTitle>Source Distribution</CardTitle>
-              </CardHeader>
-              <CardContent className="h-[300px]">
-                <ResponsiveContainer width="100%" height="100%">
-                  <PieChart>
-                    <Pie
-                      data={sourceData}
-                      cx="50%"
-                      cy="50%"
-                      innerRadius={60}
-                      outerRadius={80}
-                      paddingAngle={5}
-                      dataKey="value"
-                    >
-                      {sourceData.map((entry, index) => (
-                        <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                      ))}
-                    </Pie>
-                    <Tooltip />
-                    <Legend />
-                  </PieChart>
-                </ResponsiveContainer>
-              </CardContent>
-            </Card>
-
-            <Card className="bg-card/50 border-border/50">
-              <CardHeader>
-                <CardTitle>Source Performance</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-4">
-                  {sourceData.map((source, i) => (
-                    <div key={i} className="flex items-center justify-between p-3 rounded-lg bg-muted/20 border border-border/50">
-                      <div>
-                        <p className="text-sm font-bold">{source.name}</p>
-                        <p className="text-[10px] text-muted-foreground uppercase font-black">{source.winRate} Win Rate</p>
-                      </div>
-                      <div className="text-right">
-                        <p className="text-sm font-black text-primary">${source.revenue.toLocaleString()}</p>
-                        <p className="text-[10px] text-muted-foreground uppercase">Revenue</p>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </CardContent>
-            </Card>
-          </div>
         </TabsContent>
       </Tabs>
     </div>

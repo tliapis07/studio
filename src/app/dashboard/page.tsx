@@ -1,8 +1,9 @@
+
 'use client';
 
 import { useMemo, useState } from 'react';
 import { useCollection, useFirestore, useUser, useMemoFirebase } from '@/firebase';
-import { collection, query, where } from 'firebase/firestore';
+import { collection, query, where, orderBy, limit } from 'firebase/firestore';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { 
   Users, 
@@ -16,7 +17,8 @@ import {
   Sparkles,
   Zap,
   ChevronDown,
-  ChevronUp
+  History,
+  Briefcase
 } from 'lucide-react';
 import { 
   BarChart, 
@@ -30,30 +32,48 @@ import {
   AreaChart,
   Area
 } from 'recharts';
-import { Lead } from '@/lib/types';
+import { Lead, TeamMember, Activity } from '@/lib/types';
 import { format, startOfWeek, endOfWeek, eachDayOfInterval, isSameDay } from 'date-fns';
 import { Button } from '@/components/ui/button';
+import { Progress } from '@/components/ui/progress';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+
+const MOCK_TEAM: TeamMember[] = [
+  { id: 'user1', name: 'Alex Morgan', role: 'Sales Exec', email: 'alex@stream.io', avatar: 'https://picsum.photos/seed/av1/100/100', quota: 150000 },
+  { id: 'user2', name: 'Jordan Lee', role: 'Sales Exec', email: 'jordan@stream.io', avatar: 'https://picsum.photos/seed/av2/100/100', quota: 120000 },
+  { id: 'user3', name: 'Sarah Chen', role: 'Sales Exec', email: 'sarah@stream.io', avatar: 'https://picsum.photos/seed/av3/100/100', quota: 200000 },
+];
 
 export default function Dashboard() {
   const { user } = useUser();
   const db = useFirestore();
+  const [repFilter, setRepFilter] = useState('all');
 
   const leadsQuery = useMemoFirebase(() => {
-    if (!db || !user) return null;
-    return query(collection(db, 'leads'), where('ownerUid', '==', user.uid));
-  }, [db, user]);
+    if (!db) return null;
+    // Managers see all leads
+    return query(collection(db, 'leads'));
+  }, [db]);
 
-  const { data: leads, isLoading } = useCollection<Lead>(leadsQuery);
+  const activitiesQuery = useMemoFirebase(() => {
+    if (!db) return null;
+    return query(collection(db, 'activities'), orderBy('createdAt', 'desc'), limit(10));
+  }, [db]);
+
+  const { data: leads, isLoading: leadsLoading } = useCollection<Lead>(leadsQuery);
+  const { data: recentActivities } = useCollection<Activity>(activitiesQuery);
 
   const stats = useMemo(() => {
     if (!leads) return { total: 0, qualified: 0, won: 0, revenue: 0 };
+    const filtered = repFilter === 'all' ? leads : leads.filter(l => l.ownerUid === repFilter);
     return {
-      total: leads.length,
-      qualified: leads.filter(l => l.status === 'qualified').length,
-      won: leads.filter(l => l.status === 'won').length,
-      revenue: leads.filter(l => l.status === 'won').reduce((acc, l) => acc + (l.dealValue || 0), 0)
+      total: filtered.length,
+      qualified: filtered.filter(l => l.status === 'qualified').length,
+      won: filtered.filter(l => l.status === 'won').length,
+      revenue: filtered.filter(l => l.status === 'won').reduce((acc, l) => acc + (l.dealValue || 0), 0)
     };
-  }, [leads]);
+  }, [leads, repFilter]);
 
   const weeklyData = useMemo(() => {
     const start = startOfWeek(new Date());
@@ -62,6 +82,7 @@ export default function Dashboard() {
     
     return days.map(day => {
       const count = leads?.filter(l => {
+        if (repFilter !== 'all' && l.ownerUid !== repFilter) return false;
         const d = l.createdAt?.toDate ? l.createdAt.toDate() : new Date(l.createdAt);
         return isSameDay(d, day);
       }).length || 0;
@@ -71,32 +92,45 @@ export default function Dashboard() {
         leads: count
       };
     });
+  }, [leads, repFilter]);
+
+  const teamQuotaData = useMemo(() => {
+    return MOCK_TEAM.map(member => {
+      const memberRevenue = leads?.filter(l => l.ownerUid === member.id && l.status === 'won')
+        .reduce((acc, l) => acc + (l.dealValue || 0), 0) || 0;
+      const percent = Math.min(Math.round((memberRevenue / member.quota) * 100), 100);
+      return { ...member, currentRevenue: memberRevenue, percent };
+    });
   }, [leads]);
 
-  if (isLoading) return (
+  if (leadsLoading) return (
     <div className="flex flex-col h-full items-center justify-center p-8 text-center space-y-4">
       <div className="h-12 w-12 border-4 border-primary border-t-transparent rounded-full animate-spin" />
-      <p className="text-muted-foreground font-headline font-bold">Initializing Sales Environment...</p>
+      <p className="text-muted-foreground font-headline font-bold">Synchronizing Team Data...</p>
     </div>
   );
 
   const statCards = [
-    { label: 'Total Leads', value: stats.total, icon: Users, color: 'text-primary', change: '+12%', up: true },
+    { label: 'Team Totals', value: stats.total, icon: Users, color: 'text-primary', change: '+12%', up: true },
     { label: 'Qualified', value: stats.qualified, icon: Target, color: 'text-accent', change: '+5%', up: true },
     { label: 'Closed', value: stats.won, icon: Award, color: 'text-yellow-500', change: '-2%', up: false },
-    { label: 'Revenue', value: `$${stats.revenue.toLocaleString()}`, icon: DollarSign, color: 'text-emerald-500', change: '+18%', up: true },
+    { label: 'Team Revenue', value: `$${stats.revenue.toLocaleString()}`, icon: DollarSign, color: 'text-emerald-500', change: '+18%', up: true },
   ];
 
   return (
     <div className="space-y-8 animate-in fade-in duration-500 pb-20 md:pb-8">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
-          <h1 className="text-3xl md:text-4xl font-black font-headline tracking-tight text-primary">Sales Center</h1>
-          <p className="text-sm md:text-base text-muted-foreground">Hello, {user?.displayName || 'Partner'}. Here is your pipeline velocity.</p>
+          <h1 className="text-3xl md:text-4xl font-black font-headline tracking-tight text-primary">Team Center</h1>
+          <p className="text-sm md:text-base text-muted-foreground">Hello, {user?.displayName || 'Partner'}. Here is your team's pipeline velocity.</p>
         </div>
-        <div className="hidden md:flex items-center gap-2">
-           <Button size="sm" variant="outline" className="gap-2"><Clock className="h-4 w-4" /> History</Button>
-           <Button size="sm" className="bg-primary gap-2"><TrendingUp className="h-4 w-4" /> Reports</Button>
+        <div className="flex items-center gap-2">
+           <Button size="sm" variant="outline" className="gap-2 border-primary/20 hover:bg-primary/5">
+             <History className="h-4 w-4 text-primary" /> Team History
+           </Button>
+           <Button size="sm" className="bg-primary gap-2 shadow-lg shadow-primary/20">
+             <TrendingUp className="h-4 w-4" /> Generate Team Report
+           </Button>
         </div>
       </div>
 
@@ -124,9 +158,20 @@ export default function Dashboard() {
 
       <div className="grid gap-6 md:grid-cols-7">
         <Card className="md:col-span-4 bg-card/30 border-border/50">
-          <CardHeader>
-            <CardTitle className="text-lg">Inbound Velocity</CardTitle>
-            <CardDescription>Real-time lead arrival trends.</CardDescription>
+          <CardHeader className="flex flex-row items-center justify-between">
+            <div>
+              <CardTitle className="text-lg">Team Inbound Velocity</CardTitle>
+              <CardDescription>Real-time lead arrival trends across the team.</CardDescription>
+            </div>
+            <Select value={repFilter} onValueChange={setRepFilter}>
+              <SelectTrigger className="w-[140px] h-8 text-xs bg-background/50">
+                <SelectValue placeholder="All Reps" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Reps</SelectItem>
+                {MOCK_TEAM.map(m => <SelectItem key={m.id} value={m.id}>{m.name}</SelectItem>)}
+              </SelectContent>
+            </Select>
           </CardHeader>
           <CardContent className="h-[300px]">
             <ResponsiveContainer width="100%" height="100%">
@@ -152,13 +197,14 @@ export default function Dashboard() {
         
         <Card className="md:col-span-3 bg-card/30 border-border/50">
           <CardHeader>
-            <CardTitle className="text-lg">AI Sales Insights</CardTitle>
-            <CardDescription>Predictive analysis of your current pipeline.</CardDescription>
+            <CardTitle className="text-lg">AI Team Insights</CardTitle>
+            <CardDescription>Manager-focused analysis of the team pipeline.</CardDescription>
           </CardHeader>
           <CardContent className="space-y-6">
              {[
-               { icon: Zap, text: 'High Velocity: 8 leads predicted to close this week.', color: 'text-primary' },
-               { icon: Target, text: 'Opportunity: Win rate for LinkedIn leads up 15%.', color: 'text-accent' },
+               { icon: Zap, text: 'High Velocity: 8 team leads predicted to close this week.', color: 'text-primary' },
+               { icon: Award, text: 'Top Rep this week: Sarah – 4 qualified leads.', color: 'text-yellow-500' },
+               { icon: Target, text: 'Bottleneck: Only 18% Qualified → Proposal across the team.', color: 'text-accent' },
                { icon: Clock, text: 'At Risk: 3 proposals stalled for > 10 days.', color: 'text-rose-500' }
              ].map((insight, i) => (
                <div key={i} className="flex gap-4 items-start p-3 rounded-xl bg-background/50 border border-border/50 group hover:border-primary/20 transition-colors">
@@ -168,7 +214,7 @@ export default function Dashboard() {
                   <p className="text-xs font-medium leading-relaxed">{insight.text}</p>
                </div>
              ))}
-             <Button variant="outline" className="w-full text-xs font-bold gap-2">
+             <Button variant="outline" className="w-full text-xs font-bold gap-2 border-primary/20 hover:bg-primary/5">
                 <Sparkles className="h-3 w-3 text-primary" /> Generate Strategy
              </Button>
           </CardContent>
@@ -179,66 +225,66 @@ export default function Dashboard() {
         <Card className="bg-card/40 border-border/50 overflow-hidden shadow-xl">
           <CardHeader className="bg-primary/5 border-b border-border/50 p-4">
             <CardTitle className="text-sm font-bold uppercase tracking-widest flex items-center gap-2">
-              <Clock className="h-4 w-4 text-primary" /> High-Probability Leads
+              <Target className="h-4 w-4 text-primary" /> Team Quota Attainment
             </CardTitle>
           </CardHeader>
-          <CardContent className="p-0">
-            <div className="divide-y divide-border/30">
-              {leads?.filter(l => l.status !== 'won' && l.dealValue > 5000).slice(0, 4).map((lead, i) => (
-                <div key={i} className="flex items-center justify-between p-4 hover:bg-muted/10 transition-colors cursor-pointer group">
-                  <div className="flex flex-col">
-                    <span className="font-bold text-sm group-hover:text-primary transition-colors">{lead.name}</span>
-                    <span className="text-[10px] text-muted-foreground uppercase tracking-wider">{lead.company}</span>
-                  </div>
+          <CardContent className="p-6 space-y-6">
+            {teamQuotaData.map((rep) => (
+              <div key={rep.id} className="space-y-2">
+                <div className="flex items-center justify-between">
                   <div className="flex items-center gap-3">
-                    <div className="text-right">
-                       <span className="text-[10px] font-black text-primary block">PROBABLE</span>
-                       <span className="text-[10px] text-muted-foreground font-bold">${lead.dealValue.toLocaleString()}</span>
+                    <Avatar className="h-8 w-8">
+                      <AvatarImage src={rep.avatar} />
+                      <AvatarFallback>{rep.name[0]}</AvatarFallback>
+                    </Avatar>
+                    <div className="flex flex-col">
+                      <span className="text-sm font-bold">{rep.name}</span>
+                      <span className="text-[10px] text-muted-foreground uppercase">{rep.role}</span>
                     </div>
-                    <Badge className="bg-emerald-500/10 text-emerald-500 border-emerald-500/20 text-[9px] font-black">HOT</Badge>
+                  </div>
+                  <div className="text-right">
+                    <span className="text-sm font-black text-primary">{rep.percent}%</span>
+                    <span className="text-[10px] text-muted-foreground block uppercase">${rep.currentRevenue.toLocaleString()} / ${rep.quota/1000}k</span>
                   </div>
                 </div>
-              )) || <div className="p-8 text-center text-xs text-muted-foreground italic">Pipeline is clear.</div>}
-            </div>
+                <Progress value={rep.percent} className="h-2 bg-muted/30" />
+              </div>
+            ))}
           </CardContent>
         </Card>
 
         <Card className="bg-card/40 border-border/50 overflow-hidden shadow-xl">
           <CardHeader className="bg-accent/5 border-b border-border/50 p-4">
             <CardTitle className="text-sm font-bold uppercase tracking-widest flex items-center gap-2">
-              <TrendingUp className="h-4 w-4 text-accent" /> Stream Activity
+              <TrendingUp className="h-4 w-4 text-accent" /> Team Activity Feed
             </CardTitle>
           </CardHeader>
           <CardContent className="p-0">
             <div className="divide-y divide-border/30">
-              {[
-                { detail: 'Acme Corp deal closed!', time: '12m ago' },
-                { detail: 'Sarah Jenkins moved to Proposal', time: '45m ago' },
-                { detail: 'Note added for Wilson Ltd', time: '2h ago' },
-                { detail: 'New lead arrived: James Chen', time: '3h ago' },
-              ].map((activity, i) => (
-                <div key={i} className="flex gap-4 items-center p-4 hover:bg-muted/10 transition-colors">
-                  <div className="h-8 w-8 rounded-full bg-muted/30 flex items-center justify-center shrink-0 border border-border/50">
-                    <TrendingUp className="h-3.5 w-3.5 text-accent" />
+              {recentActivities?.map((activity) => (
+                <div key={activity.id} className="flex gap-4 items-center p-4 hover:bg-muted/10 transition-colors">
+                  <div className="h-8 w-8 rounded-full bg-muted/30 flex items-center justify-center shrink-0 border border-border/50 overflow-hidden">
+                    <Avatar className="h-full w-full">
+                      <AvatarImage src={MOCK_TEAM.find(m => m.id === activity.ownerUid)?.avatar} />
+                      <AvatarFallback>{activity.ownerName?.[0] || 'T'}</AvatarFallback>
+                    </Avatar>
                   </div>
                   <div className="flex flex-col flex-1">
-                    <p className="text-xs text-foreground font-medium">{activity.detail}</p>
-                    <span className="text-[9px] text-muted-foreground uppercase font-black tracking-widest mt-0.5">{activity.time}</span>
+                    <p className="text-xs text-foreground font-medium">
+                      <span className="font-bold text-primary">{activity.ownerName || 'Rep'}</span> {activity.content}
+                    </p>
+                    <span className="text-[9px] text-muted-foreground uppercase font-black tracking-widest mt-0.5">
+                      {activity.createdAt?.toDate ? format(activity.createdAt.toDate(), 'h:mm a') : 'Just now'}
+                    </span>
                   </div>
                 </div>
-              ))}
+              )) || (
+                <div className="p-8 text-center text-xs text-muted-foreground italic">No team activity recorded.</div>
+              )}
             </div>
           </CardContent>
         </Card>
       </div>
     </div>
-  );
-}
-
-function Badge({ children, className }: { children: React.ReactNode, className?: string }) {
-  return (
-    <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium border ${className}`}>
-      {children}
-    </span>
   );
 }
