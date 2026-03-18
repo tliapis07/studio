@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useMemo } from 'react';
-import { useCollection, useFirestore, useMemoFirebase } from '@/firebase';
+import { useCollection, useFirestore, useUser, useMemoFirebase } from '@/firebase';
 import { collection, query } from 'firebase/firestore';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -14,8 +14,6 @@ import {
   Tooltip, 
   ResponsiveContainer,
   Cell,
-  AreaChart,
-  Area
 } from 'recharts';
 import { 
   Target, 
@@ -26,7 +24,6 @@ import {
   Sparkles,
   Info,
   Calendar,
-  Users
 } from 'lucide-react';
 import { Lead } from '@/lib/types';
 import { Button } from '@/components/ui/button';
@@ -46,11 +43,12 @@ const MOCK_TEAM = [
 export default function TeamAnalyticsPage() {
   const [activeTab, setActiveTab] = useState('Overview');
   const db = useFirestore();
+  const { user } = useUser();
 
   const leadsQuery = useMemoFirebase(() => {
-    if (!db) return null;
+    if (!db || !user) return null;
     return query(collection(db, 'leads'));
-  }, [db]);
+  }, [db, user]);
 
   const { data: leads } = useCollection<Lead>(leadsQuery);
 

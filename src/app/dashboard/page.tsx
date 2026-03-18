@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from 'react';
 import { useCollection, useFirestore, useUser, useMemoFirebase } from '@/firebase';
-import { collection, query, orderBy, limit, doc, getDoc } from 'firebase/firestore';
+import { collection, query, orderBy, limit, doc } from 'firebase/firestore';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { 
   Users, 
@@ -60,9 +60,9 @@ export default function Dashboard() {
   }, [db, user]);
 
   const teamSettingsRef = useMemoFirebase(() => {
-    if (!db) return null;
+    if (!db || !user) return null;
     return doc(db, 'teamSettings', 'global');
-  }, [db]);
+  }, [db, user]);
 
   const { data: leads, isLoading: leadsLoading } = useCollection<Lead>(leadsQuery);
   const { data: recentActivities } = useCollection<Activity>(activitiesQuery);

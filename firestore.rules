@@ -3,7 +3,7 @@ service cloud.firestore {
   match /databases/{database}/documents {
 
     /**
-     * SalesStream Premium CRM Security Rules - Management View
+     * SalesStream Premium CRM Security Rules - Partner View
      */
 
     function isSignedIn() {
@@ -12,7 +12,6 @@ service cloud.firestore {
 
     function isAdmin() {
       // For the prototype, we allow authenticated users to act as managers.
-      // In production, check for a document in /roles_admin/{userId} or a custom claim.
       return isSignedIn();
     }
 
@@ -29,16 +28,8 @@ service cloud.firestore {
     }
 
     /**
-     * @path /roles_admin/{userId}
-     */
-    match /roles_admin/{userId} {
-      allow read: if isSignedIn();
-      allow write: if false; // Managed via Admin SDK
-    }
-
-    /**
      * @path /leads/{leadId}
-     * Root level collection for team-wide lead management.
+     * Root level collection for organization-wide leads.
      */
     match /leads/{leadId} {
       allow get, list: if isSignedIn();
@@ -48,7 +39,6 @@ service cloud.firestore {
 
     /**
      * @path /activities/{activityId}
-     * Root level collection for team-wide activity feed.
      */
     match /activities/{activityId} {
       allow get, list: if isSignedIn();
@@ -58,7 +48,6 @@ service cloud.firestore {
 
     /**
      * @path /calendarEvents/{eventId}
-     * Root level collection for team-wide calendar.
      */
     match /calendarEvents/{eventId} {
       allow get, list: if isSignedIn();
@@ -68,7 +57,6 @@ service cloud.firestore {
 
     /**
      * @path /teamSettings/{settingId}
-     * Global team configurations like quotas.
      */
     match /teamSettings/{settingId} {
       allow read: if isSignedIn();

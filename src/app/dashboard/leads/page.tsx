@@ -92,9 +92,9 @@ export default function LeadsPage() {
   const [viewingLead, setViewingLead] = useState<Lead | null>(null);
 
   const leadsQuery = useMemoFirebase(() => {
-    if (!db) return null;
+    if (!db || !user) return null;
     return query(collection(db, 'leads'));
-  }, [db]);
+  }, [db, user]);
 
   const { data: leads, isLoading } = useCollection<Lead>(leadsQuery);
 

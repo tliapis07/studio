@@ -1,9 +1,9 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { SidebarProvider, Sidebar, SidebarContent, SidebarHeader, SidebarTrigger, SidebarInset } from '@/components/ui/sidebar';
 import { NavMain } from '@/components/nav-main';
-import { TrendingUp, User, LayoutDashboard, Layers, Users, Calendar as CalendarIcon, Settings, BarChart3, Plus, Sparkles, LogOut, FileText, Info } from 'lucide-react';
+import { TrendingUp, User, LayoutDashboard, Layers, Users, Calendar as CalendarIcon, Settings, BarChart3, Plus, Sparkles, LogOut, FileText, Info, History } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Toaster } from '@/components/ui/toaster';
 import { Button } from '@/components/ui/button';
@@ -24,9 +24,15 @@ import {
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
-  const { user } = useUser();
+  const { user, isUserLoading } = useUser();
   const auth = useAuth();
   const [isAiOpen, setIsAiOpen] = useState(false);
+
+  useEffect(() => {
+    if (!isUserLoading && !user) {
+      router.push('/');
+    }
+  }, [user, isUserLoading, router]);
 
   const mobileNavItems = [
     { icon: LayoutDashboard, label: 'Dash', href: '/dashboard' },
@@ -40,6 +46,8 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     await signOut(auth);
     router.push('/');
   };
+
+  if (isUserLoading) return null;
 
   return (
     <SidebarProvider className="dark">
@@ -73,7 +81,11 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
               className="hidden lg:flex gap-2 border-primary/20 text-xs h-9"
               onClick={() => setIsAiOpen(true)}
             >
-              <Sparkles className="h-4 w-4 text-primary" /> AI Assistant
+              <Sparkles className="h-4 w-4 text-primary" /> Partner AI
+            </Button>
+
+            <Button variant="ghost" size="icon" className="h-9 w-9 text-muted-foreground">
+              <History className="h-4 w-4" />
             </Button>
             
             <DropdownMenu>
@@ -81,7 +93,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                 <Button variant="ghost" className="flex items-center gap-3 px-2 h-10 hover:bg-muted/50 rounded-lg">
                   <div className="hidden sm:flex flex-col items-end">
                     <span className="text-sm font-bold leading-none">{user?.displayName || 'Partner'}</span>
-                    <span className="text-[9px] text-muted-foreground uppercase tracking-widest font-black mt-1">Management</span>
+                    <span className="text-[9px] text-muted-foreground uppercase tracking-widest font-black mt-1">Partner</span>
                   </div>
                   <Avatar className="h-8 w-8 border border-border">
                     <AvatarImage src={user?.photoURL || ''} />

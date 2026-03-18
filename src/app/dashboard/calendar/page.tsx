@@ -1,10 +1,9 @@
-
 'use client';
 
 import { useState, useMemo } from 'react';
 import { useCollection, useFirestore, useUser, useMemoFirebase } from '@/firebase';
-import { collection, query, where } from 'firebase/firestore';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { collection, query } from 'firebase/firestore';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Calendar } from '@/components/ui/calendar';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -36,14 +35,14 @@ export default function CalendarPage() {
   const [teamFilter, setTeamFilter] = useState('all');
 
   const eventsQuery = useMemoFirebase(() => {
-    if (!db) return null;
+    if (!db || !user) return null;
     return query(collection(db, 'calendarEvents'));
-  }, [db]);
+  }, [db, user]);
 
   const leadsQuery = useMemoFirebase(() => {
-    if (!db) return null;
+    if (!db || !user) return null;
     return query(collection(db, 'leads'));
-  }, [db]);
+  }, [db, user]);
 
   const { data: events } = useCollection<CalendarEvent>(eventsQuery);
   const { data: leads } = useCollection<Lead>(leadsQuery);

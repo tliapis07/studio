@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, useMemo } from 'react';
@@ -9,11 +8,11 @@ import {
   useMemoFirebase, 
   updateDocumentNonBlocking 
 } from '@/firebase';
-import { collection, query, where, doc, serverTimestamp } from 'firebase/firestore';
+import { collection, query, doc, serverTimestamp } from 'firebase/firestore';
 import { Card, CardContent, CardHeader, CardDescription } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Plus, DollarSign, Users, Target, UserCheck } from 'lucide-react';
+import { Plus, DollarSign, Users, UserCheck } from 'lucide-react';
 import { Lead, LeadStatus, TeamMember } from '@/lib/types';
 import Link from 'next/link';
 import { toast } from '@/hooks/use-toast';
@@ -42,9 +41,9 @@ export default function PipelinePage() {
   const [teamFilter, setTeamFilter] = useState('all');
   
   const leadsQuery = useMemoFirebase(() => {
-    if (!db) return null;
+    if (!db || !user) return null;
     return query(collection(db, 'leads'));
-  }, [db]);
+  }, [db, user]);
 
   const { data: leads, isLoading } = useCollection<Lead>(leadsQuery);
 
