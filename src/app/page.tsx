@@ -4,10 +4,10 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { TrendingUp, Loader2, ShieldCheck, Users, AlertCircle, ArrowRight } from 'lucide-react';
+import { TrendingUp, Loader2, ShieldCheck, Users, AlertCircle } from 'lucide-react';
 import Image from 'next/image';
 import { useAuth, useUser } from '@/firebase';
-import { signInWithPopup, GoogleAuthProvider, signInAnonymously } from 'firebase/auth';
+import { signInWithPopup, GoogleAuthProvider, signInAnonymously, browserLocalPersistence, setPersistence } from 'firebase/auth';
 import { toast } from '@/hooks/use-toast';
 
 export default function LoginPage() {
@@ -31,20 +31,36 @@ export default function LoginPage() {
   const handleGoogleLogin = async () => {
     if (isLoading) return;
     setIsLoading(true);
-    const provider = new GoogleAuthProvider();
-    provider.setCustomParameters({ prompt: 'select_account' });
     
     try {
-      await signInWithPopup(auth, provider);
+      // Ensure persistence is set for workstation environments
+      await setPersistence(auth, browserLocalPersistence);
+      
+      const provider = new GoogleAuthProvider();
+      provider.setCustomParameters({ prompt: 'select_account' });
+      
+      const result = await signInWithPopup(auth, provider);
+      if (result.user) {
+        toast({ title: "Welcome back", description: `Signed in as ${result.user.displayName}` });
+        router.push('/dashboard');
+      }
     } catch (err: any) {
       setIsLoading(false);
-      // Silence standard "user closed popup" errors
-      if (err.code === 'auth/popup-closed-by-user') return;
-      
-      console.error("Google Sign-in Error:", err);
+      console.error("Auth Error:", err.code, err.message);
+
+      // Handle common Firebase Auth errors with failsafes
+      if (err.code === 'auth/popup-closed-by-user') {
+        // Silent fail for user closing popup
+        return;
+      }
+
       let message = "Could not establish a secure session.";
       if (err.code === 'auth/operation-not-allowed') {
         message = "Google Sign-in is not enabled in Firebase Console.";
+      } else if (err.code === 'auth/popup-blocked') {
+        message = "Login popup was blocked. Please enable popups for this site.";
+      } else if (err.code === 'auth/network-request-failed') {
+        message = "Network error. Please check your connection.";
       }
       
       toast({ 
@@ -59,14 +75,16 @@ export default function LoginPage() {
     if (isLoading) return;
     setIsLoading(true);
     try {
+      await setPersistence(auth, browserLocalPersistence);
       await signInAnonymously(auth);
+      router.push('/dashboard');
     } catch (err: any) {
       setIsLoading(false);
       console.error("Anonymous Sign-in Error:", err);
       toast({
         variant: "destructive",
         title: "Demo Access Failed",
-        description: "Anonymous sign-in is disabled or blocked.",
+        description: "Anonymous sign-in is disabled in your Firebase project.",
       });
     }
   };

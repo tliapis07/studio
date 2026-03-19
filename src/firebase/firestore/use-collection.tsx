@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -29,9 +28,7 @@ export interface UseCollectionResult<T> {
   error: FirestoreError | Error | null; // Error object, or null.
 }
 
-/* Internal implementation of Query for path extraction:
-  https://github.com/firebase/firebase-js-sdk/blob/c5f08a9bc5da0d2b0207802c972d53724ccef055/packages/firestore/src/lite-api/reference.ts#L143
-*/
+/* Internal implementation of Query for path extraction */
 export interface InternalQuery extends Query<DocumentData> {
   _query: {
     path: {
@@ -42,7 +39,7 @@ export interface InternalQuery extends Query<DocumentData> {
   type: 'collection' | 'query' | string;
 }
 
-// Known collections that require ownerUid filtering to pass security rules
+// Collections that require ownership filtering to pass Firestore Security Rules
 const USER_OWNED_COLLECTIONS = [
   'leads',
   'contacts',
@@ -55,9 +52,8 @@ const USER_OWNED_COLLECTIONS = [
 /**
  * React hook to subscribe to a Firestore collection or query in real-time.
  * 
- * AUTOMATIC FILTERING: If the target is a root-level user-owned collection,
- * this hook automatically injects the 'ownerUid' constraint to comply with 
- * security rules and prevent "Missing or insufficient permissions" errors.
+ * AUTOMATIC HARDENING: This hook detects root-level user collections and 
+ * automatically injects 'ownerUid' constraints to prevent permission denied errors.
  */
 export function useCollection<T = any>(
     memoizedTargetRefOrQuery: ((CollectionReference<DocumentData> | Query<DocumentData>) & {__memo?: boolean})  | null | undefined,
@@ -72,7 +68,6 @@ export function useCollection<T = any>(
   const [error, setError] = useState<FirestoreError | Error | null>(null);
 
   useEffect(() => {
-    // If no target provided, clear state
     if (!memoizedTargetRefOrQuery) {
       setData(null);
       setIsLoading(false);
@@ -80,7 +75,7 @@ export function useCollection<T = any>(
       return;
     }
 
-    // Step 1: Reliable collection detection
+    // Harden path detection logic
     let collectionName = '';
     const queryObj = memoizedTargetRefOrQuery as any;
     
@@ -88,44 +83,40 @@ export function useCollection<T = any>(
       if (queryObj.type === 'collection') {
         collectionName = queryObj.path || '';
       } else if (queryObj._query && queryObj._query.path) {
-        // Extract the root collection name from the full path
         const fullPath = queryObj._query.path.canonicalString() || '';
         collectionName = fullPath.split('/')[0] || '';
       } else if (typeof queryObj.path === 'string') {
         collectionName = queryObj.path;
       }
     } catch (e) {
-      console.warn('useCollection: Failed to extract path for query', e);
+      console.warn('[useCollection] Path extraction warning:', e);
     }
 
-    // Normalize: remove leading/trailing slashes
+    // Normalize path
     collectionName = collectionName.replace(/^\/|\/$/g, '');
+    
+    // Final query preparation
+    let finalQuery = memoizedTargetRefOrQuery as Query<DocumentData>;
 
-    console.log('[useCollection] Target path:', collectionName);
-
-    // Step 2: Prepare the final query
-    let q = memoizedTargetRefOrQuery as Query<DocumentData>;
-
-    // If it's a root-level user-owned collection, we MUST have a user and a filter
+    // Automatic filter injection for user-owned records
     if (USER_OWNED_COLLECTIONS.includes(collectionName)) {
       if (!user) {
-        console.log(`[useCollection] ${collectionName} requires auth. User not logged in.`);
+        console.log(`[useCollection] Skipping ${collectionName}: User not authenticated.`);
         setData([]);
         setIsLoading(false);
         return;
       }
 
-      console.log(`[useCollection] Injecting ownerUid filter for: ${collectionName} (User: ${user.uid})`);
-      // Automatically append ownership filter to satisfy "Rules are not Filters" requirement.
-      // Standardizing on 'ownerUid' as per firestore.rules
-      q = query(q, where('ownerUid', '==', user.uid));
+      console.log(`[useCollection] Hardening query for ${collectionName}: Appending ownerUid filter.`);
+      // Enforce the 'Rules are not Filters' logic by scoping the query to the user's UID
+      finalQuery = query(finalQuery, where('ownerUid', '==', user.uid));
     }
 
     setIsLoading(true);
     setError(null);
 
     const unsubscribe = onSnapshot(
-      q,
+      finalQuery,
       (snapshot: QuerySnapshot<DocumentData>) => {
         const results: ResultItemType[] = [];
         for (const doc of snapshot.docs) {
@@ -136,7 +127,7 @@ export function useCollection<T = any>(
         setIsLoading(false);
       },
       (firestoreError: FirestoreError) => {
-        console.error(`[useCollection] Permission Error for ${collectionName}:`, firestoreError);
+        console.error(`[useCollection] Permission crash on ${collectionName}:`, firestoreError);
         const permissionError = new FirestorePermissionError({
           operation: 'list',
           path: collectionName || 'unknown',
@@ -146,7 +137,7 @@ export function useCollection<T = any>(
         setData(null);
         setIsLoading(false);
 
-        // trigger global error propagation
+        // Global propagation for system debugging
         errorEmitter.emit('permission-error', permissionError);
       }
     );
@@ -154,10 +145,9 @@ export function useCollection<T = any>(
     return () => unsubscribe();
   }, [memoizedTargetRefOrQuery, user?.uid]);
 
-  // Validation: In development, ensure we are using memoized references to avoid infinite loops
+  // Validation: Ensure memoization to prevent render loops
   if(memoizedTargetRefOrQuery && !memoizedTargetRefOrQuery.__memo) {
-    throw new Error('useCollection: Input query/ref was not memoized using useMemoFirebase. Path: ' + 
-      ((memoizedTargetRefOrQuery as any).type === 'collection' ? (memoizedTargetRefOrQuery as any).path : 'dynamic query'));
+    throw new Error('useCollection: Input was not memoized using useMemoFirebase. Path: ' + collectionName);
   }
 
   return { data, isLoading, error };
