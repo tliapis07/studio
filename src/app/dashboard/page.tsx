@@ -2,7 +2,7 @@
 
 import { useMemo, useState, useEffect } from 'react';
 import { useCollection, useFirestore, useUser, useMemoFirebase, addDocumentNonBlocking } from '@/firebase';
-import { collection, query, orderBy, limit, where, serverTimestamp } from 'firebase/firestore';
+import { collection, query, where, serverTimestamp } from 'firebase/firestore';
 import { useRouter } from 'next/navigation';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { 
@@ -40,7 +40,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, Di
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
-import { format } from 'date-fns';
+import { format, isValid } from 'date-fns';
 import { Checkbox } from '@/components/ui/checkbox';
 
 const MOCK_TEAM = [
@@ -79,13 +79,14 @@ export default function Dashboard() {
     return query(collection(db, 'leads'), where('ownerUid', '==', user.uid));
   }, [db, user?.uid]);
 
-  const recentActivityQuery = useMemoFirebase(() => {
+  const activitiesRawQuery = useMemoFirebase(() => {
     if (!db || !user) return null;
-    return query(collection(db, 'activities'), where('ownerUid', '==', user.uid), orderBy('createdAt', 'desc'), limit(5));
+    // Removed orderBy to avoid index requirement
+    return query(collection(db, 'activities'), where('ownerUid', '==', user.uid));
   }, [db, user?.uid]);
 
   const { data: leads, isLoading: leadsLoading } = useCollection<Lead>(leadsQuery);
-  const { data: recentActivities } = useCollection<Activity>(recentActivityQuery);
+  const { data: rawActivities } = useCollection<Activity>(activitiesRawQuery);
 
   const stats = useMemo(() => {
     if (!leads) return { total: 0, qualified: 0, won: 0, revenue: 0 };
@@ -97,6 +98,15 @@ export default function Dashboard() {
       revenue: filtered.filter(l => l.status === 'won').reduce((acc, l) => acc + (l.dealValue || 0), 0)
     };
   }, [leads, repFilter]);
+
+  const sortedActivities = useMemo(() => {
+    if (!rawActivities) return [];
+    return [...rawActivities].sort((a, b) => {
+      const dateA = a.createdAt?.toDate ? a.createdAt.toDate() : new Date(a.createdAt || 0);
+      const dateB = b.createdAt?.toDate ? b.createdAt.toDate() : new Date(b.createdAt || 0);
+      return dateB.getTime() - dateA.getTime();
+    }).slice(0, 5);
+  }, [rawActivities]);
 
   const handleToggleTask = (taskId: string) => {
     const updated = completedTasks.includes(taskId) 
@@ -245,9 +255,9 @@ export default function Dashboard() {
               </CardTitle>
             </CardHeader>
             <CardContent className="p-0">
-              {recentActivities && recentActivities.length > 0 ? (
+              {sortedActivities.length > 0 ? (
                 <div className="divide-y-2 divide-border/20">
-                  {recentActivities.map((act) => (
+                  {sortedActivities.map((act) => (
                     <div key={act.id} className="p-5 flex gap-4 items-start hover:bg-muted/10 cursor-pointer" onClick={() => act.leadId && router.push(`/dashboard/leads/${act.leadId}`)}>
                       <Avatar className="h-8 w-8 border-2 border-primary/20"><AvatarFallback className="text-[10px] font-black">{act.ownerName?.[0]}</AvatarFallback></Avatar>
                       <div className="space-y-1 flex-1 min-w-0">

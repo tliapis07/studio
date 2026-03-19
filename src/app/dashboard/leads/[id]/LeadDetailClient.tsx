@@ -10,7 +10,7 @@
  * - Commits AI results to Activity Feed
  */
 
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -34,7 +34,7 @@ import {
 import Link from 'next/link';
 import { Lead, Activity } from '@/lib/types';
 import { useDoc, useFirestore, useUser, useMemoFirebase, updateDocumentNonBlocking, addDocumentNonBlocking, useCollection } from '@/firebase';
-import { doc, collection, serverTimestamp, query, where, orderBy } from 'firebase/firestore';
+import { doc, collection, serverTimestamp, query, where } from 'firebase/firestore';
 import { Input } from '@/components/ui/input';
 import { toast } from '@/hooks/use-toast';
 import { format, isValid } from 'date-fns';
@@ -54,18 +54,28 @@ export default function LeadDetailClient({ id }: { id: string }) {
 
   const activitiesQuery = useMemoFirebase(() => {
     if (!db || !id || !user) return null;
-    // Security Rule Alignment: Must filter by ownerUid AND target collection path correctly
+    // Removed orderBy to avoid missing index errors during development.
+    // Query must filter by ownerUid AND target collection path correctly.
     return query(
       collection(db, 'activities'), 
-      where('ownerUid', '==', user.uid), // Mandatory security filter
-      where('leadId', '==', id), 
-      orderBy('createdAt', 'desc')
+      where('ownerUid', '==', user.uid),
+      where('leadId', '==', id)
     );
   }, [db, id, user?.uid]);
 
   const leadResult = useDoc<Lead>(leadRefStable);
-  const { data: activities } = useCollection<Activity>(activitiesQuery);
+  const { data: rawActivities } = useCollection<Activity>(activitiesQuery);
   const lead = leadResult.data;
+
+  // Sorting activities client-side to resolve missing composite index requirement
+  const sortedActivities = useMemo(() => {
+    if (!rawActivities) return [];
+    return [...rawActivities].sort((a, b) => {
+      const dateA = a.createdAt?.toDate ? a.createdAt.toDate() : new Date(a.createdAt || 0);
+      const dateB = b.createdAt?.toDate ? b.createdAt.toDate() : new Date(b.createdAt || 0);
+      return dateB.getTime() - dateA.getTime();
+    });
+  }, [rawActivities]);
 
   const handleSetFollowUp = () => {
     if (!db || !lead || !followUpDate) return;
@@ -101,7 +111,7 @@ export default function LeadDetailClient({ id }: { id: string }) {
     if (!lead || !user) return;
     setIsAiProcessing(true);
     try {
-      const summary = await summarizeLeadActivity({ lead, activities: activities || [] });
+      const summary = await summarizeLeadActivity({ lead, activities: sortedActivities || [] });
       addDocumentNonBlocking(collection(db, 'activities'), {
         leadId: lead.id,
         ownerUid: user.uid,
@@ -122,7 +132,7 @@ export default function LeadDetailClient({ id }: { id: string }) {
     if (!lead || !user) return;
     setIsAiProcessing(true);
     try {
-      const result = await suggestLeadNextAction({ lead, activities: activities || [] });
+      const result = await suggestLeadNextAction({ lead, activities: sortedActivities || [] });
       addDocumentNonBlocking(collection(db, 'activities'), {
         leadId: lead.id,
         ownerUid: user.uid,
@@ -231,7 +241,7 @@ export default function LeadDetailClient({ id }: { id: string }) {
               </CardHeader>
               <CardContent className="p-8">
                 <TabsContent value="activity" className="m-0 space-y-6">
-                  {activities && activities.length > 0 ? activities.map((a) => (
+                  {sortedActivities && sortedActivities.length > 0 ? sortedActivities.map((a) => (
                     <div key={a.id} className={`p-5 rounded-2xl border-2 transition-all ${a.type === 'ai_summary' ? 'bg-primary/5 border-primary/20' : 'bg-muted/20 border-border/50'}`}>
                       <div className="flex items-center justify-between mb-2">
                         <Badge variant="outline" className="text-[8px] font-black uppercase tracking-widest">{a.type.replace('_', ' ')}</Badge>
@@ -259,7 +269,7 @@ export default function LeadDetailClient({ id }: { id: string }) {
 
         <div className="space-y-8">
           <Card className="bg-primary/5 border-primary/20 border-2 shadow-2xl rounded-3xl overflow-hidden">
-            <CardHeader className="bg-primary/10 border-b border-primary/10 p-6"><CardTitle className="text-[11px] font-black uppercase tracking-[0.2em] flex items-center gap-2"><Sparkles className="h-4 w-4" /> Organizational Score</CardTitle></CardHeader>
+            <CardHeader className="bg-primary/10 border-b border-primary/10 p-6"><CardTitle className="text-11px] font-black uppercase tracking-[0.2em] flex items-center gap-2"><Sparkles className="h-4 w-4" /> Organizational Score</CardTitle></CardHeader>
             <CardContent className="p-8">
               <div className="flex items-end gap-2 mb-6">
                 <span className="text-6xl font-black text-primary font-headline leading-none">{lead.leadScore || 82}</span>

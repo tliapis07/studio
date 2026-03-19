@@ -2,7 +2,7 @@
 
 import { useState, useMemo, useEffect } from 'react';
 import { useCollection, useFirestore, useUser, useMemoFirebase } from '@/firebase';
-import { collection, query, orderBy, limit, where } from 'firebase/firestore';
+import { collection, query, where } from 'firebase/firestore';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { History, User, Clock, Tag, TrendingUp, CheckCircle2, Search, Filter, Calendar, Download, Users, UserCheck } from 'lucide-react';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
@@ -43,20 +43,26 @@ export default function TeamHistoryPage() {
 
   const historyQuery = useMemoFirebase(() => {
     if (!db || !user) return null;
-    // Security Rule Alignment: Must filter by ownerUid to pass permissions check on root collection
+    // Removed orderBy to resolve composite index requirements during development
     return query(
       collection(db, 'activities'), 
-      where('ownerUid', '==', user.uid),
-      orderBy('createdAt', 'desc'), 
-      limit(100)
+      where('ownerUid', '==', user.uid)
     );
   }, [db, user]);
 
-  const { data: activities, isLoading } = useCollection<any>(historyQuery);
+  const { data: rawActivities, isLoading } = useCollection<any>(historyQuery);
 
   const filteredActivities = useMemo(() => {
-    if (!activities || !mounted) return [];
-    return activities.filter(a => {
+    if (!rawActivities || !mounted) return [];
+    
+    // Sort client-side to avoid Firestore index requirement
+    const sorted = [...rawActivities].sort((a, b) => {
+      const dateA = a.createdAt?.toDate ? a.createdAt.toDate() : new Date(a.createdAt || 0);
+      const dateB = b.createdAt?.toDate ? b.createdAt.toDate() : new Date(b.createdAt || 0);
+      return dateB.getTime() - dateA.getTime();
+    });
+
+    return sorted.filter(a => {
       const matchesSearch = (a.content || '').toLowerCase().includes(search.toLowerCase()) || 
                             (a.ownerName && a.ownerName.toLowerCase().includes(search.toLowerCase()));
       const matchesRep = repFilter === 'all' || a.ownerUid === repFilter;
@@ -75,7 +81,7 @@ export default function TeamHistoryPage() {
         return true;
       }
     });
-  }, [activities, search, repFilter, typeFilter, dateRange, mounted]);
+  }, [rawActivities, search, repFilter, typeFilter, dateRange, mounted]);
 
   const stats = useMemo(() => {
     return {
