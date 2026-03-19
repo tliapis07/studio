@@ -1,5 +1,4 @@
-
-import type {Metadata} from 'next';
+import type {Metadata, Viewport} from 'next';
 import './globals.css';
 import { FirebaseClientProvider } from '@/firebase';
 import { ThemeProvider } from '@/components/ThemeProvider';
@@ -7,6 +6,20 @@ import { ThemeProvider } from '@/components/ThemeProvider';
 export const metadata: Metadata = {
   title: 'SalesStream | AI-Powered Team Velocity',
   description: 'The high-performance partner portal for organizational sales management.',
+  manifest: '/manifest.json',
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: 'default',
+    title: 'SalesStream',
+  },
+};
+
+export const viewport: Viewport = {
+  themeColor: '#5740EB',
+  width: 'device-width',
+  initialScale: 1,
+  maximumScale: 1,
+  userScalable: false,
 };
 
 export default function RootLayout({

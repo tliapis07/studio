@@ -32,6 +32,11 @@ import { Label } from '@/components/ui/label';
 import { toast } from '@/hooks/use-toast';
 import { format } from 'date-fns';
 
+// Required for static export of dynamic segments
+export async function generateStaticParams() {
+  return []; // Dynamic content is fetched on the client
+}
+
 export default function LeadDetailPage() {
   const params = useParams();
   const db = useFirestore();
