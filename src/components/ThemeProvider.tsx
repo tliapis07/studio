@@ -1,4 +1,3 @@
-
 'use client';
 
 import React, { createContext, useContext, useEffect, useState } from 'react';
@@ -12,12 +11,15 @@ interface ThemeContextType {
   theme: Theme;
   setTheme: (theme: Theme) => void;
   toggleTheme: () => void;
+  brandColor: string;
+  setBrandColor: (color: string) => void;
 }
 
 const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
 
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
   const [theme, setThemeState] = useState<Theme>('dark');
+  const [brandColorState, setBrandColorState] = useState<string>('248 81% 59%');
   const { user } = useUser();
   const db = useFirestore();
   const profileRef = user ? doc(db, 'users', user.uid) : null;
@@ -38,6 +40,9 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
     if (profile?.theme && profile.theme !== 'system') {
       setThemeState(profile.theme as Theme);
     }
+    if (profile?.brandColor) {
+      setBrandColorState(profile.brandColor);
+    }
   }, [profile]);
 
   useEffect(() => {
@@ -47,10 +52,26 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
     localStorage.setItem('theme', theme);
   }, [theme]);
 
+  useEffect(() => {
+    const root = window.document.documentElement;
+    if (brandColorState) {
+      root.style.setProperty('--primary', brandColorState);
+      // Automatically set light/dark variants based on the primary if needed
+      // For simplicity, we just override the core variable
+    }
+  }, [brandColorState]);
+
   const setTheme = (newTheme: Theme) => {
     setThemeState(newTheme);
     if (user && db) {
       setDoc(doc(db, 'users', user.uid), { theme: newTheme }, { merge: true });
+    }
+  };
+
+  const setBrandColor = (color: string) => {
+    setBrandColorState(color);
+    if (user && db) {
+      setDoc(doc(db, 'users', user.uid), { brandColor: color }, { merge: true });
     }
   };
 
@@ -60,7 +81,7 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
   };
 
   return (
-    <ThemeContext.Provider value={{ theme, setTheme, toggleTheme }}>
+    <ThemeContext.Provider value={{ theme, setTheme, toggleTheme, brandColor: brandColorState, setBrandColor }}>
       {children}
     </ThemeContext.Provider>
   );

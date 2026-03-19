@@ -12,6 +12,7 @@ export interface TeamMember {
 export interface UserProfile {
   id: string;
   theme: 'light' | 'dark' | 'system';
+  brandColor?: string; // HSL components string: "H S L"
   profilePicURL?: string;
   status?: string;
   statusUpdatedAt?: any;

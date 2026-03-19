@@ -33,7 +33,9 @@ import {
   RefreshCw,
   Share2,
   Star,
-  MessageSquare
+  MessageSquare,
+  Palette,
+  Check
 } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
 import { useUser, useFirestore, useDoc, useAuth } from '@/firebase';
@@ -57,6 +59,7 @@ import { deleteUser } from 'firebase/auth';
 import { useRouter } from 'next/navigation';
 import { logEvent } from '@/lib/firebase';
 import { Haptics, ImpactStyle } from '@capacitor/haptics';
+import { cn } from '@/lib/utils';
 
 const TIMEZONES = [
   "UTC", "America/New_York", "America/Chicago", "America/Denver", "America/Los_Angeles", 
@@ -66,12 +69,21 @@ const TIMEZONES = [
 
 const STATUS_OPTIONS = ["Available", "Busy", "In a meeting", "Do not disturb", "Working Remotely"];
 
+const BRAND_PRESETS = [
+  { name: 'Stream Blue', value: '248 81% 59%' },
+  { name: 'Cyber Emerald', value: '160 84% 39%' },
+  { name: 'Royal Indigo', value: '262 83% 58%' },
+  { name: 'Deep Rose', value: '346 87% 43%' },
+  { name: 'Slate Graphite', value: '215 25% 27%' },
+  { name: 'Sunset Amber', value: '24 95% 53%' },
+];
+
 export default function SettingsPage() {
   const { user } = useUser();
   const auth = useAuth();
   const db = useFirestore();
   const router = useRouter();
-  const { theme, setTheme } = useTheme();
+  const { theme, setTheme, brandColor, setBrandColor } = useTheme();
   const [activeTab, setActiveTab] = useState('profile');
   const [isUploading, setIsUploading] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
@@ -195,7 +207,7 @@ export default function SettingsPage() {
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-8">
         <TabsList className="bg-card/30 p-1.5 border-2 border-border/50 w-full md:w-fit justify-start h-14 rounded-2xl">
           <TabsTrigger value="profile" className="gap-2 px-8 h-11 font-black text-xs uppercase tracking-widest rounded-xl"><User className="h-4 w-4" /> Identity</TabsTrigger>
-          <TabsTrigger value="data" className="gap-2 px-8 h-11 font-black text-xs uppercase tracking-widest rounded-xl"><Database className="h-4 w-4" /> UI & Sync</TabsTrigger>
+          <TabsTrigger value="data" className="gap-2 px-8 h-11 font-black text-xs uppercase tracking-widest rounded-xl"><Database className="h-4 w-4" /> UI & Brand</TabsTrigger>
           <TabsTrigger value="system" className="gap-2 px-8 h-11 font-black text-xs uppercase tracking-widest rounded-xl"><Sparkles className="h-4 w-4" /> Advanced</TabsTrigger>
         </TabsList>
 
@@ -285,7 +297,7 @@ export default function SettingsPage() {
         </TabsContent>
 
         <TabsContent value="data" className="space-y-8 animate-in slide-in-from-top-4 duration-300">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
             <Card className="bg-card/50 border-2 border-border/50 rounded-3xl shadow-xl">
               <CardHeader className="p-8 pb-4">
                 <CardTitle className="text-xl font-black">Visual Interface</CardTitle>
@@ -325,6 +337,49 @@ export default function SettingsPage() {
               </CardContent>
             </Card>
 
+            <Card className="bg-card/50 border-2 border-border/50 rounded-3xl shadow-xl">
+              <CardHeader className="p-8 pb-4">
+                <div className="flex items-center gap-3">
+                  <Palette className="h-6 w-6 text-primary" />
+                  <CardTitle className="text-xl font-black">Brand Identity</CardTitle>
+                </div>
+                <CardDescription>Customize the primary text and accent colors organizational-wide.</CardDescription>
+              </CardHeader>
+              <CardContent className="p-8 space-y-6">
+                <Label className="text-xs font-black uppercase tracking-widest">Organizational Palette</Label>
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                  {BRAND_PRESETS.map((preset) => (
+                    <button
+                      key={preset.name}
+                      onClick={() => { handleActionClick(); setBrandColor(preset.value); }}
+                      className={cn(
+                        "group relative flex flex-col items-center justify-center p-4 rounded-2xl border-2 transition-all hover:scale-105",
+                        brandColor === preset.value ? "border-primary bg-primary/10" : "border-border/50 bg-muted/20"
+                      )}
+                    >
+                      <div 
+                        className="h-8 w-8 rounded-full mb-2 shadow-lg ring-2 ring-background" 
+                        style={{ backgroundColor: `hsl(${preset.value})` }}
+                      />
+                      <span className="text-[9px] font-black uppercase tracking-widest text-center">{preset.name}</span>
+                      {brandColor === preset.value && (
+                        <div className="absolute top-2 right-2 bg-primary text-white p-0.5 rounded-full shadow-sm">
+                          <Check className="h-3 w-3" />
+                        </div>
+                      )}
+                    </button>
+                  ))}
+                </div>
+                <div className="pt-4 border-t border-border/50">
+                  <p className="text-[10px] text-muted-foreground leading-relaxed font-medium">
+                    This setting modifies the <strong>--primary</strong> color variable, altering all headings, buttons, and highlighted text elements to match your brand.
+                  </p>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
             <Card className="bg-card/50 border-2 border-border/50 rounded-3xl shadow-xl">
               <CardHeader className="p-8 pb-4">
                 <CardTitle className="text-xl font-black">Synchronization & Sync</CardTitle>
