@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useMemo, useRef } from 'react';
@@ -115,6 +116,7 @@ export default function LeadsPage() {
 
   const leadsQuery = useMemoFirebase(() => {
     if (!db || !user) return null;
+    // CRITICAL: Filter by ownerUid to pass security rules
     return query(collection(db, 'leads'), where('ownerUid', '==', user.uid));
   }, [db, user]);
 
@@ -373,7 +375,7 @@ export default function LeadsPage() {
                   </TableCell>
                 </TableRow>
               ) : filteredLeads.length > 0 ? filteredLeads.map((lead) => (
-                <TableRow key={lead.id} className="hover:bg-muted/10 group cursor-pointer" onClick={() => router.push(`/dashboard/leads/${lead.id}`)}>
+                <TableRow key={lead.id} className="hover:bg-muted/10 group cursor-pointer" onClick={() => router.push(`/dashboard/leads/${lead.id}/`)}>
                   <TableCell className="px-4 text-center" onClick={(e) => e.stopPropagation()}>
                     <Checkbox 
                       checked={selectedLeads.includes(lead.id)}
@@ -415,7 +417,7 @@ export default function LeadsPage() {
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end" className="w-48">
                         <DropdownMenuLabel className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Record Options</DropdownMenuLabel>
-                        <DropdownMenuItem onClick={() => router.push(`/dashboard/leads/${lead.id}`)}>View Profile</DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => router.push(`/dashboard/leads/${lead.id}/`)}>View Profile</DropdownMenuItem>
                         <DropdownMenuItem>Adjust Valuation</DropdownMenuItem>
                         <DropdownMenuSeparator />
                         <DropdownMenuItem className="text-rose-500">Archive Record</DropdownMenuItem>

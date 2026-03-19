@@ -1,3 +1,4 @@
+
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
@@ -32,7 +33,7 @@ service cloud.firestore {
     match /leads/{leadId} {
       allow read, delete: if isOwner();
       allow create: if isAssigningToSelf();
-      allow update: if isOwner(); // Allow owner to update, including reassignment
+      allow update: if isOwner();
     }
 
     match /contacts/{contactId} {

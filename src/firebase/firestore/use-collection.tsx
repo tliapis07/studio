@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -8,9 +9,13 @@ import {
   FirestoreError,
   QuerySnapshot,
   CollectionReference,
+  query,
+  where,
+  collection,
 } from 'firebase/firestore';
 import { errorEmitter } from '@/firebase/error-emitter';
 import { FirestorePermissionError } from '@/firebase/errors';
+import { useUser, useFirestore } from '@/firebase';
 
 /** Utility type to add an 'id' field to a given type T. */
 export type WithId<T> = T & { id: string };
@@ -37,6 +42,16 @@ export interface InternalQuery extends Query<DocumentData> {
   }
 }
 
+// Known collections that require ownerUid filtering
+const USER_OWNED_COLLECTIONS = [
+  'leads',
+  'contacts',
+  'notes',
+  'activities',
+  'calendarEvents',
+  'training_materials'
+];
+
 /**
  * React hook to subscribe to a Firestore collection or query in real-time.
  * Handles nullable references/queries.
@@ -51,6 +66,9 @@ export interface InternalQuery extends Query<DocumentData> {
 export function useCollection<T = any>(
     memoizedTargetRefOrQuery: ((CollectionReference<DocumentData> | Query<DocumentData>) & {__memo?: boolean})  | null | undefined,
 ): UseCollectionResult<T> {
+  const { user } = useUser();
+  const db = useFirestore();
+  
   type ResultItemType = WithId<T>;
   type StateDataType = ResultItemType[] | null;
 
@@ -59,6 +77,7 @@ export function useCollection<T = any>(
   const [error, setError] = useState<FirestoreError | Error | null>(null);
 
   useEffect(() => {
+    // If no target provided, clear state
     if (!memoizedTargetRefOrQuery) {
       setData(null);
       setIsLoading(false);
@@ -66,11 +85,24 @@ export function useCollection<T = any>(
       return;
     }
 
+    // Check if target is a user-owned collection and requires a filter
+    let finalQuery = memoizedTargetRefOrQuery as Query<DocumentData>;
+    const path = finalQuery.type === 'collection' 
+      ? (finalQuery as CollectionReference).path 
+      : (finalQuery as unknown as InternalQuery)._query.path.canonicalString();
+
+    // Safety: If the path is a root-level user-owned collection and no user is present, wait.
+    if (USER_OWNED_COLLECTIONS.includes(path) && !user) {
+      setData(null);
+      setIsLoading(false);
+      return;
+    }
+
     setIsLoading(true);
     setError(null);
 
     const unsubscribe = onSnapshot(
-      memoizedTargetRefOrQuery,
+      finalQuery,
       (snapshot: QuerySnapshot<DocumentData>) => {
         const results: ResultItemType[] = [];
         for (const doc of snapshot.docs) {
@@ -81,12 +113,6 @@ export function useCollection<T = any>(
         setIsLoading(false);
       },
       (firestoreError: FirestoreError) => {
-        // Extract the path for contextual debugging
-        const path: string =
-          memoizedTargetRefOrQuery.type === 'collection'
-            ? (memoizedTargetRefOrQuery as CollectionReference).path
-            : (memoizedTargetRefOrQuery as unknown as InternalQuery)._query.path.canonicalString();
-
         const permissionError = new FirestorePermissionError({
           operation: 'list',
           path,
@@ -102,8 +128,9 @@ export function useCollection<T = any>(
     );
 
     return () => unsubscribe();
-  }, [memoizedTargetRefOrQuery]);
+  }, [memoizedTargetRefOrQuery, user]);
 
+  // Validation: In development, ensure we are using memoized references to avoid infinite loops
   if(memoizedTargetRefOrQuery && !memoizedTargetRefOrQuery.__memo) {
     throw new Error('useCollection: Input query/ref was not memoized using useMemoFirebase. Path: ' + 
       (memoizedTargetRefOrQuery.type === 'collection' ? (memoizedTargetRefOrQuery as any).path : 'dynamic query'));
