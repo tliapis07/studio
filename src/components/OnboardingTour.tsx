@@ -1,130 +1,130 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
-import dynamic from 'next/dynamic';
+import React, { useState, useEffect } from 'react';
+import { 
+  Dialog, 
+  DialogContent, 
+  DialogHeader, 
+  DialogTitle, 
+  DialogDescription,
+  DialogFooter
+} from '@/components/ui/dialog';
+import { Button } from '@/components/ui/button';
 import { useUser } from '@/firebase';
+import { TrendingUp, Sparkles, ShieldCheck, Zap, ChevronRight, ChevronLeft } from 'lucide-react';
 
-// Dynamically import Joyride with SSR disabled to avoid React 19/Next.js build errors
-// related to deprecated React DOM APIs used in older library versions.
-const Joyride = dynamic(() => import('react-joyride'), { ssr: false });
+/**
+ * OnboardingTour
+ * A high-performance, native-feeling onboarding system using ShadCN Dialog.
+ * Replaces react-joyride to ensure compatibility with React 19 / Next.js 15.
+ */
 
-// Import types only to avoid triggering the import error in the main bundle
-import type { Step, CallBackProps } from 'react-joyride';
-
-// Define status constants locally to avoid importing from 'react-joyride' constants 
-// which might pull in problematic code during the build.
-const STATUS = {
-  FINISHED: 'finished',
-  SKIPPED: 'skipped',
-};
+const STEPS = [
+  {
+    title: "Welcome to SalesStream",
+    description: "Your high-performance partner portal is ready. Let's take a 30-second tour of your new organizational command center.",
+    icon: TrendingUp,
+    color: "text-primary"
+  },
+  {
+    title: "Unified Pipeline",
+    description: "Manage every lead from ingestion to close. Use the visual Pipeline tab to drag and drop deals across organizational stages.",
+    icon: Zap,
+    color: "text-amber-500"
+  },
+  {
+    title: "Partner AI Assistant",
+    description: "Your AI strategist is always available. Generate scripts, summarize leads, or dictate tasks using the floating action button.",
+    icon: Sparkles,
+    color: "text-accent"
+  },
+  {
+    title: "Offline Resilience",
+    description: "Connectivity issues? No problem. SalesStream persists your data locally and synchronizes automatically when you're back online.",
+    icon: ShieldCheck,
+    color: "text-emerald-500"
+  }
+];
 
 const OnboardingTour = () => {
   const { user } = useUser();
-  const [run, setRun] = useState(false);
+  const [open, setOpen] = useState(false);
+  const [step, setStep] = useState(0);
 
   useEffect(() => {
-    const hasSeenTour = localStorage.getItem('hasSeenTour');
-    if (!hasSeenTour && user) {
-      const timer = setTimeout(() => {
-        setRun(true);
-      }, 1500);
+    // Check local storage to prevent repeating the tour
+    const hasSeen = localStorage.getItem('hasSeenTourV2');
+    if (!hasSeen && user) {
+      // Delay launch for smooth entry after auth redirect
+      const timer = setTimeout(() => setOpen(true), 2000);
       return () => clearTimeout(timer);
     }
   }, [user]);
 
-  const steps: Step[] = [
-    {
-      target: 'body',
-      placement: 'center',
-      content: (
-        <div className="text-left space-y-3 p-2">
-          <h3 className="font-black text-primary text-xl">Welcome to SalesStream!</h3>
-          <p className="text-sm font-medium leading-relaxed">Ready for a comprehensive tour of your new high-performance Partner Portal? We'll show you how to manage your organization efficiently.</p>
-        </div>
-      ),
-      disableBeacon: true,
-    },
-    {
-      target: '[data-sidebar="sidebar"]',
-      content: 'Access all team resources here: Pipeline, Leads, and the new Contacts directory.',
-      placement: 'right',
-      disableScrolling: false,
-    },
-    {
-      target: '.ai-insights-card',
-      content: 'Monitor automated follow-ups and overdue engagement tasks across the entire team.',
-      placement: 'left',
-    },
-    {
-      target: '#offline-indicator',
-      content: 'SalesStream now supports full offline persistence. Your data syncs automatically when you reconnect.',
-      placement: 'top',
-    },
-    {
-      target: '#ai-assistant-trigger',
-      content: 'Need help? Your Partner AI assistant is always available for quick tasks and WhatsApp drafting.',
-      placement: 'left',
-    }
-  ];
-
-  const handleJoyrideCallback = (data: CallBackProps) => {
-    const { status } = data;
-    if ([STATUS.FINISHED, STATUS.SKIPPED].includes(status as any)) {
-      setRun(false);
-      localStorage.setItem('hasSeenTour', 'true');
-    }
+  const handleComplete = () => {
+    localStorage.setItem('hasSeenTourV2', 'true');
+    setOpen(false);
   };
 
+  const next = () => setStep(s => Math.min(s + 1, STEPS.length - 1));
+  const prev = () => setStep(s => Math.max(s - 1, 0));
+
+  const CurrentIcon = STEPS[step].icon;
+
   return (
-    <Joyride
-      steps={steps}
-      run={run}
-      continuous
-      showProgress
-      showSkipButton
-      scrollToFirstStep
-      scrollDuration={400}
-      scrollOffset={100}
-      callback={handleJoyrideCallback}
-      styles={{
-        options: {
-          arrowColor: 'hsl(var(--card))',
-          backgroundColor: 'hsl(var(--card))',
-          overlayColor: 'rgba(0, 0, 0, 0.85)',
-          primaryColor: 'hsl(var(--primary))',
-          textColor: 'hsl(var(--foreground))',
-          zIndex: 1000,
-        },
-        tooltipContainer: {
-          textAlign: 'left',
-          borderRadius: '1.5rem',
-          padding: '1.5rem',
-          border: '2px solid hsl(var(--border))',
-          boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.5)',
-        },
-        buttonNext: {
-          borderRadius: '0.75rem',
-          fontWeight: '900',
-          padding: '0.75rem 1.5rem',
-          textTransform: 'uppercase',
-          fontSize: '11px',
-          letterSpacing: '0.1em',
-        },
-        buttonBack: {
-          marginRight: 10,
-          fontWeight: '900',
-          textTransform: 'uppercase',
-          fontSize: '11px',
-          letterSpacing: '0.1em',
-        },
-        buttonSkip: {
-          fontWeight: '900',
-          textTransform: 'uppercase',
-          fontSize: '11px',
-          letterSpacing: '0.1em',
-        }
-      }}
-    />
+    <Dialog open={open} onOpenChange={setOpen}>
+      <DialogContent className="sm:max-w-[500px] rounded-3xl border-2 p-0 overflow-hidden bg-card/95 backdrop-blur-xl">
+        <div className="p-8 space-y-8">
+          <div className="flex justify-center pt-4">
+            <div className={`h-24 w-24 rounded-3xl bg-muted/20 border-2 border-border/50 flex items-center justify-center shadow-inner`}>
+              <CurrentIcon className={`h-12 w-12 ${STEPS[step].color} animate-in zoom-in duration-500`} />
+            </div>
+          </div>
+          
+          <div className="text-center space-y-3">
+            <DialogTitle className="text-2xl font-black font-headline tracking-tight">
+              {STEPS[step].title}
+            </DialogTitle>
+            <DialogDescription className="text-sm font-medium leading-relaxed px-4 text-muted-foreground">
+              {STEPS[step].description}
+            </DialogDescription>
+          </div>
+
+          <div className="flex justify-center gap-1.5 pt-2">
+            {STEPS.map((_, i) => (
+              <div key={i} className={`h-1.5 rounded-full transition-all duration-300 ${i === step ? 'w-8 bg-primary' : 'w-1.5 bg-muted'}`} />
+            ))}
+          </div>
+        </div>
+
+        <DialogFooter className="p-8 bg-muted/10 border-t-2 border-border/50 flex flex-row items-center justify-between gap-4">
+          <Button 
+            variant="ghost" 
+            onClick={prev} 
+            disabled={step === 0}
+            className="rounded-xl font-black uppercase text-[10px] tracking-widest px-6"
+          >
+            <ChevronLeft className="h-4 w-4 mr-2" /> Back
+          </Button>
+          
+          {step === STEPS.length - 1 ? (
+            <Button 
+              onClick={handleComplete}
+              className="rounded-xl bg-primary shadow-lg shadow-primary/20 font-black uppercase text-[10px] tracking-widest px-8"
+            >
+              Start Selling
+            </Button>
+          ) : (
+            <Button 
+              onClick={next}
+              className="rounded-xl bg-primary shadow-lg shadow-primary/20 font-black uppercase text-[10px] tracking-widest px-8"
+            >
+              Next <ChevronRight className="h-4 w-4 ml-2" />
+            </Button>
+          )}
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 };
 
