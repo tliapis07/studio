@@ -86,5 +86,14 @@ service cloud.firestore {
       allow read: if isSignedIn();
       allow create: if isSignedIn();
     }
+
+    /**
+     * @path /notes/{noteId}
+     */
+    match /notes/{noteId} {
+      allow get, list: if isSignedIn();
+      allow create: if isSignedIn();
+      allow update, delete: if isSignedIn();
+    }
   }
 }

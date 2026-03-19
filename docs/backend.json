@@ -4,372 +4,173 @@
       "$schema": "http://json-schema.org/draft-07/schema#",
       "title": "UserProfile",
       "type": "object",
-      "description": "Represents a user's profile within the CRM application, storing essential information beyond authentication credentials for display, assignment, and team management purposes.",
+      "description": "Represents a user's profile within the CRM application.",
       "properties": {
-        "id": {
-          "type": "string",
-          "description": "Unique identifier for the UserProfile entity, typically corresponding to the user's authentication ID (e.g., Firebase Auth UID)."
-        },
-        "email": {
-          "type": "string",
-          "description": "The primary email address of the user.",
-          "format": "email"
-        },
-        "displayName": {
-          "type": "string",
-          "description": "The public display name of the user."
-        },
-        "role": {
-          "type": "string",
-          "description": "The role of the user within the CRM system, defining access levels and responsibilities."
-        },
-        "photoUrl": {
-          "type": "string",
-          "description": "URL to the user's profile picture.",
-          "format": "uri"
-        },
-        "createdAt": {
-          "type": "string",
-          "description": "Timestamp when the user profile was created.",
-          "format": "date-time"
-        },
-        "updatedAt": {
-          "type": "string",
-          "description": "Timestamp when the user profile was last updated.",
-          "format": "date-time"
-        }
+        "id": { "type": "string" },
+        "email": { "type": "string", "format": "email" },
+        "displayName": { "type": "string" },
+        "role": { "type": "string" },
+        "photoUrl": { "type": "string", "format": "uri" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
       },
-      "required": [
-        "id",
-        "email",
-        "displayName",
-        "createdAt",
-        "updatedAt"
-      ]
+      "required": ["id", "email", "displayName", "createdAt", "updatedAt"]
     },
     "Lead": {
       "$schema": "http://json-schema.org/draft-07/schema#",
       "title": "Lead",
       "type": "object",
-      "description": "Represents a potential customer or sales opportunity, tracking their journey through the sales pipeline.",
+      "description": "Represents a potential customer or sales opportunity.",
       "properties": {
-        "id": {
-          "type": "string",
-          "description": "Unique identifier for the Lead entity."
-        },
-        "ownerUid": {
-          "type": "string",
-          "description": "Reference to UserProfile.id, indicating the user who owns or is assigned this lead."
-        },
-        "name": {
-          "type": "string",
-          "description": "The full name of the lead contact."
-        },
-        "email": {
-          "type": "string",
-          "description": "The primary email address of the lead.",
-          "format": "email"
-        },
-        "phone": {
-          "type": "string",
-          "description": "The primary phone number of the lead."
-        },
-        "company": {
-          "type": "string",
-          "description": "The company associated with the lead."
-        },
-        "status": {
-          "type": "string",
-          "description": "The current stage of the lead in the sales pipeline.",
-          "enum": [
-            "new",
-            "contacted",
-            "qualified",
-            "proposal",
-            "negotiated",
-            "won",
-            "lost"
-          ]
-        },
-        "dealValue": {
-          "type": "number",
-          "description": "The estimated monetary value of the potential deal with this lead."
-        },
-        "source": {
-          "type": "string",
-          "description": "The origin or channel through which the lead was acquired (e.g., 'Website', 'Referral', 'Cold Call')."
-        },
-        "tags": {
-          "type": "array",
-          "description": "An array of descriptive tags or keywords associated with the lead.",
-          "items": {
-            "type": "string"
-          }
-        },
-        "nextFollowUpAt": {
-          "type": "string",
-          "description": "Timestamp for the next scheduled follow-up or contact with the lead.",
-          "format": "date-time"
-        },
-        "lastContactAt": {
-          "type": "string",
-          "description": "Timestamp of the most recent interaction or contact with the lead.",
-          "format": "date-time"
-        },
-        "createdAt": {
-          "type": "string",
-          "description": "Timestamp when the lead record was initially created.",
-          "format": "date-time"
-        },
-        "updatedAt": {
-          "type": "string",
-          "description": "Timestamp when the lead record was last updated.",
-          "format": "date-time"
-        },
-        "customFields": {
-          "type": "object",
-          "description": "A flexible object for storing additional, user-defined fields specific to the lead."
-        },
-        "notesCount": {
-          "type": "number",
-          "description": "Denormalized count of notes associated with this lead."
-        },
-        "callsCount": {
-          "type": "number",
-          "description": "Denormalized count of calls logged for this lead."
-        }
+        "id": { "type": "string" },
+        "ownerUid": { "type": "string" },
+        "name": { "type": "string" },
+        "email": { "type": "string", "format": "email" },
+        "phone": { "type": "string" },
+        "company": { "type": "string" },
+        "status": { "type": "string", "enum": ["new", "contacted", "qualified", "proposal", "negotiated", "won", "lost"] },
+        "dealValue": { "type": "number" },
+        "source": { "type": "string" },
+        "tags": { "type": "array", "items": { "type": "string" } },
+        "nextFollowUpAt": { "type": "string", "format": "date-time" },
+        "lastContactAt": { "type": "string", "format": "date-time" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" },
+        "customFields": { "type": "object" },
+        "notesCount": { "type": "number" },
+        "callsCount": { "type": "number" }
       },
-      "required": [
-        "id",
-        "ownerUid",
-        "name",
-        "status",
-        "createdAt",
-        "updatedAt"
-      ]
+      "required": ["id", "ownerUid", "name", "status", "createdAt", "updatedAt"]
     },
     "Activity": {
       "$schema": "http://json-schema.org/draft-07/schema#",
       "title": "Activity",
       "type": "object",
-      "description": "Records an interaction or significant event related to a specific lead, contributing to the lead's history and timeline.",
+      "description": "Records an interaction related to a lead.",
       "properties": {
-        "id": {
-          "type": "string",
-          "description": "Unique identifier for the Activity entity."
-        },
-        "leadId": {
-          "type": "string",
-          "description": "Reference to Lead.id, indicating which lead this activity pertains to."
-        },
-        "ownerUid": {
-          "type": "string",
-          "description": "Reference to UserProfile.id, indicating the user who logged this activity."
-        },
-        "type": {
-          "type": "string",
-          "description": "The category of the activity.",
-          "enum": [
-            "note",
-            "call",
-            "status_change",
-            "tag_added",
-            "event_created"
-          ]
-        },
-        "content": {
-          "type": "string",
-          "description": "The detailed description or content of the activity."
-        },
-        "createdAt": {
-          "type": "string",
-          "description": "Timestamp when the activity was recorded.",
-          "format": "date-time"
-        },
-        "oldStatus": {
-          "type": "string",
-          "description": "The previous status of the lead."
-        },
-        "newStatus": {
-          "type": "string",
-          "description": "The new status of the lead."
-        }
+        "id": { "type": "string" },
+        "leadId": { "type": "string" },
+        "ownerUid": { "type": "string" },
+        "type": { "type": "string", "enum": ["note", "call", "status_change", "tag_added", "event_created", "whatsapp_sent"] },
+        "content": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "oldStatus": { "type": "string" },
+        "newStatus": { "type": "string" }
       },
-      "required": [
-        "id",
-        "leadId",
-        "ownerUid",
-        "type",
-        "content",
-        "createdAt"
-      ]
+      "required": ["id", "leadId", "ownerUid", "type", "content", "createdAt"]
     },
     "CalendarEvent": {
       "$schema": "http://json-schema.org/draft-07/schema#",
       "title": "CalendarEvent",
       "type": "object",
-      "description": "Represents a scheduled event, meeting, or reminder.",
+      "description": "Represents a scheduled event.",
       "properties": {
-        "id": {
-          "type": "string",
-          "description": "Unique identifier for the Event entity."
-        },
-        "ownerUid": {
-          "type": "string",
-          "description": "Reference to UserProfile.id, indicating the user who created or owns this event."
-        },
-        "leadId": {
-          "type": "string",
-          "description": "Reference to Lead.id."
-        },
-        "title": {
-          "type": "string",
-          "description": "A concise title or subject for the event."
-        },
-        "description": {
-          "type": "string",
-          "description": "A detailed description or agenda for the event."
-        },
-        "startAt": {
-          "type": "string",
-          "description": "The starting date and time of the event.",
-          "format": "date-time"
-        },
-        "endAt": {
-          "type": "string",
-          "description": "The ending date and time of the event.",
-          "format": "date-time"
-        },
-        "allDay": {
-          "type": "boolean",
-          "description": "A boolean indicating if the event is an all-day event."
-        },
-        "eventType": {
-          "type": "string",
-          "description": "The category or nature of the event.",
-          "enum": [
-            "follow-up",
-            "meeting",
-            "task",
-            "reminder"
-          ]
-        },
-        "status": {
-          "type": "string",
-          "description": "The current status of the event.",
-          "enum": [
-            "scheduled",
-            "completed",
-            "cancelled"
-          ]
-        },
-        "createdAt": {
-          "type": "string",
-          "description": "Timestamp when the event record was initially created.",
-          "format": "date-time"
-        }
+        "id": { "type": "string" },
+        "ownerUid": { "type": "string" },
+        "leadId": { "type": "string" },
+        "title": { "type": "string" },
+        "description": { "type": "string" },
+        "startAt": { "type": "string", "format": "date-time" },
+        "endAt": { "type": "string", "format": "date-time" },
+        "allDay": { "type": "boolean" },
+        "eventType": { "type": "string", "enum": ["follow-up", "meeting", "task", "reminder"] },
+        "status": { "type": "string", "enum": ["scheduled", "completed", "cancelled"] },
+        "createdAt": { "type": "string", "format": "date-time" }
       },
-      "required": [
-        "id",
-        "ownerUid",
-        "title",
-        "startAt",
-        "eventType",
-        "createdAt"
-      ]
+      "required": ["id", "ownerUid", "title", "startAt", "eventType", "createdAt"]
     },
     "TrainingMaterial": {
       "$schema": "http://json-schema.org/draft-07/schema#",
       "title": "TrainingMaterial",
       "type": "object",
-      "description": "Represents a training resource or document for sales reps.",
+      "description": "Represents a training resource.",
       "properties": {
-        "id": {
-          "type": "string",
-          "description": "Unique identifier for the TrainingMaterial."
-        },
-        "userId": {
-          "type": "string",
-          "description": "The user who uploaded the material."
-        },
-        "title": {
-          "type": "string",
-          "description": "The title of the material."
-        },
-        "subject": {
-          "type": "string",
-          "description": "The category (e.g., Cold Calling)."
-        },
-        "content": {
-          "type": "string",
-          "description": "The content or body of the training material."
-        },
-        "createdAt": {
-          "type": "string",
-          "description": "Timestamp when the material was created.",
-          "format": "date-time"
-        }
+        "id": { "type": "string" },
+        "userId": { "type": "string" },
+        "title": { "type": "string" },
+        "subject": { "type": "string" },
+        "content": { "type": "string" },
+        "type": { "type": "string", "enum": ["pdf", "link", "video", "doc", "image"] },
+        "fileUrl": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
       },
-      "required": [
-        "id",
-        "userId",
-        "title",
-        "subject",
-        "content",
-        "createdAt"
-      ]
+      "required": ["id", "userId", "title", "subject", "content", "createdAt"]
+    },
+    "Contact": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Contact",
+      "type": "object",
+      "description": "Represents a client contact.",
+      "properties": {
+        "id": { "type": "string" },
+        "userId": { "type": "string" },
+        "name": { "type": "string" },
+        "phone": { "type": "string" },
+        "secondaryPhone": { "type": "string" },
+        "email": { "type": "string", "format": "email" },
+        "notes": { "type": "string" },
+        "linkedLeadId": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "userId", "name", "phone", "createdAt", "updatedAt"]
+    },
+    "Note": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Note",
+      "type": "object",
+      "description": "A personal sales note or script idea.",
+      "properties": {
+        "id": { "type": "string" },
+        "userId": { "type": "string" },
+        "title": { "type": "string" },
+        "content": { "type": "string" },
+        "tags": { "type": "array", "items": { "type": "string" } },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "userId", "title", "content", "createdAt", "updatedAt"]
     }
   },
   "auth": {
-    "providers": [
-      "google",
-      "anonymous"
-    ]
+    "providers": ["google", "anonymous"]
   },
   "firestore": {
     "training_materials": {
-      "schema": {
-        "$ref": "#/backend/entities/TrainingMaterial"
-      },
-      "description": "Stores organizational training resources accessible by all team members."
+      "schema": { "$ref": "#/backend/entities/TrainingMaterial" },
+      "description": "Organizational training resources."
     },
     "leads": {
-      "schema": {
-        "$ref": "#/backend/entities/Lead"
-      },
-      "description": "Stores all lead records for the organization."
+      "schema": { "$ref": "#/backend/entities/Lead" },
+      "description": "Organization-wide leads."
     },
     "activities": {
-      "schema": {
-        "$ref": "#/backend/entities/Activity"
-      },
-      "description": "Stores activity logs and interaction history for leads."
+      "schema": { "$ref": "#/backend/entities/Activity" },
+      "description": "Activity logs for leads."
     },
     "calendarEvents": {
-      "schema": {
-        "$ref": "#/backend/entities/CalendarEvent"
-      },
-      "description": "Stores team calendar events and follow-up reminders."
+      "schema": { "$ref": "#/backend/entities/CalendarEvent" },
+      "description": "Team calendar events."
     },
     "userProfiles": {
-      "schema": {
-        "$ref": "#/backend/entities/UserProfile"
-      },
-      "description": "Stores user-specific profile data."
+      "schema": { "$ref": "#/backend/entities/UserProfile" },
+      "description": "User profile data."
     },
     "teamSettings": {
-      "schema": {
-        "type": "object",
-        "properties": {
-          "totalTeamQuota": {
-            "type": "number"
-          },
-          "monthlyTarget": {
-            "type": "number"
-          }
-        }
-      },
-      "description": "Global settings for team quotas and targets."
+      "schema": { "type": "object" },
+      "description": "Global settings for team quotas."
+    },
+    "contacts": {
+      "schema": { "$ref": "#/backend/entities/Contact" },
+      "description": "Client phone directory."
+    },
+    "notes": {
+      "schema": { "$ref": "#/backend/entities/Note" },
+      "description": "Personal sales notes and scripts."
+    },
+    "whatsapp_logs": {
+      "schema": { "type": "object" },
+      "description": "History of sent WhatsApp messages."
     }
   }
 }
