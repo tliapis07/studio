@@ -29,7 +29,7 @@ export interface UserProfile {
 
 export interface Lead {
   id: string;
-  ownerUid: string; // Unified ownership field
+  ownerUid: string;
   ownerName?: string;
   ownerAvatar?: string;
   name: string;
@@ -40,13 +40,14 @@ export interface Lead {
   tags: string[];
   dealValue: number;
   source: string;
-  nextFollowUpAt?: any; // Firestore Timestamp or Date
-  lastContactAt?: any;   // Firestore Timestamp or Date
+  nextFollowUpAt?: any;
+  lastContactAt?: any;
   createdAt: any;
   updatedAt: any;
   customFields: Record<string, any>;
   notesCount: number;
   callsCount: number;
+  leadScore?: number;
 }
 
 export interface Contact {
@@ -68,7 +69,7 @@ export interface Activity {
   leadId?: string;
   ownerUid: string;
   ownerName?: string;
-  type: 'note' | 'call' | 'status_change' | 'tag_added' | 'event_created' | 'whatsapp_sent' | 'lead_added';
+  type: 'note' | 'call' | 'status_change' | 'tag_added' | 'event_created' | 'whatsapp_sent' | 'lead_added' | 'ai_summary';
   content: string;
   createdAt: any;
   oldStatus?: string;

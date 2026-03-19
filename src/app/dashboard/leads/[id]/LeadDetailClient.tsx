@@ -1,14 +1,13 @@
 'use client';
 
 /**
- * @fileOverview Lead Detail Client Component
+ * @fileOverview Enhanced Lead Detail Client Component
  * 
- * Handles all interactive logic for lead management, including:
- * - Real-time data synchronization with Firestore
- * - Follow-up automation scheduling
- * - WhatsApp integration
- * - Activity logging
- * - AI Assistant context providing
+ * Features:
+ * - Real-time sync with ownerUid isolation
+ * - AI Activity Summarization
+ * - AI Suggested Next Action
+ * - Commits AI results to Activity Feed
  */
 
 import { useState } from 'react';
@@ -26,28 +25,40 @@ import {
   ArrowLeft, 
   MessageCircle, 
   Bell, 
-  Clock 
+  Clock,
+  Sparkles,
+  Loader2,
+  FileText,
+  History
 } from 'lucide-react';
 import Link from 'next/link';
-import AIAssistant from '@/components/AIAssistant';
-import { Lead } from '@/lib/types';
-import { useDoc, useFirestore, useUser, useMemoFirebase, updateDocumentNonBlocking, addDocumentNonBlocking } from '@/firebase';
-import { doc, collection, serverTimestamp } from 'firebase/firestore';
+import { Lead, Activity } from '@/lib/types';
+import { useDoc, useFirestore, useUser, useMemoFirebase, updateDocumentNonBlocking, addDocumentNonBlocking, useCollection } from '@/firebase';
+import { doc, collection, serverTimestamp, query, where, orderBy } from 'firebase/firestore';
 import { Input } from '@/components/ui/input';
 import { toast } from '@/hooks/use-toast';
 import { format, isValid } from 'date-fns';
+import { summarizeLeadActivity } from '@/ai/flows/summarize-lead-activity';
+import { suggestLeadNextAction } from '@/ai/flows/suggest-lead-next-action';
 
 export default function LeadDetailClient({ id }: { id: string }) {
   const db = useFirestore();
   const { user } = useUser();
   const [followUpDate, setFollowUpDate] = useState('');
+  const [isAiProcessing, setIsAiProcessing] = useState(false);
 
   const leadRefStable = useMemoFirebase(() => {
     if (!db || !id) return null;
     return doc(db, 'leads', id);
   }, [db, id]);
 
+  const activitiesQuery = useMemoFirebase(() => {
+    if (!db || !id) return null;
+    return query(collection(db, 'activities'), where('leadId', '==', id), orderBy('createdAt', 'desc'));
+  }, [db, id]);
+
   const leadResult = useDoc<Lead>(leadRefStable);
+  const { data: activities } = useCollection<Activity>(activitiesQuery);
   const lead = leadResult.data;
 
   const handleSetFollowUp = () => {
@@ -59,13 +70,11 @@ export default function LeadDetailClient({ id }: { id: string }) {
       return;
     }
 
-    // Update lead follow-up
     updateDocumentNonBlocking(doc(db, 'leads', lead.id), {
       nextFollowUpAt: date,
       updatedAt: serverTimestamp(),
     });
 
-    // Auto-add calendar event
     addDocumentNonBlocking(collection(db, 'calendarEvents'), {
       ownerUid: user?.uid || lead.ownerUid,
       leadId: lead.id,
@@ -78,11 +87,50 @@ export default function LeadDetailClient({ id }: { id: string }) {
       createdAt: serverTimestamp(),
     });
 
-    toast({
-      title: "Follow-up Scheduled",
-      description: `Reminder set for ${format(date, 'PPP p')}`,
-    });
+    toast({ title: "Follow-up Scheduled", description: `Reminder set for ${format(date, 'PPP p')}` });
     setFollowUpDate('');
+  };
+
+  const runAiSummarize = async () => {
+    if (!lead || !user) return;
+    setIsAiProcessing(true);
+    try {
+      const summary = await summarizeLeadActivity({ lead, activities: activities || [] });
+      addDocumentNonBlocking(collection(db, 'activities'), {
+        leadId: lead.id,
+        ownerUid: user.uid,
+        ownerName: user.displayName || 'Partner AI',
+        type: 'ai_summary',
+        content: `AI SUMMARY: ${summary}`,
+        createdAt: serverTimestamp(),
+      });
+      toast({ title: "Intelligence Captured", description: "Activity summary added to feed." });
+    } catch (error) {
+      toast({ variant: "destructive", title: "AI Strategy Error", description: "Could not generate summary." });
+    } finally {
+      setIsAiProcessing(false);
+    }
+  };
+
+  const runAiNextAction = async () => {
+    if (!lead || !user) return;
+    setIsAiProcessing(true);
+    try {
+      const result = await suggestLeadNextAction({ lead, activities: activities || [] });
+      addDocumentNonBlocking(collection(db, 'activities'), {
+        leadId: lead.id,
+        ownerUid: user.uid,
+        ownerName: user.displayName || 'Partner AI',
+        type: 'ai_summary',
+        content: `SUGGESTED ACTION: ${result.suggestedAction}\n\nREASONING: ${result.reasoning}`,
+        createdAt: serverTimestamp(),
+      });
+      toast({ title: "Strategy Updated", description: "Suggested action added to feed." });
+    } catch (error) {
+      toast({ variant: "destructive", title: "AI Strategy Error", description: "Could not suggest next step." });
+    } finally {
+      setIsAiProcessing(false);
+    }
   };
 
   const openWhatsApp = (phone?: string) => {
@@ -90,7 +138,6 @@ export default function LeadDetailClient({ id }: { id: string }) {
     const cleanPhone = phone.replace(/\D/g, '');
     window.open(`https://wa.me/${cleanPhone}?text=Hi ${lead?.name}, I'm following up from SalesStream.`, '_blank');
     
-    // Log WhatsApp activity
     if (db && user && lead) {
       addDocumentNonBlocking(collection(db, 'activities'), {
         leadId: lead.id,
@@ -103,138 +150,98 @@ export default function LeadDetailClient({ id }: { id: string }) {
     }
   };
 
-  const formatFollowUpDate = (dateField: any) => {
-    try {
-      if (!dateField) return null;
-      const d = dateField.toDate ? dateField.toDate() : new Date(dateField);
-      return isValid(d) ? format(d, 'PPP p') : null;
-    } catch {
-      return null;
-    }
-  };
+  if (leadResult.isLoading) return <div className="p-20 text-center italic text-muted-foreground flex flex-col items-center gap-4"><Loader2 className="h-10 w-10 animate-spin text-primary" /> Synchronizing lead data...</div>;
+  if (!lead) return <div className="p-8 text-center py-20"><p className="text-xl font-bold mb-4">Lead not found.</p><Button asChild variant="outline"><Link href="/dashboard/leads">Return to Pipeline</Link></Button></div>;
 
-  if (leadResult.isLoading) return <div className="p-8 text-center italic text-muted-foreground">Synchronizing lead data...</div>;
-  if (!lead) return <div className="p-8 text-center py-20">
-    <p className="text-xl font-bold mb-4">Lead not found.</p>
-    <Button asChild variant="outline">
-      <Link href="/dashboard/leads">Return to Pipeline</Link>
-    </Button>
-  </div>;
-
-  const displayFollowUp = formatFollowUpDate(lead.nextFollowUpAt);
+  const displayFollowUp = lead.nextFollowUpAt?.toDate ? format(lead.nextFollowUpAt.toDate(), 'PPP p') : null;
 
   return (
-    <div className="space-y-6 animate-in fade-in duration-500">
-      <div className="flex items-center gap-4">
-        <Button variant="ghost" size="icon" asChild className="h-9 w-9">
+    <div className="space-y-6 animate-in fade-in duration-500 pb-20">
+      <div className="flex flex-col md:flex-row md:items-center gap-6">
+        <Button variant="ghost" size="icon" asChild className="h-10 w-10 rounded-xl bg-card border">
           <Link href="/dashboard/leads"><ArrowLeft className="h-5 w-5" /></Link>
         </Button>
         <div className="flex-1">
-          <div className="flex items-center gap-3">
-            <h1 className="text-3xl font-black font-headline">{lead.name}</h1>
+          <div className="flex flex-wrap items-center gap-3">
+            <h1 className="text-3xl font-black font-headline tracking-tight">{lead.name}</h1>
             <Badge variant="outline" className="bg-primary/5 text-primary border-primary/20 font-black uppercase tracking-widest text-[10px]">{lead.status}</Badge>
             <div className="ml-auto flex gap-2">
-              <Button variant="outline" size="sm" onClick={() => openWhatsApp(lead.phone)} className="gap-2 text-emerald-500 hover:bg-emerald-500/10 h-10 border-emerald-500/20">
+              <Button variant="outline" size="sm" onClick={() => openWhatsApp(lead.phone)} className="gap-2 text-emerald-500 hover:bg-emerald-500/10 h-10 border-emerald-500/20 rounded-xl">
                 <MessageCircle className="h-4 w-4" /> WhatsApp
               </Button>
-              <Button size="sm" className="bg-primary shadow-lg shadow-primary/20 gap-2 h-10">
+              <Button size="sm" className="bg-primary shadow-lg shadow-primary/20 gap-2 h-10 px-6 rounded-xl font-black uppercase text-[10px]">
                 <Phone className="h-4 w-4" /> Log Call
               </Button>
             </div>
           </div>
-          <div className="flex gap-4 mt-1">
+          <div className="flex flex-wrap gap-4 mt-2">
             <span className="text-muted-foreground text-xs font-bold flex items-center gap-1.5 uppercase tracking-wider"><Building2 className="h-3 w-3" /> {lead.company}</span>
             <span className="text-muted-foreground text-xs font-bold flex items-center gap-1.5 uppercase tracking-wider"><Mail className="h-3 w-3" /> {lead.email}</span>
-            <span className="text-muted-foreground text-xs font-bold flex items-center gap-1.5 uppercase tracking-wider">
-              <Calendar className="h-3 w-3" /> 
-              {lead.createdAt?.toDate ? format(lead.createdAt.toDate(), 'PP') : 'Recently'}
-            </span>
+            <span className="text-muted-foreground text-xs font-bold flex items-center gap-1.5 uppercase tracking-wider"><Calendar className="h-3 w-3" /> {lead.createdAt?.toDate ? format(lead.createdAt.toDate(), 'PP') : 'Recently'}</span>
           </div>
         </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <div className="lg:col-span-2 space-y-6">
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <Card className="bg-primary/5 border-primary/20 border-2">
-              <CardHeader className="pb-2">
-                <CardTitle className="text-[10px] font-black uppercase tracking-[0.2em] text-primary flex items-center gap-2">
-                  <Bell className="h-4 w-4" /> Automation: Next Follow-up
-                </CardTitle>
-              </CardHeader>
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+        <div className="lg:col-span-2 space-y-8">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+            <Card className="bg-primary/5 border-primary/20 border-2 shadow-sm rounded-2xl">
+              <CardHeader className="pb-2"><CardTitle className="text-[10px] font-black uppercase tracking-[0.2em] text-primary flex items-center gap-2"><Bell className="h-4 w-4" /> Automation: Follow-up</CardTitle></CardHeader>
               <CardContent className="space-y-4">
                 {displayFollowUp ? (
-                  <div className="flex items-center justify-between p-3 bg-background rounded-xl border border-primary/20">
-                    <div className="flex items-center gap-3">
-                      <Clock className="h-5 w-5 text-primary" />
-                      <span className="text-sm font-black">{displayFollowUp}</span>
-                    </div>
-                    <Button variant="ghost" size="sm" onClick={() => updateDocumentNonBlocking(doc(db, 'leads', lead.id), { nextFollowUpAt: null })} className="text-rose-500 font-bold uppercase text-[10px]">Clear</Button>
+                  <div className="flex items-center justify-between p-4 bg-background rounded-xl border border-primary/20">
+                    <div className="flex items-center gap-3"><Clock className="h-5 w-5 text-primary" /><span className="text-sm font-black">{displayFollowUp}</span></div>
+                    <Button variant="ghost" size="sm" onClick={() => updateDocumentNonBlocking(doc(db, 'leads', lead.id), { nextFollowUpAt: null })} className="text-rose-500 font-black uppercase text-[10px]">Clear</Button>
                   </div>
                 ) : (
                   <div className="flex items-center gap-2">
-                    <Input 
-                      type="datetime-local" 
-                      className="bg-background border-2 border-primary/10 h-10"
-                      value={followUpDate}
-                      onChange={(e) => setFollowUpDate(e.target.value)}
-                    />
-                    <Button onClick={handleSetFollowUp} size="sm" className="bg-primary px-6 h-10 font-black uppercase tracking-widest text-[10px]">Set</Button>
+                    <Input type="datetime-local" className="bg-background border-2 border-primary/10 h-11 rounded-xl" value={followUpDate} onChange={(e) => setFollowUpDate(e.target.value)} />
+                    <Button onClick={handleSetFollowUp} size="sm" className="bg-primary px-6 h-11 font-black uppercase tracking-widest text-[10px] rounded-xl shadow-lg">Set</Button>
                   </div>
                 )}
-                <p className="text-[10px] text-muted-foreground font-medium italic">Setting a date auto-syncs with your team calendar and triggers a sync notification.</p>
               </CardContent>
             </Card>
 
-            <Card className="bg-accent/5 border-accent/20 border-2">
-              <CardHeader className="pb-2">
-                <CardTitle className="text-[10px] font-black uppercase tracking-[0.2em] text-accent flex items-center gap-2">
-                  <User className="h-4 w-4" /> Assigned Partner
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="flex items-center gap-3">
-                  <div className="h-10 w-10 rounded-xl bg-accent/20 flex items-center justify-center font-black text-accent">P</div>
-                  <div>
-                    <p className="text-sm font-black">{lead.ownerName || 'Partner Organization'}</p>
-                    <p className="text-[10px] text-muted-foreground uppercase font-black tracking-widest">Lead Owner</p>
-                  </div>
-                </div>
+            <Card className="bg-accent/5 border-accent/20 border-2 shadow-sm rounded-2xl">
+              <CardHeader className="pb-2"><CardTitle className="text-[10px] font-black uppercase tracking-[0.2em] text-accent flex items-center gap-2"><Sparkles className="h-4 w-4" /> Strategic Partner AI</CardTitle></CardHeader>
+              <CardContent className="flex gap-2">
+                <Button variant="outline" disabled={isAiProcessing} onClick={runAiSummarize} className="flex-1 h-11 text-[9px] font-black uppercase border-accent/20 bg-background hover:bg-accent/10 rounded-xl">
+                  {isAiProcessing ? <Loader2 className="h-3 w-3 animate-spin" /> : <FileText className="h-3 w-3 mr-2" />} Summarize
+                </Button>
+                <Button variant="outline" disabled={isAiProcessing} onClick={runAiNextAction} className="flex-1 h-11 text-[9px] font-black uppercase border-accent/20 bg-background hover:bg-accent/10 rounded-xl">
+                  {isAiProcessing ? <Loader2 className="h-3 w-3 animate-spin" /> : <Sparkles className="h-3 w-3 mr-2" />} Next Action
+                </Button>
               </CardContent>
             </Card>
           </div>
 
-          <Card className="bg-card/50 border-2 border-border/50 rounded-2xl overflow-hidden shadow-xl">
+          <Card className="bg-card/50 border-2 border-border/50 rounded-3xl overflow-hidden shadow-xl">
             <Tabs defaultValue="activity">
               <CardHeader className="p-0 border-b border-border/50 bg-muted/20">
                 <TabsList className="bg-transparent h-14 w-full justify-start rounded-none px-6">
-                  <TabsTrigger value="activity" className="data-[state=active]:bg-transparent data-[state=active]:border-b-2 data-[state=active]:border-primary h-full px-6 rounded-none text-[10px] font-black uppercase tracking-widest">Activity Timeline</TabsTrigger>
-                  <TabsTrigger value="details" className="data-[state=active]:bg-transparent data-[state=active]:border-b-2 data-[state=active]:border-primary h-full px-6 rounded-none text-[10px] font-black uppercase tracking-widest">Lead Details</TabsTrigger>
+                  <TabsTrigger value="activity" className="data-[state=active]:bg-transparent data-[state=active]:border-b-2 data-[state=active]:border-primary h-full px-6 rounded-none text-[10px] font-black uppercase tracking-widest gap-2"><History className="h-3.5 w-3.5" /> Activity Feed</TabsTrigger>
+                  <TabsTrigger value="details" className="data-[state=active]:bg-transparent data-[state=active]:border-b-2 data-[state=active]:border-primary h-full px-6 rounded-none text-[10px] font-black uppercase tracking-widest gap-2"><User className="h-3.5 w-3.5" /> Prospect Profile</TabsTrigger>
                 </TabsList>
               </CardHeader>
               <CardContent className="p-8">
-                <TabsContent value="activity" className="m-0 space-y-8">
-                  <div className="flex items-center justify-between mb-2">
-                    <h3 className="text-xs font-black uppercase tracking-widest text-muted-foreground">Historical Logs</h3>
-                    <Button variant="ghost" size="sm" className="text-[10px] font-black uppercase tracking-widest h-8 gap-2 bg-muted/50 rounded-lg">
-                      <Plus className="h-3 w-3" /> Add Note
-                    </Button>
-                  </div>
-                  <div className="text-center py-12 text-muted-foreground italic text-sm">No activity logs recorded yet.</div>
+                <TabsContent value="activity" className="m-0 space-y-6">
+                  {activities && activities.length > 0 ? activities.map((a) => (
+                    <div key={a.id} className={`p-5 rounded-2xl border-2 transition-all ${a.type === 'ai_summary' ? 'bg-primary/5 border-primary/20' : 'bg-muted/20 border-border/50'}`}>
+                      <div className="flex items-center justify-between mb-2">
+                        <Badge variant="outline" className="text-[8px] font-black uppercase tracking-widest">{a.type.replace('_', ' ')}</Badge>
+                        <span className="text-[10px] text-muted-foreground font-bold uppercase">{a.createdAt?.toDate ? format(a.createdAt.toDate(), 'MMM d, p') : 'Recently'}</span>
+                      </div>
+                      <p className="text-sm text-foreground/90 leading-relaxed whitespace-pre-wrap">{a.content}</p>
+                    </div>
+                  )) : <div className="text-center py-20 text-muted-foreground italic text-sm">No historical logs recorded. Run AI Strategy to begin.</div>}
                 </TabsContent>
-                <TabsContent value="details" className="m-0 space-y-6">
-                  <div className="grid grid-cols-2 gap-8">
+                <TabsContent value="details" className="m-0 space-y-8">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-10">
                     <div className="space-y-4">
-                      <h4 className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground">Client Information</h4>
-                      <div className="space-y-3">
-                        <div className="flex flex-col">
-                          <span className="text-[10px] text-muted-foreground font-black uppercase tracking-widest">Email</span>
-                          <span className="text-sm font-bold">{lead.email || '—'}</span>
-                        </div>
-                        <div className="flex flex-col">
-                          <span className="text-[10px] text-muted-foreground font-black uppercase tracking-widest">Phone</span>
-                          <span className="text-sm font-bold">{lead.phone || '—'}</span>
-                        </div>
+                      <h4 className="text-[10px] font-black uppercase tracking-[0.2em] text-primary">Organizational Attributes</h4>
+                      <div className="space-y-4">
+                        <div className="flex flex-col"><span className="text-[9px] text-muted-foreground font-black uppercase tracking-widest">Pipeline Origin</span><span className="text-sm font-bold">{lead.source || 'Direct Ingestion'}</span></div>
+                        <div className="flex flex-col"><span className="text-[9px] text-muted-foreground font-black uppercase tracking-widest">Initial Value</span><span className="text-sm font-black text-primary">${lead.dealValue?.toLocaleString()}</span></div>
                       </div>
                     </div>
                   </div>
@@ -244,55 +251,22 @@ export default function LeadDetailClient({ id }: { id: string }) {
           </Card>
         </div>
 
-        <div className="space-y-6">
-          <Card className="bg-primary/5 border-primary/20 border-2 shadow-xl rounded-2xl overflow-hidden">
-            <CardHeader className="bg-primary/10 border-b border-primary/10">
-              <CardTitle className="text-[11px] font-black uppercase tracking-[0.2em] flex items-center gap-2">
-                <SparklesIcon className="h-4 w-4" /> Lead Score
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="p-6">
-              <div className="flex items-end gap-2 mb-4">
-                <span className="text-5xl font-black text-primary font-headline leading-none">{lead.leadScore || 88}</span>
-                <span className="text-xs text-muted-foreground pb-1 font-bold uppercase">/ 100</span>
+        <div className="space-y-8">
+          <Card className="bg-primary/5 border-primary/20 border-2 shadow-2xl rounded-3xl overflow-hidden">
+            <CardHeader className="bg-primary/10 border-b border-primary/10 p-6"><CardTitle className="text-[11px] font-black uppercase tracking-[0.2em] flex items-center gap-2"><Sparkles className="h-4 w-4" /> Organizational Score</CardTitle></CardHeader>
+            <CardContent className="p-8">
+              <div className="flex items-end gap-2 mb-6">
+                <span className="text-6xl font-black text-primary font-headline leading-none">{lead.leadScore || 82}</span>
+                <span className="text-xs text-muted-foreground pb-1 font-bold uppercase tracking-widest">/ 100</span>
               </div>
-              <div className="w-full h-3 bg-muted rounded-full overflow-hidden border border-border/50">
-                <div 
-                  className="h-full bg-primary rounded-full transition-all duration-1000" 
-                  style={{ width: `${lead.leadScore || 88}%` }} 
-                />
+              <div className="w-full h-4 bg-muted rounded-full overflow-hidden border-2 border-border/50">
+                <div className="h-full bg-primary rounded-full transition-all duration-1000 shadow-[0_0_15px_rgba(var(--primary),0.5)]" style={{ width: `${lead.leadScore || 82}%` }} />
               </div>
-              <p className="text-[11px] text-muted-foreground mt-4 italic leading-relaxed font-medium">
-                High-intent profile based on organizational engagement velocity.
-              </p>
+              <p className="text-[11px] text-muted-foreground mt-6 italic leading-relaxed font-medium">Strategic health based on engagement velocity and organizational sentiment data.</p>
             </CardContent>
           </Card>
-
-          <div className="sticky top-20">
-            <AIAssistant lead={lead} activities={[]} />
-          </div>
         </div>
       </div>
     </div>
-  );
-}
-
-function SparklesIcon({ className }: { className?: string }) {
-  return (
-    <svg 
-      xmlns="http://www.w3.org/2000/svg" 
-      width="24" 
-      height="24" 
-      viewBox="0 0 24 24" 
-      fill="none" 
-      stroke="currentColor" 
-      strokeWidth="2" 
-      strokeLinecap="round" 
-      strokeLinejoin="round" 
-      className={className}
-    >
-      <path d="m12 3-1.912 5.813a2 2 0 0 1-1.275 1.275L3 12l5.813 1.912a2 2 0 0 1 1.275 1.275L12 21l1.912-5.813a2 2 0 0 1 1.275-1.275L21 12l-5.813-1.912a2 2 0 0 1-1.275-1.275L12 3Z"/>
-      <path d="M5 3v4"/><path d="M19 17v4"/><path d="M3 5h4"/><path d="M17 19h4"/>
-    </svg>
   );
 }
