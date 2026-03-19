@@ -1,9 +1,8 @@
-
 'use client';
 
 import { useState, useMemo } from 'react';
 import { useCollection, useFirestore, useUser, useMemoFirebase, addDocumentNonBlocking, updateDocumentNonBlocking, deleteDocumentNonBlocking } from '@/firebase';
-import { collection, query, orderBy, serverTimestamp, doc } from 'firebase/firestore';
+import { collection, query, orderBy, serverTimestamp, doc, where } from 'firebase/firestore';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -31,12 +30,13 @@ export default function NotesPage() {
   const [newTagInput, setNewTagInput] = useState('');
   const [availableTags, setAvailableTags] = useState(DEFAULT_TAGS);
 
-  const notesQuery = useMemoFirebase(() => {
+  const notesQueryStable = useMemoFirebase(() => {
     if (!db || !user) return null;
-    return query(collection(db, 'notes'), orderBy('createdAt', 'desc'));
+    // Security Rule Alignment: Must filter by userId to pass permissions check
+    return query(collection(db, 'notes'), where('userId', '==', user.uid), orderBy('createdAt', 'desc'));
   }, [db, user]);
 
-  const { data: notes, isLoading } = useCollection<UserNote>(notesQuery);
+  const { data: notes, isLoading } = useCollection<UserNote>(notesQueryStable);
 
   const filteredNotes = useMemo(() => {
     if (!notes) return [];

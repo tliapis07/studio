@@ -31,7 +31,7 @@ import {
 import Link from 'next/link';
 import AIAssistant from '@/components/AIAssistant';
 import { Lead } from '@/lib/types';
-import { useDoc, useFirestore, useUser, updateDocumentNonBlocking, addDocumentNonBlocking } from '@/firebase';
+import { useDoc, useFirestore, useUser, useMemoFirebase, updateDocumentNonBlocking, addDocumentNonBlocking } from '@/firebase';
 import { doc, collection, serverTimestamp } from 'firebase/firestore';
 import { Input } from '@/components/ui/input';
 import { toast } from '@/hooks/use-toast';
@@ -42,8 +42,13 @@ export default function LeadDetailClient({ id }: { id: string }) {
   const { user } = useUser();
   const [followUpDate, setFollowUpDate] = useState('');
 
-  const leadRef = useDoc<Lead>(doc(db, 'leads', id));
-  const lead = leadRef.data;
+  const leadRefStable = useMemoFirebase(() => {
+    if (!db || !id) return null;
+    return doc(db, 'leads', id);
+  }, [db, id]);
+
+  const leadResult = useDoc<Lead>(leadRefStable);
+  const lead = leadResult.data;
 
   const handleSetFollowUp = () => {
     if (!db || !lead || !followUpDate) return;
@@ -93,7 +98,7 @@ export default function LeadDetailClient({ id }: { id: string }) {
     }
   };
 
-  if (leadRef.isLoading) return <div className="p-8 text-center italic text-muted-foreground">Synchronizing lead data...</div>;
+  if (leadResult.isLoading) return <div className="p-8 text-center italic text-muted-foreground">Synchronizing lead data...</div>;
   if (!lead) return <div className="p-8 text-center py-20">
     <p className="text-xl font-bold mb-4">Lead not found.</p>
     <Button asChild variant="outline">

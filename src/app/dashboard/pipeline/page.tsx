@@ -8,7 +8,7 @@ import {
   useMemoFirebase, 
   updateDocumentNonBlocking 
 } from '@/firebase';
-import { collection, query, doc, serverTimestamp } from 'firebase/firestore';
+import { collection, query, doc, serverTimestamp, where } from 'firebase/firestore';
 import { Card, CardContent, CardHeader, CardDescription } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -40,12 +40,13 @@ export default function PipelinePage() {
   const [draggedLead, setDraggedLead] = useState<string | null>(null);
   const [teamFilter, setTeamFilter] = useState('all');
   
-  const leadsQuery = useMemoFirebase(() => {
+  const leadsQueryStable = useMemoFirebase(() => {
     if (!db || !user) return null;
-    return query(collection(db, 'leads'));
+    // Security Rule Alignment: Must filter by ownerUid to pass permissions check
+    return query(collection(db, 'leads'), where('ownerUid', '==', user.uid));
   }, [db, user]);
 
-  const { data: leads, isLoading } = useCollection<Lead>(leadsQuery);
+  const { data: leads, isLoading } = useCollection<Lead>(leadsQueryStable);
 
   const filteredLeads = useMemo(() => {
     if (!leads) return [];

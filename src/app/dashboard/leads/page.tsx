@@ -9,7 +9,7 @@ import {
   addDocumentNonBlocking,
   updateDocumentNonBlocking
 } from '@/firebase';
-import { collection, query, serverTimestamp, doc } from 'firebase/firestore';
+import { collection, query, serverTimestamp, doc, where } from 'firebase/firestore';
 import { 
   Table, 
   TableBody, 
@@ -113,7 +113,8 @@ export default function LeadsPage() {
 
   const leadsQuery = useMemoFirebase(() => {
     if (!db || !user) return null;
-    return query(collection(db, 'leads'));
+    // Security Rule Alignment: Must filter by ownerUid to pass permissions check
+    return query(collection(db, 'leads'), where('ownerUid', '==', user.uid));
   }, [db, user]);
 
   const { data: leads, isLoading } = useCollection<Lead>(leadsQuery);
@@ -157,23 +158,24 @@ export default function LeadsPage() {
     };
 
     try {
-      const leadRef = await addDocumentNonBlocking(collection(db, 'leads'), newLead);
-      if (phone || email) {
-        addDocumentNonBlocking(collection(db, 'contacts'), {
-          userId: user.uid,
-          name,
-          phone: phone || '',
-          email: email || '',
-          notes: `Auto-created from lead ${name}`,
-          linkedLeadId: leadRef?.id || null,
-          tags: ["Lead"],
-          createdAt: serverTimestamp(),
-          updatedAt: serverTimestamp(),
-        });
-        toast({ title: "Lead & Contact Saved", description: "Organizational directory synchronized." });
-      } else {
-        toast({ title: "Lead Added", description: `${name} assigned to the team.` });
-      }
+      addDocumentNonBlocking(collection(db, 'leads'), newLead).then((leadRef) => {
+        if (phone || email) {
+          addDocumentNonBlocking(collection(db, 'contacts'), {
+            userId: user.uid,
+            name,
+            phone: phone || '',
+            email: email || '',
+            notes: `Auto-created from lead ${name}`,
+            linkedLeadId: leadRef?.id || null,
+            tags: ["Lead"],
+            createdAt: serverTimestamp(),
+            updatedAt: serverTimestamp(),
+          });
+          toast({ title: "Lead & Contact Saved", description: "Organizational directory synchronized." });
+        } else {
+          toast({ title: "Lead Added", description: `${name} assigned to the team.` });
+        }
+      });
       setIsAddModalOpen(false);
     } catch (error) {
       toast({ variant: "destructive", title: "Action Failed", description: "Could not save record." });
@@ -233,21 +235,21 @@ export default function LeadsPage() {
         customFields: { importNotes: row[columnMapping['notes']] || '' }
       };
 
-      const leadRef = await addDocumentNonBlocking(collection(db, 'leads'), newLeadData);
-      
-      if (phone || email) {
-        addDocumentNonBlocking(collection(db, 'contacts'), {
-          userId: user.uid,
-          name,
-          phone,
-          email,
-          notes: `Auto-created from import row`,
-          linkedLeadId: leadRef?.id || null,
-          tags: ["Imported"],
-          createdAt: serverTimestamp(),
-          updatedAt: serverTimestamp(),
-        });
-      }
+      addDocumentNonBlocking(collection(db, 'leads'), newLeadData).then((leadRef) => {
+        if (phone || email) {
+          addDocumentNonBlocking(collection(db, 'contacts'), {
+            userId: user.uid,
+            name,
+            phone,
+            email,
+            notes: `Auto-created from import row`,
+            linkedLeadId: leadRef?.id || null,
+            tags: ["Imported"],
+            createdAt: serverTimestamp(),
+            updatedAt: serverTimestamp(),
+          });
+        }
+      });
       successCount++;
     }
 

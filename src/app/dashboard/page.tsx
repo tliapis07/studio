@@ -56,13 +56,16 @@ export default function Dashboard() {
 
   const leadsQuery = useMemoFirebase(() => {
     if (!db || !user) return null;
-    return query(collection(db, 'leads'));
+    // Security Rule Alignment: Must filter by ownerUid to pass permissions check on root collection
+    return query(collection(db, 'leads'), where('ownerUid', '==', user.uid));
   }, [db, user]);
 
   const followUpsQuery = useMemoFirebase(() => {
     if (!db || !user) return null;
+    // Security Rule Alignment: Must filter by ownerUid to pass permissions check
     return query(
       collection(db, 'leads'), 
+      where('ownerUid', '==', user.uid),
       where('nextFollowUpAt', '!=', null), 
       orderBy('nextFollowUpAt', 'asc'), 
       limit(5)

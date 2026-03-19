@@ -2,7 +2,7 @@
 
 import { useState, useMemo, useEffect } from 'react';
 import { useCollection, useFirestore, useUser, useMemoFirebase, addDocumentNonBlocking, deleteDocumentNonBlocking } from '@/firebase';
-import { collection, query, serverTimestamp, doc, updateDoc } from 'firebase/firestore';
+import { collection, query, serverTimestamp, doc, updateDoc, where } from 'firebase/firestore';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -67,8 +67,8 @@ type ViewMode = 'month' | 'week' | 'day';
 export default function CalendarPage() {
   const { user } = useUser();
   const db = useFirestore();
-  const [currentDate, setCurrentDate] = useState<Date>(new Date(2024, 0, 1));
-  const [selectedDate, setSelectedDate] = useState<Date>(new Date(2024, 0, 1));
+  const [currentDate, setCurrentDate] = useState<Date>(new Date());
+  const [selectedDate, setSelectedDate] = useState<Date>(new Date());
   const [viewMode, setViewMode] = useState<ViewMode>('month');
   const [teamFilter, setTeamFilter] = useState('all');
   const [typeFilter, setTypeFilter] = useState('all');
@@ -79,13 +79,12 @@ export default function CalendarPage() {
 
   useEffect(() => {
     setIsHydrated(true);
-    setCurrentDate(new Date());
-    setSelectedDate(new Date());
   }, []);
 
   const eventsQuery = useMemoFirebase(() => {
     if (!db || !user) return null;
-    return query(collection(db, 'calendarEvents'));
+    // Security Rule Alignment: Must filter by ownerUid to pass permissions check
+    return query(collection(db, 'calendarEvents'), where('ownerUid', '==', user.uid));
   }, [db, user]);
 
   const { data: events } = useCollection<CalendarEvent>(eventsQuery);
@@ -307,18 +306,21 @@ export default function CalendarPage() {
               <ScrollArea className="h-[600px] p-8">
                 <div className="space-y-8">
                   {getEventsForDay(selectedDate).length > 0 ? (
-                    getEventsForDay(selectedDate).map((item, i) => (
-                      <div key={item.id} className="relative pl-8 border-l-4 border-primary/30 pb-4 group">
-                        <div className="absolute -left-[11px] top-0 h-5 w-5 rounded-lg bg-background border-4 border-primary shadow-md group-hover:scale-110 transition-transform" />
-                        <div className="flex flex-col gap-1.5">
-                          <span className="text-[10px] font-black text-primary uppercase tracking-widest">
-                            {format(item.startAt?.toDate ? item.startAt.toDate() : new Date(item.startAt), 'h:mm a')}
-                          </span>
-                          <h4 className="text-sm font-black truncate group-hover:text-primary transition-colors">{item.title}</h4>
-                          <p className="text-xs text-muted-foreground line-clamp-3 leading-relaxed">{item.description}</p>
+                    getEventsForDay(selectedDate).map((item, i) => {
+                      const startTime = item.startAt?.toDate ? item.startAt.toDate() : new Date(item.startAt);
+                      return (
+                        <div key={item.id} className="relative pl-8 border-l-4 border-primary/30 pb-4 group">
+                          <div className="absolute -left-[11px] top-0 h-5 w-5 rounded-lg bg-background border-4 border-primary shadow-md group-hover:scale-110 transition-transform" />
+                          <div className="flex flex-col gap-1.5">
+                            <span className="text-[10px] font-black text-primary uppercase tracking-widest">
+                              {isValid(startTime) ? format(startTime, 'h:mm a') : '--:--'}
+                            </span>
+                            <h4 className="text-sm font-black truncate group-hover:text-primary transition-colors">{item.title}</h4>
+                            <p className="text-xs text-muted-foreground line-clamp-3 leading-relaxed">{item.description}</p>
+                          </div>
                         </div>
-                      </div>
-                    ))
+                      );
+                    })
                   ) : (
                     <div className="text-center py-20">
                       <CalendarIcon className="h-16 w-16 mx-auto mb-6 opacity-10 text-primary" />
@@ -344,20 +346,23 @@ export default function CalendarPage() {
             <div className="flex-1 p-8 overflow-y-auto space-y-8 border-r border-border/50">
               <div className="space-y-4">
                 <h3 className="text-xs font-black uppercase tracking-widest text-muted-foreground">Scheduled Engagements</h3>
-                {getEventsForDay(selectedDate).map(event => (
-                  <div key={event.id} className="p-4 rounded-xl border-2 bg-card group hover:border-primary/30 transition-all">
-                    <div className="flex justify-between items-start">
-                      <div>
-                        <p className="text-[10px] font-black text-primary uppercase">{format(event.startAt?.toDate ? event.startAt.toDate() : new Date(event.startAt), 'h:mm a')}</p>
-                        <p className="text-sm font-black">{event.title}</p>
-                      </div>
-                      <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                        <Button variant="ghost" size="icon" className="h-8 w-8 text-primary"><Edit2 className="h-4 w-4" /></Button>
-                        <Button variant="ghost" size="icon" className="h-8 w-8 text-rose-500" onClick={() => deleteDocumentNonBlocking(doc(db, 'calendarEvents', event.id))}><Trash2 className="h-4 w-4" /></Button>
+                {getEventsForDay(selectedDate).map(event => {
+                  const startTime = event.startAt?.toDate ? event.startAt.toDate() : new Date(event.startAt);
+                  return (
+                    <div key={event.id} className="p-4 rounded-xl border-2 bg-card group hover:border-primary/30 transition-all">
+                      <div className="flex justify-between items-start">
+                        <div>
+                          <p className="text-[10px] font-black text-primary uppercase">{isValid(startTime) ? format(startTime, 'h:mm a') : '--:--'}</p>
+                          <p className="text-sm font-black">{event.title}</p>
+                        </div>
+                        <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                          <Button variant="ghost" size="icon" className="h-8 w-8 text-primary"><Edit2 className="h-4 w-4" /></Button>
+                          <Button variant="ghost" size="icon" className="h-8 w-8 text-rose-500" onClick={() => deleteDocumentNonBlocking(doc(db, 'calendarEvents', event.id))}><Trash2 className="h-4 w-4" /></Button>
+                        </div>
                       </div>
                     </div>
-                  </div>
-                ))}
+                  );
+                })}
                 <Button onClick={() => setIsNewEventOpen(true)} variant="outline" className="w-full h-12 rounded-xl border-dashed border-2 gap-2 text-xs font-bold">
                   <Plus className="h-4 w-4" /> Add Engagement
                 </Button>

@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, useMemo } from 'react';
@@ -11,7 +10,7 @@ import {
   updateDocumentNonBlocking,
   deleteDocumentNonBlocking
 } from '@/firebase';
-import { collection, query, serverTimestamp, doc } from 'firebase/firestore';
+import { collection, query, serverTimestamp, doc, where } from 'firebase/firestore';
 import { 
   Table, 
   TableBody, 
@@ -72,12 +71,13 @@ export default function ContactsPage() {
   const [availableTags, setAvailableTags] = useState(DEFAULT_TAGS);
   const [newTagInput, setNewTagInput] = useState('');
 
-  const contactsQuery = useMemoFirebase(() => {
+  const contactsQueryStable = useMemoFirebase(() => {
     if (!db || !user) return null;
-    return query(collection(db, 'contacts'));
+    // Security Rule Alignment: Root collection read requires filtering by userId/ownerUid
+    return query(collection(db, 'contacts'), where('userId', '==', user.uid));
   }, [db, user]);
 
-  const { data: contacts, isLoading } = useCollection<Contact>(contactsQuery);
+  const { data: contacts, isLoading } = useCollection<Contact>(contactsQueryStable);
 
   const filteredContacts = useMemo(() => {
     if (!contacts) return [];

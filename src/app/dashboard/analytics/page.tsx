@@ -2,7 +2,7 @@
 
 import { useState, useMemo, useEffect } from 'react';
 import { useCollection, useFirestore, useUser, useMemoFirebase } from '@/firebase';
-import { collection, query, doc, deleteDoc, addDoc, serverTimestamp } from 'firebase/firestore';
+import { collection, query, doc, deleteDoc, addDoc, serverTimestamp, where } from 'firebase/firestore';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { 
@@ -75,12 +75,13 @@ export default function TeamAnalyticsPage() {
     setRandomValues(MOCK_TEAM.map(() => Math.random() * 60 + 40));
   }, []);
 
-  const leadsQuery = useMemoFirebase(() => {
+  const leadsQueryStable = useMemoFirebase(() => {
     if (!db || !user) return null;
-    return query(collection(db, 'leads'));
+    // Security Rule Alignment: Must filter by ownerUid to pass permissions check
+    return query(collection(db, 'leads'), where('ownerUid', '==', user.uid));
   }, [db, user]);
 
-  const { data: leads } = useCollection<Lead>(leadsQuery);
+  const { data: leads } = useCollection<Lead>(leadsQueryStable);
 
   const teamMetrics = useMemo(() => {
     if (!leads) return [];
