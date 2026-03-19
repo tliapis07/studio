@@ -1,9 +1,8 @@
-
 'use client';
 
 import { useMemo, useState, useEffect } from 'react';
 import { useCollection, useFirestore, useUser, useMemoFirebase, useDoc } from '@/firebase';
-import { collection, query, orderBy, limit, doc } from 'firebase/firestore';
+import { collection, query, orderBy, limit, doc, where } from 'firebase/firestore';
 import { useRouter } from 'next/navigation';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { 
@@ -23,7 +22,9 @@ import {
   FileSignature,
   Mail,
   ShieldAlert,
-  StickyNote
+  StickyNote,
+  Bell,
+  Calendar as CalendarIcon
 } from 'lucide-react';
 import { 
   AreaChart,
@@ -34,8 +35,8 @@ import {
   Tooltip, 
   ResponsiveContainer,
 } from 'recharts';
-import { Lead, Activity, TeamSettings } from '@/lib/types';
-import { format, startOfWeek, endOfWeek, eachDayOfInterval, isSameDay } from 'date-fns';
+import { Lead, Activity, TeamSettings, CalendarEvent } from '@/lib/types';
+import { format, startOfWeek, endOfWeek, eachDayOfInterval, isSameDay, isAfter, isBefore, addDays } from 'date-fns';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -56,33 +57,18 @@ export default function Dashboard() {
   const [repFilter, setRepFilter] = useState('all');
   const [isAiOpen, setIsAiOpen] = useState(false);
 
-  useEffect(() => {
-    if (user && !isUserLoading) {
-      toast({
-        title: "Welcome back, Partner",
-        description: "Your team's performance data has been synchronized.",
-      });
-    }
-  }, [user, isUserLoading]);
-
   const leadsQuery = useMemoFirebase(() => {
     if (!db || !user) return null;
     return query(collection(db, 'leads'));
   }, [db, user]);
 
-  const activitiesQuery = useMemoFirebase(() => {
+  const followUpsQuery = useMemoFirebase(() => {
     if (!db || !user) return null;
-    return query(collection(db, 'activities'), orderBy('createdAt', 'desc'), limit(10));
-  }, [db, user]);
-
-  const teamSettingsRef = useMemoFirebase(() => {
-    if (!db || !user) return null;
-    return doc(db, 'teamSettings', 'global');
+    return query(collection(db, 'leads'), where('nextFollowUpAt', '!=', null), orderBy('nextFollowUpAt', 'asc'), limit(5));
   }, [db, user]);
 
   const { data: leads, isLoading: leadsLoading } = useCollection<Lead>(leadsQuery);
-  const { data: recentActivities } = useCollection<Activity>(activitiesQuery);
-  const { data: settings } = useDoc<TeamSettings>(teamSettingsRef);
+  const { data: followUps } = useCollection<Lead>(followUpsQuery);
 
   const stats = useMemo(() => {
     if (!leads) return { total: 0, qualified: 0, won: 0, revenue: 0 };
@@ -114,15 +100,6 @@ export default function Dashboard() {
     });
   }, [leads, repFilter]);
 
-  const teamQuotaData = useMemo(() => {
-    return MOCK_TEAM.map(member => {
-      const memberRevenue = leads?.filter(l => l.ownerUid === member.id && l.status === 'won')
-        .reduce((acc, l) => acc + (l.dealValue || 0), 0) || 0;
-      const percent = Math.min(Math.round((memberRevenue / member.quota) * 100), 100);
-      return { ...member, currentRevenue: memberRevenue, percent };
-    });
-  }, [leads]);
-
   if (isUserLoading || (leadsLoading && !leads)) return (
     <div className="flex flex-col h-full items-center justify-center p-8 text-center space-y-6">
       <div className="h-16 w-16 border-4 border-primary border-t-transparent rounded-3xl animate-spin shadow-2xl shadow-primary/20" />
@@ -140,14 +117,6 @@ export default function Dashboard() {
     { label: 'Team Revenue', value: `$${stats.revenue.toLocaleString()}`, icon: DollarSign, color: 'text-emerald-500', change: '+18%', up: true },
   ];
 
-  const quickTools = [
-    { title: 'Ask Gemini', icon: MessageSquare, color: 'bg-primary/20 text-primary', desc: 'AI Sales Assistant', action: () => setIsAiOpen(true) },
-    { title: 'Call Script', icon: FileSignature, color: 'bg-accent/20 text-accent', desc: 'Custom pitch generator', action: () => toast({ title: "Generating Script", description: "Gemini is crafting a high-conversion script." }) },
-    { title: 'Email Template', icon: Mail, color: 'bg-emerald-500/20 text-emerald-500', desc: 'Outbound templates', action: () => router.push('/dashboard/training') },
-    { title: 'Objection Handler', icon: ShieldAlert, color: 'bg-rose-500/20 text-rose-500', desc: 'Handle common pushbacks', action: () => setIsAiOpen(true) },
-    { title: 'Quick Notes', icon: StickyNote, color: 'bg-yellow-500/20 text-yellow-500', desc: 'Post-call summaries', action: () => router.push('/dashboard/leads') },
-  ];
-
   return (
     <div className="space-y-10 animate-in fade-in duration-700 pb-20 md:pb-10">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
@@ -160,7 +129,7 @@ export default function Dashboard() {
             size="lg" 
             variant="outline" 
             className="gap-3 border-2 border-primary/20 hover:bg-primary/5 h-12 rounded-xl font-bold"
-            onClick={() => router.push('/dashboard/analytics')}
+            onClick={() => router.push('/dashboard/team-history')}
           >
              <History className="h-5 w-5 text-primary" /> Team History
            </Button>
@@ -242,33 +211,52 @@ export default function Dashboard() {
         </Card>
         
         <div className="md:col-span-3 space-y-8">
-          <Card className="bg-card/30 border-2 border-border/50 rounded-3xl shadow-xl ai-insights-card">
-            <CardHeader className="p-8 pb-4">
-              <CardTitle className="text-2xl font-black">AI Team Insights</CardTitle>
-              <CardDescription className="text-sm font-medium italic">Manager-focused pipeline analysis.</CardDescription>
+          <Card className="bg-primary/5 border-2 border-primary/20 rounded-3xl shadow-xl ai-insights-card overflow-hidden">
+            <CardHeader className="p-8 pb-4 border-b border-primary/10">
+              <CardTitle className="text-lg font-black flex items-center gap-2">
+                <Bell className="h-5 w-5 text-primary" /> Active Follow-Ups
+              </CardTitle>
+              <CardDescription className="text-[10px] font-black uppercase tracking-widest">Team Reminders Engine</CardDescription>
             </CardHeader>
-            <CardContent className="px-8 pb-8 space-y-5">
-               {[
-                 { icon: Zap, text: 'High Velocity: 8 team leads predicted to close this week.', color: 'text-primary' },
-                 { icon: Award, text: 'Top Rep this week: Sarah – 4 qualified leads.', color: 'text-yellow-500' },
-                 { icon: ShieldAlert, text: 'At Risk: 3 proposals stalled for > 10 days.', color: 'text-rose-500' }
-               ].map((insight, i) => (
-                 <div key={i} className="flex gap-4 items-center p-4 rounded-2xl bg-background/50 border-2 border-border/50 group hover:border-primary/30 transition-all">
-                    <div className={`p-3 rounded-xl bg-muted/40 ${insight.color}`}>
-                       <insight.icon className="h-5 w-5" />
+            <CardContent className="p-0">
+               <div className="divide-y divide-primary/10">
+                 {followUps && followUps.length > 0 ? followUps.map((lead, i) => {
+                   const date = lead.nextFollowUpAt?.toDate ? lead.nextFollowUpAt.toDate() : new Date(lead.nextFollowUpAt);
+                   const isOverdue = isBefore(date, new Date());
+                   return (
+                    <div key={lead.id} className="p-5 flex items-center justify-between hover:bg-primary/5 transition-all group">
+                       <div className="flex items-center gap-4">
+                         <div className={`h-10 w-10 rounded-xl flex items-center justify-center font-black ${isOverdue ? 'bg-rose-500 text-white' : 'bg-primary/20 text-primary'}`}>
+                           {isOverdue ? '!' : lead.name[0]}
+                         </div>
+                         <div>
+                           <p className="text-sm font-black group-hover:text-primary transition-colors">{lead.name}</p>
+                           <p className={`text-[10px] font-bold uppercase tracking-widest ${isOverdue ? 'text-rose-500' : 'text-muted-foreground'}`}>
+                             {format(date, 'MMM d, h:mm a')}
+                           </p>
+                         </div>
+                       </div>
+                       <Button variant="ghost" size="sm" onClick={() => router.push(`/dashboard/leads/${lead.id}`)} className="h-8 w-8 rounded-lg">
+                         <Zap className="h-4 w-4" />
+                       </Button>
                     </div>
-                    <p className="text-sm font-bold leading-tight">{insight.text}</p>
-                 </div>
-               ))}
+                   );
+                 }) : (
+                  <div className="p-12 text-center">
+                    <CalendarIcon className="h-10 w-10 mx-auto mb-3 opacity-20 text-primary" />
+                    <p className="text-[10px] text-muted-foreground font-black uppercase tracking-widest italic">All caught up! No pending follow-ups.</p>
+                  </div>
+                 )}
+               </div>
             </CardContent>
           </Card>
 
-          <Card className="bg-primary/5 border-2 border-primary/20 rounded-3xl shadow-2xl p-6">
+          <Card className="bg-card/40 border-2 border-border/50 rounded-3xl shadow-2xl p-6">
             <h3 className="text-xs font-black uppercase tracking-[0.2em] text-primary mb-4 flex items-center gap-2">
               <Sparkles className="h-4 w-4" /> Partner AI
             </h3>
             <p className="text-sm font-bold leading-relaxed text-foreground/80">
-              "Partner, team activity is up 15% this week. Focus on converting the 4 high-value proposals in Sarah's pipeline."
+              "Partner, 3 automated follow-ups are marked as <span className="text-rose-500 font-black">OVERDUE</span>. Recommend immediate rep check-in for Acme Corp."
             </p>
             <Button 
               className="w-full mt-6 h-11 rounded-xl font-black uppercase tracking-widest text-[10px] bg-primary shadow-xl shadow-primary/20"
@@ -279,78 +267,6 @@ export default function Dashboard() {
           </Card>
         </div>
       </div>
-
-      <div className="grid gap-8 md:grid-cols-2">
-        <Card className="bg-card/40 border-2 border-border/50 overflow-hidden shadow-2xl rounded-3xl quota-attainment-card">
-          <CardHeader className="bg-primary/5 border-b-2 border-border/50 p-6">
-            <div className="flex items-center justify-between">
-              <CardTitle className="text-lg font-black flex items-center gap-3">
-                <Target className="h-6 w-6 text-primary" /> Team Quota Attainment
-              </CardTitle>
-              <Button 
-                variant="ghost" 
-                size="sm" 
-                className="h-9 px-4 text-[11px] font-black uppercase tracking-widest rounded-xl hover:bg-primary/10"
-                onClick={() => router.push('/dashboard/settings')}
-              >
-                Adjust Targets
-              </Button>
-            </div>
-          </CardHeader>
-          <CardContent className="p-8 space-y-8">
-            {teamQuotaData.map((rep) => (
-              <div key={rep.id} className="space-y-3">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-4">
-                    <Avatar className="h-12 w-12 border-2 border-primary/20 p-0.5">
-                      <AvatarImage src={rep.avatar} className="rounded-full" />
-                      <AvatarFallback className="bg-muted text-xs font-black">{rep.name[0]}</AvatarFallback>
-                    </Avatar>
-                    <div className="flex flex-col">
-                      <span className="text-base font-black">{rep.name}</span>
-                      <span className="text-[10px] text-muted-foreground uppercase font-black tracking-widest">{rep.role}</span>
-                    </div>
-                  </div>
-                  <div className="text-right">
-                    <span className="text-lg font-black text-primary">{rep.percent}%</span>
-                    <span className="text-[10px] text-muted-foreground block uppercase font-black tracking-widest mt-1">
-                      ${rep.currentRevenue.toLocaleString()} / ${(rep.quota / 1000).toFixed(0)}k
-                    </span>
-                  </div>
-                </div>
-                <Progress value={rep.percent} className="h-3 bg-muted/40 rounded-full" />
-              </div>
-            ))}
-          </CardContent>
-        </Card>
-
-        <Card className="bg-card/40 border-2 border-border/50 overflow-hidden shadow-2xl rounded-3xl flex flex-col sales-toolkit-card">
-          <CardHeader className="bg-muted/10 border-b-2 border-border/50 p-6">
-            <CardTitle className="text-lg font-black flex items-center gap-3">
-              <Zap className="h-6 w-6 text-accent" /> Sales Toolkit
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="p-8 flex-1 grid grid-cols-1 sm:grid-cols-2 gap-4">
-            {quickTools.map((tool, i) => (
-              <button 
-                key={i} 
-                className="flex items-center gap-4 p-4 rounded-2xl bg-background/50 border-2 border-transparent hover:border-primary/50 transition-all text-left group shadow-sm hover:shadow-xl"
-                onClick={tool.action}
-              >
-                <div className={`p-3 rounded-xl ${tool.color} group-hover:scale-110 transition-transform`}>
-                   <tool.icon className="h-6 w-6" />
-                </div>
-                <div>
-                  <h4 className="text-sm font-black">{tool.title}</h4>
-                  <p className="text-[10px] text-muted-foreground font-bold uppercase tracking-widest mt-0.5">{tool.desc}</p>
-                </div>
-              </button>
-            ))}
-          </CardContent>
-        </Card>
-      </div>
-
-      <AIAssistant floating isOpenExternal={isAiOpen} onCloseExternal={() => setIsAiOpen(false)} />
     </div>
   );
 }

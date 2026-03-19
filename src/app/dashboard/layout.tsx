@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -24,6 +23,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import OfflineIndicator from '@/components/OfflineIndicator';
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
@@ -50,6 +50,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   return (
     <SidebarProvider className="dark">
       <OnboardingTour />
+      <OfflineIndicator />
       <Sidebar variant="inset" collapsible="icon">
         <SidebarHeader className="h-16 flex flex-row items-center px-4 gap-2 border-b border-border/50">
           <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary text-primary-foreground">
@@ -86,10 +87,11 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             <Button 
               variant="ghost" 
               size="icon" 
-              className="h-9 w-9 text-muted-foreground"
+              className="h-9 w-9 text-muted-foreground relative"
               onClick={() => setIsNotificationsOpen(true)}
             >
               <Bell className="h-4 w-4" />
+              <span className="absolute top-2 right-2 h-2 w-2 bg-rose-500 rounded-full border-2 border-background" />
             </Button>
 
             <Button 
@@ -134,7 +136,6 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           {children}
         </main>
 
-        {/* Floating AI Panel */}
         <div className={`fixed bottom-6 right-6 z-50 transition-all duration-300 transform ${isAiOpen ? 'translate-y-0 opacity-100 scale-100' : 'translate-y-10 opacity-0 scale-95 pointer-events-none'}`}>
           <div className="w-[380px] shadow-2xl rounded-3xl overflow-hidden border-2 border-primary/20 bg-background">
              <AIAssistant floating isOpenExternal={isAiOpen} onCloseExternal={() => setIsAiOpen(false)} />
@@ -150,7 +151,6 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           </Button>
         )}
 
-        {/* Activity Panels */}
         <Sheet open={isHistoryOpen} onOpenChange={setIsHistoryOpen}>
           <SheetContent side="right" className="w-[400px] sm:w-[540px]">
             <SheetHeader>
@@ -191,9 +191,9 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             <ScrollArea className="h-full mt-6">
               <div className="space-y-4">
                 {[
+                  { title: "Follow-up Due: Sarah Jenkins", desc: "Automated reminder for Acme Corp engagement.", type: "warning" },
                   { title: "Team Quota Milestone", desc: "Team hit 85% of monthly target!", type: "success" },
                   { title: "Lead Response Needed", desc: "Stark Ind has been in 'Qualified' for 5 days.", type: "warning" },
-                  { title: "New Training Added", desc: "Sarah uploaded 'Advanced Closing'.", type: "info" },
                 ].map((n, i) => (
                   <div key={i} className={`p-4 rounded-xl border-2 ${n.type === 'success' ? 'bg-emerald-500/5 border-emerald-500/20' : n.type === 'warning' ? 'bg-rose-500/5 border-rose-500/20' : 'bg-primary/5 border-primary/20'}`}>
                     <p className="text-sm font-black">{n.title}</p>
@@ -208,6 +208,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         <nav className="md:hidden fixed bottom-0 left-0 right-0 h-16 bg-card/80 backdrop-blur-xl border-t border-border/50 flex items-center justify-around px-2 z-40">
            {[
               { icon: TrendingUp, href: '/dashboard' },
+              { icon: ContactIcon, href: '/dashboard/contacts' },
               { icon: Settings, href: '/dashboard/settings' },
            ].map((item) => (
             <Link key={item.href} href={item.href} className="flex flex-col items-center gap-1">

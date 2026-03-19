@@ -1,4 +1,3 @@
-
 'use client';
 
 import React, { useEffect, useState } from 'react';
@@ -33,33 +32,23 @@ const OnboardingTour = () => {
     },
     {
       target: '[data-sidebar="sidebar"]',
-      content: 'Access all team resources here: Pipeline, Leads, Analytics, and the new Training Hub.',
+      content: 'Access all team resources here: Pipeline, Leads, and the new Contacts directory.',
       placement: 'right',
       disableScrolling: false,
     },
     {
-      target: '.stat-cards-grid',
-      content: 'Monitor high-level team KPIs. Click any card to jump into detailed analytics.',
-      placement: 'bottom',
-    },
-    {
-      target: '.velocity-chart-card',
-      content: 'Track lead inbound velocity. This helps you understand when your reps are busiest.',
-      placement: 'top',
-    },
-    {
       target: '.ai-insights-card',
-      content: 'Gemini analyzes your team data to provide actionable management insights.',
+      content: 'Monitor automated follow-ups and overdue engagement tasks across the entire team.',
       placement: 'left',
     },
     {
-      target: '.sales-toolkit-card',
-      content: 'Equip your team with scripts, templates, and objection handlers.',
+      target: '.fixed.bottom-20.left-1\/2',
+      content: 'SalesStream now supports full offline persistence. Your data syncs automatically when you reconnect.',
       placement: 'top',
     },
     {
       target: '.fixed.bottom-6.right-6',
-      content: 'Need help? Your Partner AI assistant is always available for quick tasks and insights.',
+      content: 'Need help? Your Partner AI assistant is always available for quick tasks and WhatsApp drafting.',
       placement: 'left',
     }
   ];

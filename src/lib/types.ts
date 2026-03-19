@@ -38,12 +38,32 @@ export interface Lead {
   callsCount: number;
 }
 
+export interface Contact {
+  id: string;
+  userId: string;
+  name: string;
+  phone: string;
+  secondaryPhone?: string;
+  email?: string;
+  notes?: string;
+  createdAt: any;
+  updatedAt: any;
+}
+
+export interface WhatsAppLog {
+  id: string;
+  relatedId: string; // leadId or contactId
+  message: string;
+  status: 'sent' | 'failed';
+  createdAt: any;
+}
+
 export interface Activity {
   id: string;
   leadId: string;
   ownerUid: string;
   ownerName?: string;
-  type: 'note' | 'call' | 'status_change' | 'tag_added' | 'event_created';
+  type: 'note' | 'call' | 'status_change' | 'tag_added' | 'event_created' | 'whatsapp_sent';
   content: string;
   createdAt: any;
   oldStatus?: string;

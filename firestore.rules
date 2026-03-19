@@ -70,5 +70,21 @@ service cloud.firestore {
       allow read: if isSignedIn();
       allow create, update, delete: if isSignedIn();
     }
+
+    /**
+     * @path /contacts/{contactId}
+     */
+    match /contacts/{contactId} {
+      allow get, list: if isSignedIn();
+      allow create, update, delete: if isSignedIn();
+    }
+
+    /**
+     * @path /whatsapp_logs/{logId}
+     */
+    match /whatsapp_logs/{logId} {
+      allow read: if isSignedIn();
+      allow create: if isSignedIn();
+    }
   }
 }
