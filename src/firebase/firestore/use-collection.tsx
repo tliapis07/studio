@@ -38,7 +38,8 @@ export interface InternalQuery extends Query<DocumentData> {
       canonicalString(): string;
       toString(): string;
     }
-  }
+  };
+  type: 'collection' | 'query';
 }
 
 // Known collections that require ownerUid filtering to pass security rules
@@ -54,9 +55,9 @@ const USER_OWNED_COLLECTIONS = [
 /**
  * React hook to subscribe to a Firestore collection or query in real-time.
  * 
- * AUTOMATIC FILTERING: If the target is a root-level user-owned collection 
- * and no filter is present, this hook automatically injects the 'ownerUid' 
- * constraint to comply with security rules.
+ * AUTOMATIC FILTERING: If the target is a root-level user-owned collection,
+ * this hook automatically injects the 'ownerUid' constraint to comply with 
+ * security rules and prevent "Missing or insufficient permissions" errors.
  */
 export function useCollection<T = any>(
     memoizedTargetRefOrQuery: ((CollectionReference<DocumentData> | Query<DocumentData>) & {__memo?: boolean})  | null | undefined,
@@ -80,24 +81,31 @@ export function useCollection<T = any>(
     }
 
     // Determine the path to check if it's a protected collection
+    const queryObj = memoizedTargetRefOrQuery as any;
+    let path = '';
+    
+    if (queryObj.type === 'collection') {
+      path = queryObj.path;
+    } else if (queryObj._query && queryObj._query.path) {
+      // Handle complex queries by extracting the base collection path
+      path = queryObj._query.path.canonicalString();
+    }
+
+    // Normalize path: remove leading/trailing slashes
+    const normalizedPath = path.replace(/^\/|\/$/g, '');
     let finalQuery = memoizedTargetRefOrQuery as Query<DocumentData>;
-    const path = finalQuery.type === 'collection' 
-      ? (finalQuery as CollectionReference).path 
-      : (finalQuery as unknown as InternalQuery)._query.path.canonicalString();
 
     // If it's a root-level user-owned collection, we MUST have a user and a filter
-    if (USER_OWNED_COLLECTIONS.includes(path)) {
+    if (USER_OWNED_COLLECTIONS.includes(normalizedPath)) {
       if (!user) {
         setData([]);
         setIsLoading(false);
         return;
       }
 
-      // If it's a raw collection reference, wrap it in a query with the ownership filter
-      // to avoid "Missing or insufficient permissions" on 'list' operations.
-      if (finalQuery.type === 'collection') {
-        finalQuery = query(finalQuery, where('ownerUid', '==', user.uid));
-      }
+      // Automatically append ownership filter if not already present
+      // Note: Firestore query() is additive, so this is safe even if filter exists.
+      finalQuery = query(finalQuery, where('ownerUid', '==', user.uid));
     }
 
     setIsLoading(true);
@@ -117,7 +125,7 @@ export function useCollection<T = any>(
       (firestoreError: FirestoreError) => {
         const permissionError = new FirestorePermissionError({
           operation: 'list',
-          path,
+          path: normalizedPath || 'unknown',
         });
 
         setError(permissionError);

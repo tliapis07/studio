@@ -27,43 +27,35 @@ service cloud.firestore {
       allow read, write: if isSignedIn() && request.auth.uid == userId;
     }
 
-    // Specific rules for root-level organizational collections
-    // This structure ensures that 'list' operations MUST include an ownerUid filter.
-    
-    match /leads/{leadId} {
-      allow read, delete: if isOwner();
+    // Standard User-Owned Collections
+    match /leads/{id} {
+      allow read, update, delete: if isOwner();
       allow create: if isAssigningToSelf();
-      allow update: if isOwner();
     }
 
-    match /contacts/{contactId} {
-      allow read, delete: if isOwner();
+    match /contacts/{id} {
+      allow read, update, delete: if isOwner();
       allow create: if isAssigningToSelf();
-      allow update: if isOwner();
     }
 
-    match /notes/{noteId} {
-      allow read, delete: if isOwner();
+    match /notes/{id} {
+      allow read, update, delete: if isOwner();
       allow create: if isAssigningToSelf();
-      allow update: if isOwner();
     }
 
-    match /activities/{activityId} {
-      allow read, delete: if isOwner();
+    match /activities/{id} {
+      allow read, update, delete: if isOwner();
       allow create: if isAssigningToSelf();
-      allow update: if isOwner();
     }
 
-    match /calendarEvents/{eventId} {
-      allow read, delete: if isOwner();
+    match /calendarEvents/{id} {
+      allow read, update, delete: if isOwner();
       allow create: if isAssigningToSelf();
-      allow update: if isOwner();
     }
 
-    match /training_materials/{materialId} {
-      allow read, delete: if isOwner();
+    match /training_materials/{id} {
+      allow read, update, delete: if isOwner();
       allow create: if isAssigningToSelf();
-      allow update: if isOwner();
     }
   }
 }
