@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import dynamic from 'next/dynamic';
 import { SidebarProvider, Sidebar, SidebarContent, SidebarHeader, SidebarTrigger, SidebarInset, SidebarRail } from '@/components/ui/sidebar';
 import { NavMain } from '@/components/nav-main';
-import { TrendingUp, Settings, LogOut, History, Bell, Sparkles, X, Contact as ContactIcon, PanelLeftClose, Loader2, AlertTriangle } from 'lucide-react';
+import { TrendingUp, Settings, LogOut, History, Bell, Sparkles, X, Contact as ContactIcon, PanelLeftClose, Loader2, AlertTriangle, Share2 } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Toaster } from '@/components/ui/toaster';
 import { Button } from '@/components/ui/button';
@@ -33,6 +33,7 @@ import {
 } from '@/components/ui/alert-dialog';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import OfflineIndicator from '@/components/OfflineIndicator';
+import { logEvent } from '@/lib/firebase';
 
 // Performance Optimization: Lazy-load heavy organizational assistant and onboarding
 const AIAssistant = dynamic(() => import('@/components/AIAssistant'), { ssr: false });
@@ -57,8 +58,21 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   }, [user, isUserLoading, router]);
 
   const handleSignOut = async () => {
+    logEvent('logout', { uid: user?.uid });
     await signOut(auth);
     router.replace('/');
+  };
+
+  const handleSharePortal = async () => {
+    try {
+      if (navigator.share) {
+        await navigator.share({
+          title: 'SalesStream CRM',
+          text: 'Join the high-performance partner portal.',
+          url: window.location.origin,
+        });
+      }
+    } catch (err) {}
   };
 
   if (isUserLoading) {
@@ -90,11 +104,24 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           <div className="flex-1">
             <NavMain />
           </div>
-          <div className="px-4 pb-4">
-             <SidebarTrigger className="w-full justify-start gap-3 h-10 px-3 hover:bg-muted/50 rounded-lg text-muted-foreground border-t border-border/20 pt-4 mt-4">
-                <PanelLeftClose className="h-4 w-4" />
-                <span className="text-[10px] font-black uppercase tracking-widest group-data-[collapsible=icon]:hidden">Minimize Hub</span>
-             </SidebarTrigger>
+          <div className="px-4 pb-4 mt-auto space-y-4">
+             <Button 
+                variant="ghost" 
+                onClick={handleSharePortal}
+                className="w-full justify-start gap-3 h-10 px-3 hover:bg-muted/50 rounded-lg text-muted-foreground group-data-[collapsible=icon]:p-0 group-data-[collapsible=icon]:justify-center"
+             >
+                <Share2 className="h-4 w-4" />
+                <span className="text-[10px] font-black uppercase tracking-widest group-data-[collapsible=icon]:hidden text-left">Share CRM</span>
+             </Button>
+             <div className="pt-4 border-t border-border/20">
+               <SidebarTrigger className="w-full justify-start gap-3 h-10 px-3 hover:bg-muted/50 rounded-lg text-muted-foreground">
+                  <PanelLeftClose className="h-4 w-4" />
+                  <span className="text-[10px] font-black uppercase tracking-widest group-data-[collapsible=icon]:hidden">Minimize Hub</span>
+               </SidebarTrigger>
+             </div>
+             <div className="text-[8px] font-black uppercase text-muted-foreground/30 px-3 tracking-widest group-data-[collapsible=icon]:hidden">
+               Build v0.1.0-prod
+             </div>
           </div>
         </SidebarContent>
         <SidebarRail />
@@ -113,7 +140,10 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
               variant="outline" 
               size="sm" 
               className="hidden lg:flex gap-2 border-primary/30 bg-primary/5 hover:bg-primary/10 text-[10px] font-black uppercase tracking-widest h-10 px-6 rounded-xl shadow-sm"
-              onClick={() => setIsAiOpen(true)}
+              onClick={() => {
+                setIsAiOpen(true);
+                logEvent('ai_assistant_opened', { uid: user.uid });
+              }}
             >
               <Sparkles className="h-4 w-4 text-primary" /> Partner AI
             </Button>
@@ -167,7 +197,10 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         {!isAiOpen && (
           <Button 
             id="ai-assistant-trigger"
-            onClick={() => setIsAiOpen(true)}
+            onClick={() => {
+              setIsAiOpen(true);
+              logEvent('ai_assistant_opened', { uid: user.uid });
+            }}
             className="fixed bottom-6 right-6 h-14 w-14 rounded-2xl shadow-3xl bg-primary hover:bg-primary/90 transition-all hover:scale-110 z-40 group"
           >
             <Sparkles className="h-6 w-6 group-hover:animate-pulse" />

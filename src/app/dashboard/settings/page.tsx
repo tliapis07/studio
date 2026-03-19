@@ -29,7 +29,9 @@ import {
   Wifi,
   WifiOff,
   Trash2,
-  AlertTriangle
+  AlertTriangle,
+  RefreshCw,
+  Share2
 } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
 import { useUser, useFirestore, useDoc, useAuth } from '@/firebase';
@@ -51,6 +53,7 @@ import {
 } from '@/components/ui/alert-dialog';
 import { deleteUser } from 'firebase/auth';
 import { useRouter } from 'next/navigation';
+import { logEvent } from '@/lib/firebase';
 
 const TIMEZONES = [
   "UTC", "America/New_York", "America/Chicago", "America/Denver", "America/Los_Angeles", 
@@ -89,6 +92,7 @@ export default function SettingsPage() {
     }, { merge: true });
 
     setIsSaving(false);
+    logEvent('profile_updated', { uid: user.uid });
     toast({ title: "Profile Synchronized", description: "Identity details saved organizational-wide." });
   };
 
@@ -116,10 +120,9 @@ export default function SettingsPage() {
     if (!user) return;
     setIsDeleting(true);
     try {
-      // Clean up Firestore profile first
       await deleteDoc(doc(db, 'users', user.uid));
-      // Delete Auth user
       await deleteUser(user);
+      logEvent('account_deleted', { uid: user.uid });
       toast({ title: "Account Terminated", description: "All partner data has been wiped from the system." });
       router.replace('/');
     } catch (error: any) {
@@ -133,6 +136,32 @@ export default function SettingsPage() {
     }
   };
 
+  const handleResetApp = () => {
+    localStorage.clear();
+    logEvent('system_reset', { uid: user?.uid });
+    window.location.reload();
+  };
+
+  const handleShare = async () => {
+    const shareData = {
+      title: 'SalesStream CRM',
+      text: 'Manage your telesales pipeline with SalesStream CRM.',
+      url: window.location.origin,
+    };
+
+    try {
+      if (navigator.share) {
+        await navigator.share(shareData);
+      } else {
+        await navigator.clipboard.writeText(window.location.origin);
+        toast({ title: "Link Copied", description: "Partner Portal link copied to clipboard." });
+      }
+      logEvent('app_shared', { uid: user?.uid });
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
   return (
     <div className="max-w-5xl mx-auto space-y-8 pb-24 md:pb-8 animate-in fade-in duration-500">
       <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
@@ -140,9 +169,14 @@ export default function SettingsPage() {
           <h1 className="text-4xl font-black font-headline tracking-tight">Partner Settings</h1>
           <p className="text-muted-foreground font-medium">Manage organizational structure and partner-view preferences.</p>
         </div>
-        <div className="bg-primary/10 border-2 border-primary/20 rounded-2xl px-4 py-2 flex items-center gap-3">
-           <div className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
-           <span className="text-[10px] font-black uppercase tracking-widest text-primary">System Online & Synced</span>
+        <div className="flex gap-2">
+          <Button variant="outline" onClick={handleShare} className="rounded-xl h-10 gap-2 font-black uppercase text-[10px] border-2">
+            <Share2 className="h-4 w-4" /> Share Portal
+          </Button>
+          <div className="bg-primary/10 border-2 border-primary/20 rounded-2xl px-4 py-2 flex items-center gap-3 h-10">
+             <div className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
+             <span className="text-[10px] font-black uppercase tracking-widest text-primary">System Online</span>
+          </div>
         </div>
       </div>
 
@@ -306,41 +340,61 @@ export default function SettingsPage() {
         </TabsContent>
 
         <TabsContent value="system" className="space-y-8 animate-in slide-in-from-top-4 duration-300">
-           <Card className="border-2 border-rose-500/20 bg-rose-500/5 rounded-3xl shadow-xl">
-              <CardHeader className="p-8 border-b-2 border-rose-500/10">
-                <CardTitle className="text-xl font-black text-rose-500 flex items-center gap-3">
-                  <AlertTriangle className="h-6 w-6" /> Danger Zone
-                </CardTitle>
-                <CardDescription>Irreversible organizational management actions.</CardDescription>
-              </CardHeader>
-              <CardContent className="p-8">
-                <div className="flex items-center justify-between p-6 rounded-2xl bg-background border-2 border-rose-500/20">
-                  <div className="space-y-1">
-                    <p className="text-sm font-black">Terminate Partner Account</p>
-                    <p className="text-[10px] text-muted-foreground font-bold uppercase tracking-widest">Permanently delete your profile and all organizational access.</p>
+           <div className="grid gap-8">
+             <Card className="bg-card/50 border-2 border-border/50 rounded-3xl shadow-xl">
+                <CardHeader className="p-8 pb-4">
+                  <CardTitle className="text-xl font-black">Maintenance</CardTitle>
+                  <CardDescription>Manage local storage and application state.</CardDescription>
+                </CardHeader>
+                <CardContent className="p-8">
+                  <div className="flex items-center justify-between p-6 rounded-2xl bg-muted/20 border-2 border-border/50">
+                    <div className="space-y-1">
+                      <p className="text-sm font-black">Clear System Cache</p>
+                      <p className="text-[10px] text-muted-foreground font-bold uppercase tracking-widest">Resets UI preferences and forces a fresh organizational sync.</p>
+                    </div>
+                    <Button variant="outline" onClick={handleResetApp} className="rounded-xl h-10 gap-2 font-black uppercase text-[10px] border-2">
+                      <RefreshCw className="h-4 w-4" /> Reset App
+                    </Button>
                   </div>
-                  <AlertDialog>
-                    <AlertDialogTrigger asChild>
-                      <Button variant="destructive" className="rounded-xl font-black uppercase text-[10px] tracking-widest gap-2">
-                        <Trash2 className="h-4 w-4" /> Delete Account
-                      </Button>
-                    </AlertDialogTrigger>
-                    <AlertDialogContent className="rounded-3xl border-2">
-                      <AlertDialogHeader>
-                        <AlertDialogTitle className="text-2xl font-black">Final Confirmation</AlertDialogTitle>
-                        <AlertDialogDescription className="text-sm leading-relaxed">
-                          This action is <span className="text-rose-500 font-bold">PERMANENT</span>. All your leads, scripts, and organizational configurations will be lost. You cannot undo this.
-                        </AlertDialogDescription>
-                      </AlertDialogHeader>
-                      <AlertDialogFooter>
-                        <AlertDialogCancel className="rounded-xl font-black uppercase text-[10px]">Cancel</AlertDialogCancel>
-                        <AlertDialogAction onClick={handleDeleteAccount} className="bg-rose-500 hover:bg-rose-600 rounded-xl font-black uppercase text-[10px]">Confirm Deletion</AlertDialogAction>
-                      </AlertDialogFooter>
-                    </AlertDialogContent>
-                  </AlertDialog>
-                </div>
-              </CardContent>
-           </Card>
+                </CardContent>
+             </Card>
+
+             <Card className="border-2 border-rose-500/20 bg-rose-500/5 rounded-3xl shadow-xl">
+                <CardHeader className="p-8 border-b-2 border-rose-500/10">
+                  <CardTitle className="text-xl font-black text-rose-500 flex items-center gap-3">
+                    <AlertTriangle className="h-6 w-6" /> Danger Zone
+                  </CardTitle>
+                  <CardDescription>Irreversible organizational management actions.</CardDescription>
+                </CardHeader>
+                <CardContent className="p-8">
+                  <div className="flex items-center justify-between p-6 rounded-2xl bg-background border-2 border-rose-500/20">
+                    <div className="space-y-1">
+                      <p className="text-sm font-black">Terminate Partner Account</p>
+                      <p className="text-[10px] text-muted-foreground font-bold uppercase tracking-widest">Permanently delete your profile and all organizational access.</p>
+                    </div>
+                    <AlertDialog>
+                      <AlertDialogTrigger asChild>
+                        <Button variant="destructive" className="rounded-xl font-black uppercase text-[10px] tracking-widest gap-2">
+                          <Trash2 className="h-4 w-4" /> Delete Account
+                        </Button>
+                      </AlertDialogTrigger>
+                      <AlertDialogContent className="rounded-3xl border-2">
+                        <AlertDialogHeader>
+                          <AlertDialogTitle className="text-2xl font-black">Final Confirmation</AlertDialogTitle>
+                          <AlertDialogDescription className="text-sm leading-relaxed">
+                            This action is <span className="text-rose-500 font-bold">PERMANENT</span>. All your leads, scripts, and organizational configurations will be lost. You cannot undo this.
+                          </AlertDialogDescription>
+                        </AlertDialogHeader>
+                        <AlertDialogFooter>
+                          <AlertDialogCancel className="rounded-xl font-black uppercase text-[10px]">Cancel</AlertDialogCancel>
+                          <AlertDialogAction onClick={handleDeleteAccount} className="bg-rose-500 hover:bg-rose-600 rounded-xl font-black uppercase text-[10px]">Confirm Deletion</AlertDialogAction>
+                        </AlertDialogFooter>
+                      </AlertDialogContent>
+                    </AlertDialog>
+                  </div>
+                </CardContent>
+             </Card>
+           </div>
         </TabsContent>
       </Tabs>
     </div>
