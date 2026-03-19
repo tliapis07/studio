@@ -1,9 +1,10 @@
+
 'use client';
 
 import { useState, useEffect } from 'react';
 import { SidebarProvider, Sidebar, SidebarContent, SidebarHeader, SidebarTrigger, SidebarInset } from '@/components/ui/sidebar';
 import { NavMain } from '@/components/nav-main';
-import { TrendingUp, User, LayoutDashboard, Layers, Users, Calendar as CalendarIcon, Settings, BarChart3, Plus, Sparkles, LogOut, FileText, Info, History } from 'lucide-react';
+import { TrendingUp, LayoutDashboard, Layers, Users, Calendar as CalendarIcon, Settings, BarChart3, Sparkles, LogOut, History } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Toaster } from '@/components/ui/toaster';
 import { Button } from '@/components/ui/button';
@@ -12,6 +13,7 @@ import { usePathname, useRouter } from 'next/navigation';
 import AIAssistant from '@/components/AIAssistant';
 import { useUser, useAuth } from '@/firebase';
 import { signOut } from 'firebase/auth';
+import OnboardingTour from '@/components/OnboardingTour';
 import { 
   DropdownMenu,
   DropdownMenuContent,
@@ -51,6 +53,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
   return (
     <SidebarProvider className="dark">
+      <OnboardingTour />
       <Sidebar variant="inset" collapsible="icon">
         <SidebarHeader className="h-16 flex flex-row items-center px-4 gap-2 border-b border-border/50">
           <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary text-primary-foreground">

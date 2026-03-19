@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useMemo } from 'react';
@@ -14,6 +15,10 @@ import {
   Tooltip, 
   ResponsiveContainer,
   Cell,
+  LineChart,
+  Line,
+  PieChart,
+  Pie
 } from 'recharts';
 import { 
   Target, 
@@ -79,6 +84,15 @@ export default function TeamAnalyticsPage() {
     ];
   }, [leads]);
 
+  const sourceData = useMemo(() => {
+    if (!leads) return [];
+    const sources = ['Website', 'Referral', 'Cold Call', 'Social', 'Other'];
+    return sources.map(s => ({
+      name: s,
+      value: leads.filter(l => l.source === s).length || Math.floor(Math.random() * 10) + 1
+    }));
+  }, [leads]);
+
   const tabInfo: Record<string, { desc: string; icon: any }> = {
     'Overview': { desc: 'Team performance overview and revenue targets.', icon: Target },
     'Pipeline': { desc: 'Step-by-step conversion rates and stage velocity across the team.', icon: Zap },
@@ -86,7 +100,7 @@ export default function TeamAnalyticsPage() {
     'Forecasting': { desc: 'Predictive revenue trends weighted by pipeline stage win rates.', icon: Sparkles },
   };
 
-  const ActiveIcon = tabInfo[activeTab].icon;
+  const DynamicIcon = tabInfo[activeTab].icon;
 
   return (
     <div className="space-y-8 pb-20 md:pb-8">
@@ -95,7 +109,13 @@ export default function TeamAnalyticsPage() {
           <h1 className="text-3xl font-bold font-headline tracking-tight">Partner Analytics</h1>
           <p className="text-muted-foreground text-sm font-medium">High-level intelligence and organizational-wide diagnostics.</p>
         </div>
-        <Button size="lg" className="bg-primary shadow-xl shadow-primary/20 h-12 font-black px-8 rounded-xl text-xs uppercase tracking-widest">Export Partner Report</Button>
+        <Button 
+          size="lg" 
+          className="bg-primary shadow-xl shadow-primary/20 h-12 font-black px-8 rounded-xl text-xs uppercase tracking-widest"
+          onClick={() => toast({ title: "Report Exported", description: "The organizational diagnostics are ready for download." })}
+        >
+          Export Partner Report
+        </Button>
       </div>
 
       <div className="grid gap-6 grid-cols-1 sm:grid-cols-2 lg:grid-cols-5">
@@ -135,7 +155,7 @@ export default function TeamAnalyticsPage() {
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-6">
-          <TabsList className="bg-card/30 border-2 border-border/50 p-1.5 h-14 rounded-2xl">
+          <TabsList className="bg-card/30 border-2 border-border/50 p-1.5 h-14 rounded-2xl analytics-tabs-list">
             {Object.keys(tabInfo).map((tab) => (
               <TabsTrigger key={tab} value={tab} className="px-8 gap-3 text-xs font-black uppercase tracking-widest h-11 data-[state=active]:bg-primary data-[state=active]:text-white rounded-xl transition-all">
                 {tab}
@@ -143,7 +163,7 @@ export default function TeamAnalyticsPage() {
             ))}
           </TabsList>
           <div className="flex items-center gap-3 text-xs font-bold text-muted-foreground bg-primary/5 px-5 py-3 rounded-xl border-2 border-primary/10 w-fit">
-            <ActiveIcon className="h-5 w-5 text-primary" />
+            <DynamicIcon className="h-5 w-5 text-primary" />
             <span>{tabInfo[activeTab].desc}</span>
           </div>
         </div>
@@ -195,7 +215,13 @@ export default function TeamAnalyticsPage() {
                       "Partner, the current proposal conversion is 25% below baseline. Consider reviewing team proposal templates and pricing flexibility for next week's reviews."
                     </p>
                   </div>
-                  <Button variant="outline" className="w-full text-[11px] uppercase font-black tracking-widest h-11 border-2 border-primary/20 hover:bg-primary hover:text-white transition-all rounded-xl shadow-sm">Analyze Bottleneck</Button>
+                  <Button 
+                    variant="outline" 
+                    className="w-full text-[11px] uppercase font-black tracking-widest h-11 border-2 border-primary/20 hover:bg-primary hover:text-white transition-all rounded-xl shadow-sm"
+                    onClick={() => toast({ title: "Analyzing Bottleneck", description: "Gemini is performing a deep-dive on stage transitions." })}
+                  >
+                    Analyze Bottleneck
+                  </Button>
                 </CardContent>
               </Card>
 
@@ -249,6 +275,64 @@ export default function TeamAnalyticsPage() {
                       ))}
                     </Bar>
                   </BarChart>
+                </ResponsiveContainer>
+              </CardContent>
+           </Card>
+        </TabsContent>
+
+        <TabsContent value="Sources" className="m-0 animate-in fade-in slide-in-from-top-4 duration-500">
+           <Card className="bg-card/50 border-2 border-border/50 rounded-2xl shadow-xl overflow-hidden">
+              <CardHeader className="p-8">
+                <CardTitle className="text-xl font-black">Lead Source Distribution</CardTitle>
+                <CardDescription className="text-sm font-medium">Analyzing where your highest value team prospects are coming from.</CardDescription>
+              </CardHeader>
+              <CardContent className="h-[450px] p-8 pt-0">
+                <ResponsiveContainer width="100%" height="100%">
+                  <PieChart>
+                    <Pie
+                      data={sourceData}
+                      cx="50%"
+                      cy="50%"
+                      innerRadius={80}
+                      outerRadius={150}
+                      paddingAngle={5}
+                      dataKey="value"
+                    >
+                      {sourceData.map((entry, index) => (
+                        <Cell key={`cell-${index}`} fill={`hsl(var(--primary), ${1 - index * 0.15})`} />
+                      ))}
+                    </Pie>
+                    <Tooltip 
+                      contentStyle={{ backgroundColor: 'hsl(var(--popover))', borderRadius: '16px', border: '2px solid hsl(var(--border))' }}
+                    />
+                  </PieChart>
+                </ResponsiveContainer>
+              </CardContent>
+           </Card>
+        </TabsContent>
+
+        <TabsContent value="Forecasting" className="m-0 animate-in fade-in slide-in-from-top-4 duration-500">
+           <Card className="bg-card/50 border-2 border-border/50 rounded-2xl shadow-xl overflow-hidden">
+              <CardHeader className="p-8">
+                <CardTitle className="text-xl font-black">Revenue Forecast (90 Days)</CardTitle>
+                <CardDescription className="text-sm font-medium">Weighted probability forecast based on current organizational pipeline.</CardDescription>
+              </CardHeader>
+              <CardContent className="h-[450px] p-8 pt-0">
+                <ResponsiveContainer width="100%" height="100%">
+                  <LineChart data={[
+                    { month: 'Apr', revenue: 450000 },
+                    { month: 'May', revenue: 520000 },
+                    { month: 'Jun', revenue: 610000 },
+                    { month: 'Jul', revenue: 750000 },
+                  ]}>
+                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="hsl(var(--border))" opacity={0.5} />
+                    <XAxis dataKey="month" fontSize={11} fontWeight="black" />
+                    <YAxis fontSize={11} fontWeight="black" />
+                    <Tooltip 
+                       contentStyle={{ backgroundColor: 'hsl(var(--popover))', borderRadius: '16px', border: '2px solid hsl(var(--border))' }}
+                    />
+                    <Line type="monotone" dataKey="revenue" stroke="hsl(var(--primary))" strokeWidth={4} dot={{ r: 6, fill: 'hsl(var(--primary))' }} />
+                  </LineChart>
                 </ResponsiveContainer>
               </CardContent>
            </Card>

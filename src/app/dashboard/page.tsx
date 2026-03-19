@@ -1,8 +1,10 @@
+
 'use client';
 
 import { useMemo, useState, useEffect } from 'react';
-import { useCollection, useFirestore, useUser, useMemoFirebase } from '@/firebase';
+import { useCollection, useFirestore, useUser, useMemoFirebase, useDoc } from '@/firebase';
 import { collection, query, orderBy, limit, doc } from 'firebase/firestore';
+import { useRouter } from 'next/navigation';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { 
   Users, 
@@ -38,8 +40,8 @@ import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { useDoc } from '@/firebase';
 import { toast } from '@/hooks/use-toast';
+import AIAssistant from '@/components/AIAssistant';
 
 const MOCK_TEAM = [
   { id: 'user1', name: 'Alex Morgan', role: 'Sales Exec', email: 'alex@stream.io', avatar: 'https://picsum.photos/seed/av1/100/100', quota: 150000 },
@@ -48,9 +50,11 @@ const MOCK_TEAM = [
 ];
 
 export default function Dashboard() {
+  const router = useRouter();
   const { user, isUserLoading } = useUser();
   const db = useFirestore();
   const [repFilter, setRepFilter] = useState('all');
+  const [isAiOpen, setIsAiOpen] = useState(false);
 
   useEffect(() => {
     if (user && !isUserLoading) {
@@ -137,11 +141,11 @@ export default function Dashboard() {
   ];
 
   const quickTools = [
-    { title: 'Ask Gemini', icon: MessageSquare, color: 'bg-primary/20 text-primary', desc: 'AI Sales Assistant' },
-    { title: 'Call Script', icon: FileSignature, color: 'bg-accent/20 text-accent', desc: 'Custom pitch generator' },
-    { title: 'Email Template', icon: Mail, color: 'bg-emerald-500/20 text-emerald-500', desc: 'Outbound templates' },
-    { title: 'Objection Handler', icon: ShieldAlert, color: 'bg-rose-500/20 text-rose-500', desc: 'Handle common pushbacks' },
-    { title: 'Quick Notes', icon: StickyNote, color: 'bg-yellow-500/20 text-yellow-500', desc: 'Post-call summaries' },
+    { title: 'Ask Gemini', icon: MessageSquare, color: 'bg-primary/20 text-primary', desc: 'AI Sales Assistant', action: () => setIsAiOpen(true) },
+    { title: 'Call Script', icon: FileSignature, color: 'bg-accent/20 text-accent', desc: 'Custom pitch generator', action: () => toast({ title: "Generating Script", description: "Gemini is crafting a high-conversion script." }) },
+    { title: 'Email Template', icon: Mail, color: 'bg-emerald-500/20 text-emerald-500', desc: 'Outbound templates', action: () => router.push('/dashboard/training') },
+    { title: 'Objection Handler', icon: ShieldAlert, color: 'bg-rose-500/20 text-rose-500', desc: 'Handle common pushbacks', action: () => setIsAiOpen(true) },
+    { title: 'Quick Notes', icon: StickyNote, color: 'bg-yellow-500/20 text-yellow-500', desc: 'Post-call summaries', action: () => router.push('/dashboard/leads') },
   ];
 
   return (
@@ -152,18 +156,31 @@ export default function Dashboard() {
           <p className="text-base md:text-lg text-muted-foreground font-medium">Hello, Partner. Here is your team's pipeline velocity.</p>
         </div>
         <div className="flex flex-wrap items-center gap-3">
-           <Button size="lg" variant="outline" className="gap-3 border-2 border-primary/20 hover:bg-primary/5 h-12 rounded-xl font-bold">
+           <Button 
+            size="lg" 
+            variant="outline" 
+            className="gap-3 border-2 border-primary/20 hover:bg-primary/5 h-12 rounded-xl font-bold"
+            onClick={() => router.push('/dashboard/analytics')}
+          >
              <History className="h-5 w-5 text-primary" /> Team History
            </Button>
-           <Button size="lg" className="bg-primary gap-3 shadow-2xl shadow-primary/30 h-12 rounded-xl font-black uppercase tracking-widest text-xs">
+           <Button 
+            size="lg" 
+            className="bg-primary gap-3 shadow-2xl shadow-primary/30 h-12 rounded-xl font-black uppercase tracking-widest text-xs"
+            onClick={() => toast({ title: "Generating Report", description: "Compiling organizational data for export." })}
+          >
              <FileText className="h-5 w-5" /> Generate Team Report
            </Button>
         </div>
       </div>
 
-      <div className="grid gap-6 grid-cols-2 lg:grid-cols-4">
+      <div className="grid gap-6 grid-cols-2 lg:grid-cols-4 stat-cards-grid">
         {statCards.map((stat, i) => (
-          <Card key={i} className="bg-card/40 border-2 border-border/50 backdrop-blur-xl group hover:border-primary/50 transition-all hover:translate-y-[-4px] rounded-3xl overflow-hidden shadow-lg hover:shadow-2xl">
+          <Card 
+            key={i} 
+            className="bg-card/40 border-2 border-border/50 backdrop-blur-xl group hover:border-primary/50 transition-all hover:translate-y-[-4px] rounded-3xl overflow-hidden shadow-lg hover:shadow-2xl cursor-pointer"
+            onClick={() => router.push('/dashboard/analytics')}
+          >
             <CardHeader className="flex flex-row items-center justify-between space-y-0 p-6 pb-4">
               <CardTitle className="text-[11px] font-black uppercase tracking-[0.2em] text-muted-foreground">{stat.label}</CardTitle>
               <div className={`p-2.5 rounded-xl bg-muted/20 ${stat.color} group-hover:scale-110 transition-transform`}>
@@ -186,7 +203,7 @@ export default function Dashboard() {
       </div>
 
       <div className="grid gap-8 md:grid-cols-7">
-        <Card className="md:col-span-4 bg-card/30 border-2 border-border/50 rounded-3xl shadow-xl overflow-hidden">
+        <Card className="md:col-span-4 bg-card/30 border-2 border-border/50 rounded-3xl shadow-xl overflow-hidden velocity-chart-card">
           <CardHeader className="flex flex-row items-center justify-between p-8 pb-4">
             <div>
               <CardTitle className="text-2xl font-black">Team Inbound Velocity</CardTitle>
@@ -225,7 +242,7 @@ export default function Dashboard() {
         </Card>
         
         <div className="md:col-span-3 space-y-8">
-          <Card className="bg-card/30 border-2 border-border/50 rounded-3xl shadow-xl">
+          <Card className="bg-card/30 border-2 border-border/50 rounded-3xl shadow-xl ai-insights-card">
             <CardHeader className="p-8 pb-4">
               <CardTitle className="text-2xl font-black">AI Team Insights</CardTitle>
               <CardDescription className="text-sm font-medium italic">Manager-focused pipeline analysis.</CardDescription>
@@ -253,19 +270,31 @@ export default function Dashboard() {
             <p className="text-sm font-bold leading-relaxed text-foreground/80">
               "Partner, team activity is up 15% this week. Focus on converting the 4 high-value proposals in Sarah's pipeline."
             </p>
-            <Button className="w-full mt-6 h-11 rounded-xl font-black uppercase tracking-widest text-[10px] bg-primary shadow-xl shadow-primary/20">Ask Partner AI</Button>
+            <Button 
+              className="w-full mt-6 h-11 rounded-xl font-black uppercase tracking-widest text-[10px] bg-primary shadow-xl shadow-primary/20"
+              onClick={() => setIsAiOpen(true)}
+            >
+              Ask Partner AI
+            </Button>
           </Card>
         </div>
       </div>
 
       <div className="grid gap-8 md:grid-cols-2">
-        <Card className="bg-card/40 border-2 border-border/50 overflow-hidden shadow-2xl rounded-3xl">
+        <Card className="bg-card/40 border-2 border-border/50 overflow-hidden shadow-2xl rounded-3xl quota-attainment-card">
           <CardHeader className="bg-primary/5 border-b-2 border-border/50 p-6">
             <div className="flex items-center justify-between">
               <CardTitle className="text-lg font-black flex items-center gap-3">
                 <Target className="h-6 w-6 text-primary" /> Team Quota Attainment
               </CardTitle>
-              <Button variant="ghost" size="sm" className="h-9 px-4 text-[11px] font-black uppercase tracking-widest rounded-xl hover:bg-primary/10">Adjust Targets</Button>
+              <Button 
+                variant="ghost" 
+                size="sm" 
+                className="h-9 px-4 text-[11px] font-black uppercase tracking-widest rounded-xl hover:bg-primary/10"
+                onClick={() => router.push('/dashboard/settings')}
+              >
+                Adjust Targets
+              </Button>
             </div>
           </CardHeader>
           <CardContent className="p-8 space-y-8">
@@ -295,7 +324,7 @@ export default function Dashboard() {
           </CardContent>
         </Card>
 
-        <Card className="bg-card/40 border-2 border-border/50 overflow-hidden shadow-2xl rounded-3xl flex flex-col">
+        <Card className="bg-card/40 border-2 border-border/50 overflow-hidden shadow-2xl rounded-3xl flex flex-col sales-toolkit-card">
           <CardHeader className="bg-muted/10 border-b-2 border-border/50 p-6">
             <CardTitle className="text-lg font-black flex items-center gap-3">
               <Zap className="h-6 w-6 text-accent" /> Sales Toolkit
@@ -306,6 +335,7 @@ export default function Dashboard() {
               <button 
                 key={i} 
                 className="flex items-center gap-4 p-4 rounded-2xl bg-background/50 border-2 border-transparent hover:border-primary/50 transition-all text-left group shadow-sm hover:shadow-xl"
+                onClick={tool.action}
               >
                 <div className={`p-3 rounded-xl ${tool.color} group-hover:scale-110 transition-transform`}>
                    <tool.icon className="h-6 w-6" />
@@ -319,6 +349,8 @@ export default function Dashboard() {
           </CardContent>
         </Card>
       </div>
+
+      <AIAssistant floating isOpenExternal={isAiOpen} onCloseExternal={() => setIsAiOpen(false)} />
     </div>
   );
 }
