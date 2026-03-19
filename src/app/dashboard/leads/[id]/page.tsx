@@ -3,19 +3,23 @@ import LeadDetailClient from './LeadDetailClient';
 /**
  * @fileOverview Lead Detail Page (Server Component)
  * 
- * This component acts as the entry point for lead details. It handles static 
- * parameter generation for the build process and passes the lead ID to the 
- * client-side interactive component.
+ * This component acts as the entry point for lead details. For Next.js 15 static 
+ * export compatibility, we use generateStaticParams and dynamicParams = false.
  */
 
+// Required for static export with dynamic routes
+export const dynamicParams = false;
+
 export async function generateStaticParams() {
-  // In a static export environment, we return an empty array if we intend 
-  // to fetch all data on the client, or a list of known IDs to pre-render.
+  // In a Capacitor/static environment, we return an empty array or a set of 
+  // known IDs to satisfy the build process. All lead data is fetched client-side.
   return []; 
 }
 
 export default async function LeadDetailPage({ params }: { params: Promise<{ id: string }> }) {
-  const { id } = await params;
+  // In Next.js 15, params is a Promise
+  const resolvedParams = await params;
+  const id = resolvedParams.id;
 
   return (
     <LeadDetailClient id={id} />
