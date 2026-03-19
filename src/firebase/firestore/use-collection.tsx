@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import {
   Query,
   onSnapshot,
@@ -41,6 +41,7 @@ const USER_OWNED_COLLECTIONS = [
 /**
  * React hook to subscribe to a Firestore collection or query in real-time.
  * Automatically injects ownerUid filter for user-owned collections to prevent permission errors.
+ * Performance Optimized: Uses aggressive path detection and auth guarding.
  */
 export function useCollection<T = any>(
     memoizedTargetRefOrQuery: ((CollectionReference<DocumentData> | Query<DocumentData>) & {__memo?: boolean})  | null | undefined,
@@ -52,6 +53,9 @@ export function useCollection<T = any>(
   const [data, setData] = useState<StateDataType>(null);
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [error, setError] = useState<FirestoreError | Error | null>(null);
+  
+  // Track last used query to avoid flickering during filter injection
+  const lastQueryRef = useRef<string>('');
 
   useEffect(() => {
     if (!memoizedTargetRefOrQuery) {
@@ -61,33 +65,27 @@ export function useCollection<T = any>(
       return;
     }
 
-    // 1. RELIABLE PATH DETECTION
-    let collectionPath = '';
+    // 1. HIGH-SPEED PATH DETECTION
+    let collectionName = '';
     try {
       if (memoizedTargetRefOrQuery.type === 'collection') {
-        collectionPath = (memoizedTargetRefOrQuery as CollectionReference).path;
+        collectionName = (memoizedTargetRefOrQuery as CollectionReference).path;
       } else {
-        // Query object internal path extraction
         const internal = memoizedTargetRefOrQuery as any;
-        const segments = internal._query?.path?.segments || 
-                         internal.path?.segments || 
-                         (internal.source?.path?.segments);
-        
+        // Fast-path for Internal Firestore Query structure
+        const segments = internal._query?.path?.segments || internal.path?.segments;
         if (segments && segments.length > 0) {
-          collectionPath = segments[0];
+          collectionName = segments[0];
         }
       }
-    } catch (e) {
-      // Silently fail path detection for complex queries
-    }
+    } catch (e) {}
 
-    const collectionName = collectionPath.split('/')[0];
     let finalQuery = memoizedTargetRefOrQuery as Query<DocumentData>;
 
     // 2. SECURITY FILTER INJECTION (CRITICAL FOR PERMISSIONS)
     if (USER_OWNED_COLLECTIONS.includes(collectionName)) {
       if (!user) {
-        // Pause query until user is available to prevent Permission Denied
+        // Halt query execution until user is available to prevent Permission Denied
         setData(null);
         setIsLoading(true);
         return;
@@ -96,6 +94,10 @@ export function useCollection<T = any>(
       // Inject ownership filter to satisfy "Rules are not Filters"
       finalQuery = query(finalQuery, where('ownerUid', '==', user.uid));
     }
+
+    const currentQueryKey = JSON.stringify((finalQuery as any)._query || collectionName);
+    if (currentQueryKey === lastQueryRef.current) return;
+    lastQueryRef.current = currentQueryKey;
 
     setIsLoading(true);
     setError(null);
@@ -114,7 +116,6 @@ export function useCollection<T = any>(
       },
       (firestoreError: FirestoreError) => {
         const isPermissionError = firestoreError.code === 'permission-denied';
-        
         const contextualError = new FirestorePermissionError({
           operation: 'list',
           path: collectionName || 'unknown',

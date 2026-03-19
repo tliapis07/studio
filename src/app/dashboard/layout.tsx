@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -35,6 +34,7 @@ import {
 import { ScrollArea } from '@/components/ui/scroll-area';
 import OfflineIndicator from '@/components/OfflineIndicator';
 import { logEvent } from '@/lib/firebase';
+import { Skeleton } from '@/components/ui/skeleton';
 
 // Mobile Plugins
 import { StatusBar, Style } from '@capacitor/status-bar';
@@ -84,10 +84,9 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     };
   }, [pathname]);
 
+  // Auth Guard: Redirect to login if session is gone
   useEffect(() => {
     if (!isUserLoading && !user) {
-      router.replace('/');
-    } else if (user && !user.emailVerified && !user.isAnonymous && user.email) {
       router.replace('/');
     }
   }, [user, isUserLoading, router]);
@@ -117,17 +116,8 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     } catch (err) {}
   };
 
-  if (isUserLoading) {
-    return (
-      <div className="min-h-screen flex flex-col items-center justify-center bg-background p-8">
-        <Loader2 className="h-12 w-12 animate-spin text-primary opacity-50 mb-4" />
-        <p className="text-[10px] font-black uppercase tracking-[0.2em] animate-pulse text-primary">Establishing Partner Session...</p>
-      </div>
-    );
-  }
-
-  if (!user) return null;
-
+  // Immediate Shell Render: We render the SidebarProvider even while loading
+  // to give the user a visual shell immediately.
   return (
     <SidebarProvider>
       <OnboardingTour />
@@ -178,57 +168,75 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             </div>
           </div>
           <div className="flex items-center gap-3">
-            <Button 
-              variant="outline" 
-              size="sm" 
-              className="hidden lg:flex gap-2 border-primary/30 bg-primary/5 hover:bg-primary/10 text-[10px] font-black uppercase tracking-widest h-10 px-6 rounded-xl shadow-sm text-primary"
-              onClick={() => {
-                handleActionClick();
-                setIsAiOpen(true);
-                logEvent('ai_assistant_opened', { uid: user.uid });
-              }}
-            >
-              <Sparkles className="h-4 w-4" /> Partner AI
-            </Button>
-
-            <Button variant="ghost" size="icon" className="h-10 w-10 text-primary relative" onClick={() => { handleActionClick(); setIsNotificationsOpen(true); }}>
-              <Bell className="h-4 w-4" />
-              <span className="absolute top-2.5 right-2.5 h-2 w-2 bg-rose-500 rounded-full border-2 border-background" />
-            </Button>
-
-            <Button variant="ghost" size="icon" className="h-10 w-10 text-primary" onClick={() => { handleActionClick(); setIsHistoryOpen(true); }}>
-              <History className="h-4 w-4" />
-            </Button>
-            
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="ghost" className="flex items-center gap-3 px-2 h-10 hover:bg-muted/50 rounded-xl transition-all">
-                  <div className="hidden sm:flex flex-col items-end">
-                    <span className="text-sm font-black leading-none text-foreground">{user?.displayName || 'Partner'}</span>
-                    <span className="text-[9px] text-muted-foreground uppercase tracking-widest font-black mt-1">Lead Partner</span>
-                  </div>
-                  <Avatar className="h-8 w-8 border-2 border-primary shadow-sm">
-                    <AvatarImage src={user?.photoURL || ''} />
-                    <AvatarFallback className="bg-primary/10 text-primary font-black">{user?.displayName?.[0] || 'P'}</AvatarFallback>
-                  </Avatar>
+            {isUserLoading ? (
+              <div className="flex items-center gap-3">
+                <Skeleton className="h-8 w-24 rounded-xl hidden lg:block" />
+                <Skeleton className="h-8 w-8 rounded-full" />
+                <Skeleton className="h-8 w-8 rounded-full" />
+                <Skeleton className="h-8 w-24 rounded-xl" />
+              </div>
+            ) : (
+              <>
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  className="hidden lg:flex gap-2 border-primary/30 bg-primary/5 hover:bg-primary/10 text-[10px] font-black uppercase tracking-widest h-10 px-6 rounded-xl shadow-sm text-primary"
+                  onClick={() => {
+                    handleActionClick();
+                    setIsAiOpen(true);
+                    logEvent('ai_assistant_opened', { uid: user?.uid });
+                  }}
+                >
+                  <Sparkles className="h-4 w-4" /> Partner AI
                 </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-56 mt-2 rounded-2xl border-2 shadow-2xl">
-                <DropdownMenuLabel className="text-[10px] font-black uppercase tracking-widest opacity-50">Account Space</DropdownMenuLabel>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem asChild className="rounded-lg">
-                  <Link href="/dashboard/settings" className="cursor-pointer font-bold"><Settings className="h-4 w-4 mr-2 text-primary" /> Settings</Link>
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => setIsLogoutConfirmOpen(true)} className="text-rose-500 cursor-pointer font-bold rounded-lg">
-                  <LogOut className="h-4 w-4 mr-2" /> Sign Out
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
+
+                <Button variant="ghost" size="icon" className="h-10 w-10 text-primary relative" onClick={() => { handleActionClick(); setIsNotificationsOpen(true); }}>
+                  <Bell className="h-4 w-4" />
+                  <span className="absolute top-2.5 right-2.5 h-2 w-2 bg-rose-500 rounded-full border-2 border-background" />
+                </Button>
+
+                <Button variant="ghost" size="icon" className="h-10 w-10 text-primary" onClick={() => { handleActionClick(); setIsHistoryOpen(true); }}>
+                  <History className="h-4 w-4" />
+                </Button>
+                
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button variant="ghost" className="flex items-center gap-3 px-2 h-10 hover:bg-muted/50 rounded-xl transition-all">
+                      <div className="hidden sm:flex flex-col items-end">
+                        <span className="text-sm font-black leading-none text-foreground">{user?.displayName || 'Partner'}</span>
+                        <span className="text-[9px] text-muted-foreground uppercase tracking-widest font-black mt-1">Lead Partner</span>
+                      </div>
+                      <Avatar className="h-8 w-8 border-2 border-primary shadow-sm">
+                        <AvatarImage src={user?.photoURL || ''} />
+                        <AvatarFallback className="bg-primary/10 text-primary font-black">{user?.displayName?.[0] || 'P'}</AvatarFallback>
+                      </Avatar>
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end" className="w-56 mt-2 rounded-2xl border-2 shadow-2xl">
+                    <DropdownMenuLabel className="text-[10px] font-black uppercase tracking-widest opacity-50">Account Space</DropdownMenuLabel>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem asChild className="rounded-lg">
+                      <Link href="/dashboard/settings" className="cursor-pointer font-bold"><Settings className="h-4 w-4 mr-2 text-primary" /> Settings</Link>
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => setIsLogoutConfirmOpen(true)} className="text-rose-500 cursor-pointer font-bold rounded-lg">
+                      <LogOut className="h-4 w-4 mr-2" /> Sign Out
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              </>
+            )}
           </div>
         </header>
 
         <main className="flex-1 p-4 md:p-8 overflow-y-auto overflow-x-hidden bg-background">
-          {children}
+          {isUserLoading ? (
+            <div className="h-full flex flex-col items-center justify-center space-y-4">
+              <Loader2 className="h-10 w-10 animate-spin text-primary opacity-20" />
+              <p className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground animate-pulse">Syncing Organizational Node...</p>
+            </div>
+          ) : (
+            children
+          )}
         </main>
 
         <div className={`fixed bottom-6 right-6 z-50 transition-all duration-500 transform ${isAiOpen ? 'translate-y-0 opacity-100 scale-100' : 'translate-y-10 opacity-0 scale-95 pointer-events-none'}`}>
@@ -237,7 +245,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           </div>
         </div>
         
-        {!isAiOpen && (
+        {!isAiOpen && user && (
           <Button 
             id="ai-assistant-trigger"
             onClick={() => {
