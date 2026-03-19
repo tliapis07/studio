@@ -11,11 +11,10 @@ import {
   CollectionReference,
   query,
   where,
-  collection,
 } from 'firebase/firestore';
 import { errorEmitter } from '@/firebase/error-emitter';
 import { FirestorePermissionError } from '@/firebase/errors';
-import { useUser, useFirestore } from '@/firebase';
+import { useUser } from '@/firebase';
 
 /** Utility type to add an 'id' field to a given type T. */
 export type WithId<T> = T & { id: string };
@@ -42,7 +41,7 @@ export interface InternalQuery extends Query<DocumentData> {
   }
 }
 
-// Known collections that require ownerUid filtering
+// Known collections that require ownerUid filtering to pass security rules
 const USER_OWNED_COLLECTIONS = [
   'leads',
   'contacts',
@@ -54,20 +53,15 @@ const USER_OWNED_COLLECTIONS = [
 
 /**
  * React hook to subscribe to a Firestore collection or query in real-time.
- * Handles nullable references/queries.
  * 
- * IMPORTANT: Ensure the inputted query or collection reference is memoized.
- *
- * @template T Optional type for document data. Defaults to any.
- * @param {CollectionReference<DocumentData> | Query<DocumentData> | null | undefined} targetRefOrQuery -
- * The Firestore CollectionReference or Query. Waits if null/undefined.
- * @returns {UseCollectionResult<T>} Object with data, isLoading, error.
+ * AUTOMATIC FILTERING: If the target is a root-level user-owned collection 
+ * and no filter is present, this hook automatically injects the 'ownerUid' 
+ * constraint to comply with security rules.
  */
 export function useCollection<T = any>(
     memoizedTargetRefOrQuery: ((CollectionReference<DocumentData> | Query<DocumentData>) & {__memo?: boolean})  | null | undefined,
 ): UseCollectionResult<T> {
   const { user } = useUser();
-  const db = useFirestore();
   
   type ResultItemType = WithId<T>;
   type StateDataType = ResultItemType[] | null;
@@ -85,17 +79,25 @@ export function useCollection<T = any>(
       return;
     }
 
-    // Check if target is a user-owned collection and requires a filter
+    // Determine the path to check if it's a protected collection
     let finalQuery = memoizedTargetRefOrQuery as Query<DocumentData>;
     const path = finalQuery.type === 'collection' 
       ? (finalQuery as CollectionReference).path 
       : (finalQuery as unknown as InternalQuery)._query.path.canonicalString();
 
-    // Safety: If the path is a root-level user-owned collection and no user is present, wait.
-    if (USER_OWNED_COLLECTIONS.includes(path) && !user) {
-      setData(null);
-      setIsLoading(false);
-      return;
+    // If it's a root-level user-owned collection, we MUST have a user and a filter
+    if (USER_OWNED_COLLECTIONS.includes(path)) {
+      if (!user) {
+        setData([]);
+        setIsLoading(false);
+        return;
+      }
+
+      // If it's a raw collection reference, wrap it in a query with the ownership filter
+      // to avoid "Missing or insufficient permissions" on 'list' operations.
+      if (finalQuery.type === 'collection') {
+        finalQuery = query(finalQuery, where('ownerUid', '==', user.uid));
+      }
     }
 
     setIsLoading(true);
@@ -128,7 +130,7 @@ export function useCollection<T = any>(
     );
 
     return () => unsubscribe();
-  }, [memoizedTargetRefOrQuery, user]);
+  }, [memoizedTargetRefOrQuery, user?.uid]);
 
   // Validation: In development, ensure we are using memoized references to avoid infinite loops
   if(memoizedTargetRefOrQuery && !memoizedTargetRefOrQuery.__memo) {

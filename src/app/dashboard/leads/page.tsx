@@ -37,7 +37,6 @@ import {
   DialogContent, 
   DialogHeader, 
   DialogTitle, 
-  DialogTrigger, 
   DialogFooter,
   DialogDescription
 } from '@/components/ui/dialog';
@@ -57,15 +56,12 @@ import {
   Search, 
   Filter, 
   FileUp,
-  Building2,
-  Clock,
-  UserCheck,
-  UserPlus,
-  Download,
   Loader2,
   CheckCircle2,
   AlertCircle,
-  Table as TableIcon
+  Table as TableIcon,
+  UserCheck,
+  UserPlus
 } from 'lucide-react';
 import { Lead, LeadStatus, TeamMember } from '@/lib/types';
 import { toast } from '@/hooks/use-toast';
@@ -116,9 +112,9 @@ export default function LeadsPage() {
 
   const leadsQuery = useMemoFirebase(() => {
     if (!db || !user) return null;
-    // CRITICAL: Filter by ownerUid to pass security rules
+    // Scoping to ownerUid is essential for security rules
     return query(collection(db, 'leads'), where('ownerUid', '==', user.uid));
-  }, [db, user]);
+  }, [db, user?.uid]);
 
   const { data: leads, isLoading } = useCollection<Lead>(leadsQuery);
 
@@ -174,12 +170,10 @@ export default function LeadsPage() {
             createdAt: serverTimestamp(),
             updatedAt: serverTimestamp(),
           });
-          toast({ title: "Lead & Contact Saved", description: "Organizational directory synchronized." });
-        } else {
-          toast({ title: "Lead Added", description: `${name} assigned to the team.` });
         }
       });
       setIsAddModalOpen(false);
+      toast({ title: "Lead Saved", description: `${name} added to pipeline.` });
     } catch (error) {
       toast({ variant: "destructive", title: "Action Failed", description: "Could not save record." });
     }
@@ -245,7 +239,7 @@ export default function LeadsPage() {
             name,
             phone,
             email,
-            notes: `Auto-created from import row`,
+            notes: `Imported from CSV`,
             linkedLeadId: leadRef?.id || null,
             tags: ["Imported"],
             createdAt: serverTimestamp(),
@@ -259,7 +253,7 @@ export default function LeadsPage() {
     setIsImporting(false);
     setIsImportModalOpen(false);
     setImportStep('upload');
-    toast({ title: "Import Complete", description: `Successfully processed ${successCount} organizational records.` });
+    toast({ title: "Import Complete", description: `Processed ${successCount} organizational records.` });
   };
 
   const handleAssignToRep = (repId: string) => {
@@ -267,9 +261,8 @@ export default function LeadsPage() {
     selectedLeads.forEach(leadId => {
       updateDocumentNonBlocking(doc(db, 'leads', leadId), { ownerUid: repId, updatedAt: serverTimestamp() });
     });
-    const repName = MOCK_TEAM.find(m => m.id === repId)?.name;
-    toast({ title: "Leads Assigned", description: `${selectedLeads.length} leads assigned to ${repName}.` });
     setSelectedLeads([]);
+    toast({ title: "Leads Assigned", description: `Updated ownership for ${selectedLeads.length} records.` });
   };
 
   return (
@@ -418,7 +411,6 @@ export default function LeadsPage() {
                       <DropdownMenuContent align="end" className="w-48">
                         <DropdownMenuLabel className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Record Options</DropdownMenuLabel>
                         <DropdownMenuItem onClick={() => router.push(`/dashboard/leads/${lead.id}/`)}>View Profile</DropdownMenuItem>
-                        <DropdownMenuItem>Adjust Valuation</DropdownMenuItem>
                         <DropdownMenuSeparator />
                         <DropdownMenuItem className="text-rose-500">Archive Record</DropdownMenuItem>
                       </DropdownMenuContent>
@@ -459,10 +451,6 @@ export default function LeadsPage() {
                   <p className="text-sm text-muted-foreground mt-2">Supports .csv, .xlsx, .json, and .txt formats.</p>
                   <input type="file" ref={fileInputRef} className="hidden" accept=".csv,.xlsx,.xls,.json,.txt" onChange={handleFileSelect} />
                 </div>
-                <div className="flex items-center gap-6 text-[10px] font-black uppercase tracking-widest text-muted-foreground/60">
-                   <span className="flex items-center gap-2"><CheckCircle2 className="h-3 w-3" /> Auto-header detection</span>
-                   <span className="flex items-center gap-2"><CheckCircle2 className="h-3 w-3" /> Smart Directory Sync</span>
-                </div>
               </div>
             ) : (
               <div className="space-y-8">
@@ -498,28 +486,6 @@ export default function LeadsPage() {
                         </Select>
                       </div>
                     ))}
-                  </div>
-                </div>
-
-                <div className="space-y-4 pt-4">
-                   <h3 className="text-xs font-black uppercase tracking-widest flex items-center gap-2">
-                    <AlertCircle className="h-4 w-4 text-amber-500" /> Data Preview (First 3 Rows)
-                  </h3>
-                  <div className="border-2 rounded-xl overflow-hidden bg-card/50">
-                    <Table>
-                      <TableHeader className="bg-muted/30">
-                        <TableRow>
-                          {importHeaders.slice(0, 4).map(h => <TableHead key={h} className="text-[9px] font-black uppercase tracking-widest">{h}</TableHead>)}
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        {importData.slice(0, 3).map((row, i) => (
-                          <TableRow key={i}>
-                            {importHeaders.slice(0, 4).map(h => <TableCell key={h} className="text-xs py-2">{row[h]}</TableCell>)}
-                          </TableRow>
-                        ))}
-                      </TableBody>
-                    </Table>
                   </div>
                 </div>
               </div>
