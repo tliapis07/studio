@@ -101,7 +101,6 @@ export function useCollection<T = any>(
 
     // Normalize path
     collectionName = collectionName.replace(/^\/|\/$/g, '');
-    console.log('[useCollection] Detected collection:', collectionName);
     
     // --- QUERY PREPARATION & FILTER INJECTION ---
     let finalQuery = memoizedTargetRefOrQuery as Query<DocumentData>;
@@ -116,7 +115,6 @@ export function useCollection<T = any>(
 
       console.log(`[useCollection] Hardening query for ${collectionName}: Appending ownerUid filter for ${user.uid}`);
       // Enforce the 'Rules are not Filters' logic by scoping the query to the user's UID
-      // We use 'ownerUid' to match the firestore.rules implementation
       finalQuery = query(finalQuery, where('ownerUid', '==', user.uid));
     }
 
@@ -130,7 +128,6 @@ export function useCollection<T = any>(
         for (const doc of snapshot.docs) {
           results.push({ ...(doc.data() as T), id: doc.id });
         }
-        console.log(`[useCollection] Success: ${results.length} docs from ${collectionName}`);
         setData(results);
         setError(null);
         setIsLoading(false);
@@ -156,7 +153,6 @@ export function useCollection<T = any>(
 
   // Validation: Ensure memoization to prevent render loops
   if(memoizedTargetRefOrQuery && !memoizedTargetRefOrQuery.__memo) {
-    // Only throw if we have a target, otherwise it's just idle
     if (memoizedTargetRefOrQuery) {
       throw new Error('useCollection: Input was not memoized using useMemoFirebase.');
     }

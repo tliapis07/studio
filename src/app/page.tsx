@@ -4,11 +4,20 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { TrendingUp, Loader2, ShieldCheck, Users, AlertCircle } from 'lucide-react';
+import { TrendingUp, Loader2, ShieldCheck, Users } from 'lucide-react';
 import Image from 'next/image';
 import { useAuth, useUser } from '@/firebase';
 import { signInWithPopup, GoogleAuthProvider, signInAnonymously, browserLocalPersistence, setPersistence } from 'firebase/auth';
 import { toast } from '@/hooks/use-toast';
+
+/**
+ * @fileOverview Optimized Login Page
+ * 
+ * Implements high-performance authentication with robust error handling for:
+ * - Workstation-specific popup blocks
+ * - User-cancelled sign-in attempts
+ * - Stale session persistence
+ */
 
 export default function LoginPage() {
   const [isLoading, setIsLoading] = useState(false);
@@ -37,6 +46,7 @@ export default function LoginPage() {
       await setPersistence(auth, browserLocalPersistence);
       
       const provider = new GoogleAuthProvider();
+      // Optimization: Force select_account to refresh permissions and prevent stale token errors
       provider.setCustomParameters({ prompt: 'select_account' });
       
       const result = await signInWithPopup(auth, provider);
@@ -65,17 +75,10 @@ export default function LoginPage() {
         return;
       }
 
-      let message = "Could not establish a secure session.";
-      if (err.code === 'auth/operation-not-allowed') {
-        message = "Google Sign-in is not enabled in Firebase Console.";
-      } else if (err.code === 'auth/network-request-failed') {
-        message = "Network error. Please check your connection.";
-      }
-      
       toast({ 
         variant: "destructive", 
         title: "Authentication Failed", 
-        description: message 
+        description: "Could not establish a secure session." 
       });
     }
   };
@@ -93,7 +96,7 @@ export default function LoginPage() {
       toast({
         variant: "destructive",
         title: "Demo Access Failed",
-        description: "Anonymous sign-in is disabled in your Firebase project.",
+        description: "Guest access is currently unavailable.",
       });
     }
   };
@@ -133,7 +136,7 @@ export default function LoginPage() {
               </CardDescription>
             </CardHeader>
             <CardContent className="grid gap-6 px-10 pb-10">
-              <div className="space-y-3">
+              <div className="space-y-3 text-center">
                 <Button 
                   className="w-full h-16 text-lg font-black bg-primary hover:bg-primary/90 transition-all shadow-xl shadow-primary/20 gap-4 rounded-2xl group"
                   onClick={handleGoogleLogin}
@@ -151,7 +154,7 @@ export default function LoginPage() {
                   )}
                   Sign in with Google
                 </Button>
-                <p className="text-center text-[10px] text-muted-foreground font-medium uppercase tracking-widest">
+                <p className="text-[10px] text-muted-foreground font-medium uppercase tracking-widest mt-2">
                   (allow popups if blocked)
                 </p>
               </div>
