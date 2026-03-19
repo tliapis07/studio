@@ -3,6 +3,7 @@ import './globals.css';
 import { FirebaseClientProvider } from '@/firebase';
 import { ThemeProvider } from '@/components/ThemeProvider';
 import { ConfigGuard } from '@/components/ConfigGuard';
+import { DeploymentGuard } from '@/components/DeploymentGuard';
 
 export const metadata: Metadata = {
   title: 'SalesStream | AI-Powered Team Velocity',
@@ -38,6 +39,7 @@ export default function RootLayout({
         <FirebaseClientProvider>
           <ThemeProvider>
             <ConfigGuard />
+            <DeploymentGuard />
             {children}
           </ThemeProvider>
         </FirebaseClientProvider>

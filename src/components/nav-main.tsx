@@ -1,7 +1,5 @@
-
 'use client';
 
-import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { 
   LayoutDashboard, 
@@ -22,21 +20,22 @@ import {
   SidebarMenuButton, 
   SidebarMenuItem 
 } from '@/components/ui/sidebar';
+import { SafeLink } from '@/components/SafeLink';
 
 const items = [
-  { title: 'Dashboard', url: '/dashboard', icon: LayoutDashboard },
-  { title: 'Pipeline', url: '/dashboard/pipeline', icon: Layers },
-  { title: 'Leads', url: '/dashboard/leads', icon: Users },
-  { title: 'Contacts', url: '/dashboard/contacts', icon: ContactIcon },
-  { title: 'Notes', url: '/dashboard/notes', icon: StickyNote },
-  { title: 'Analytics', url: '/dashboard/analytics', icon: BarChart3 },
-  { title: 'Calendar', url: '/dashboard/calendar', icon: CalendarIcon },
-  { title: 'Team History', url: '/dashboard/team-history', icon: History },
-  { title: 'Training Hub', url: '/dashboard/training', icon: GraduationCap },
+  { title: 'Dashboard', url: '/dashboard', icon: LayoutDashboard, critical: true },
+  { title: 'Pipeline', url: '/dashboard/pipeline', icon: Layers, critical: true },
+  { title: 'Leads', url: '/dashboard/leads', icon: Users, critical: true },
+  { title: 'Contacts', url: '/dashboard/contacts', icon: ContactIcon, critical: false },
+  { title: 'Notes', url: '/dashboard/notes', icon: StickyNote, critical: false },
+  { title: 'Analytics', url: '/dashboard/analytics', icon: BarChart3, critical: false },
+  { title: 'Calendar', url: '/dashboard/calendar', icon: CalendarIcon, critical: false },
+  { title: 'Team History', url: '/dashboard/team-history', icon: History, critical: false },
+  { title: 'Training Hub', url: '/dashboard/training', icon: GraduationCap, critical: false },
 ];
 
 const secondaryItems = [
-  { title: 'Settings', url: '/dashboard/settings', icon: Settings },
+  { title: 'Settings', url: '/dashboard/settings', icon: Settings, critical: false },
 ];
 
 export function NavMain() {
@@ -45,30 +44,33 @@ export function NavMain() {
   return (
     <>
       <SidebarGroup>
-        <SidebarGroupLabel>Organization Control</SidebarGroupLabel>
+        <SidebarGroupLabel className="text-[10px] uppercase font-black tracking-widest opacity-50">Organization Control</SidebarGroupLabel>
         <SidebarMenu>
           {items.map((item) => (
             <SidebarMenuItem key={item.title}>
               <SidebarMenuButton asChild isActive={pathname === item.url} tooltip={item.title}>
-                <Link href={item.url}>
-                  <item.icon className="w-6 h-6" />
-                  <span className="text-sm font-medium">{item.title}</span>
-                </Link>
+                <SafeLink 
+                  href={item.url} 
+                  prefetch={item.critical ? undefined : false}
+                >
+                  <item.icon className="w-6 h-6 text-primary" />
+                  <span className="text-sm font-bold">{item.title}</span>
+                </SafeLink>
               </SidebarMenuButton>
             </SidebarMenuItem>
           ))}
         </SidebarMenu>
       </SidebarGroup>
       <SidebarGroup className="mt-auto">
-        <SidebarGroupLabel>System</SidebarGroupLabel>
+        <SidebarGroupLabel className="text-[10px] uppercase font-black tracking-widest opacity-50">System</SidebarGroupLabel>
         <SidebarMenu>
           {secondaryItems.map((item) => (
             <SidebarMenuItem key={item.title}>
               <SidebarMenuButton asChild isActive={pathname === item.url} tooltip={item.title}>
-                <Link href={item.url}>
-                  <item.icon className="w-6 h-6" />
-                  <span className="text-sm font-medium">{item.title}</span>
-                </Link>
+                <SafeLink href={item.url} prefetch={false}>
+                  <item.icon className="w-6 h-6 text-primary" />
+                  <span className="text-sm font-bold">{item.title}</span>
+                </SafeLink>
               </SidebarMenuButton>
             </SidebarMenuItem>
           ))}

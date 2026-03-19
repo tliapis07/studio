@@ -42,7 +42,10 @@ import { App } from '@capacitor/app';
 import { Haptics, ImpactStyle } from '@capacitor/haptics';
 
 // Performance Optimization: Lazy-load heavy organizational assistant and onboarding
-const AIAssistant = dynamic(() => import('@/components/AIAssistant'), { ssr: false });
+const AIAssistant = dynamic(() => import('@/components/AIAssistant'), { 
+  ssr: false,
+  loading: () => <div className="h-full w-full flex items-center justify-center bg-muted/10"><Loader2 className="animate-spin text-primary opacity-20" /></div>
+});
 const OnboardingTour = dynamic(() => import('@/components/OnboardingTour'), { ssr: false });
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
@@ -116,8 +119,6 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     } catch (err) {}
   };
 
-  // Immediate Shell Render: We render the SidebarProvider even while loading
-  // to give the user a visual shell immediately.
   return (
     <SidebarProvider>
       <OnboardingTour />
@@ -229,14 +230,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         </header>
 
         <main className="flex-1 p-4 md:p-8 overflow-y-auto overflow-x-hidden bg-background">
-          {isUserLoading ? (
-            <div className="h-full flex flex-col items-center justify-center space-y-4">
-              <Loader2 className="h-10 w-10 animate-spin text-primary opacity-20" />
-              <p className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground animate-pulse">Syncing Organizational Node...</p>
-            </div>
-          ) : (
-            children
-          )}
+          {children}
         </main>
 
         <div className={`fixed bottom-6 right-6 z-50 transition-all duration-500 transform ${isAiOpen ? 'translate-y-0 opacity-100 scale-100' : 'translate-y-10 opacity-0 scale-95 pointer-events-none'}`}>
