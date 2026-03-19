@@ -53,9 +53,15 @@ export default function LeadDetailClient({ id }: { id: string }) {
   }, [db, id]);
 
   const activitiesQuery = useMemoFirebase(() => {
-    if (!db || !id) return null;
-    return query(collection(db, 'activities'), where('leadId', '==', id), orderBy('createdAt', 'desc'));
-  }, [db, id]);
+    if (!db || !id || !user) return null;
+    // Security Rule Alignment: Must filter by ownerUid AND target collection path correctly
+    return query(
+      collection(db, 'activities'), 
+      where('ownerUid', '==', user.uid), // Mandatory security filter
+      where('leadId', '==', id), 
+      orderBy('createdAt', 'desc')
+    );
+  }, [db, id, user?.uid]);
 
   const leadResult = useDoc<Lead>(leadRefStable);
   const { data: activities } = useCollection<Activity>(activitiesQuery);

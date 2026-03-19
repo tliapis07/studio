@@ -62,33 +62,39 @@ export function useCollection<T = any>(
     }
 
     // 1. RELIABLE PATH DETECTION
-    let collectionName = '';
-    if (memoizedTargetRefOrQuery.type === 'collection') {
-      collectionName = (memoizedTargetRefOrQuery as CollectionReference).path;
-    } else {
-      // Cast to any to access internal _query path segments reliably
-      const internal = memoizedTargetRefOrQuery as any;
-      if (internal._query?.path?.segments) {
-        collectionName = internal._query.path.segments[0];
+    let collectionPath = '';
+    try {
+      if (memoizedTargetRefOrQuery.type === 'collection') {
+        collectionPath = (memoizedTargetRefOrQuery as CollectionReference).path;
+      } else {
+        // Query object internal path extraction
+        const internal = memoizedTargetRefOrQuery as any;
+        const segments = internal._query?.path?.segments || 
+                         internal.path?.segments || 
+                         (internal.source?.path?.segments);
+        
+        if (segments && segments.length > 0) {
+          collectionPath = segments[0];
+        }
       }
+    } catch (e) {
+      console.warn('[useCollection] Path detection failed:', e);
     }
-    
-    console.log(`[useCollection] Querying ${collectionName} — user: ${user?.uid || 'none'}`);
 
+    const collectionName = collectionPath.split('/')[0];
     let finalQuery = memoizedTargetRefOrQuery as Query<DocumentData>;
 
-    // 2. SECURITY FILTER INJECTION (BEFORE onSnapshot)
+    // 2. SECURITY FILTER INJECTION
     if (USER_OWNED_COLLECTIONS.includes(collectionName)) {
       if (!user) {
-        console.warn(`[useCollection] Blocked unauthenticated access to ${collectionName}`);
-        setData([]);
-        setIsLoading(false);
+        setData(null);
+        setIsLoading(true);
         return;
       }
       
-      // Inject ownership filter to satisfy "Rules are not Filters" requirement
+      // Inject ownership filter to ensure compatibility with "Rules are not Filters"
       finalQuery = query(finalQuery, where('ownerUid', '==', user.uid));
-      console.log(`[useCollection] ADDED FILTER: ownerUid == ${user.uid} for ${collectionName}`);
+      console.log(`[useCollection] Querying ${collectionName} with ownerUid filter applied.`);
     }
 
     setIsLoading(true);
@@ -107,20 +113,25 @@ export function useCollection<T = any>(
         setIsLoading(false);
       },
       (firestoreError: FirestoreError) => {
-        // This should now rarely happen if filter injection works correctly.
-        console.error(`[useCollection] Firestore error on ${collectionName}:`, firestoreError.message);
+        const isPermissionError = firestoreError.code === 'permission-denied';
+        
+        console.error(
+          `[useCollection] ${isPermissionError ? 'PERMISSION DENIED' : 'Error'} on /${collectionName}:`, 
+          firestoreError.message
+        );
         
         const contextualError = new FirestorePermissionError({
           operation: 'list',
           path: collectionName || 'unknown',
         });
 
-        setError(contextualError);
+        setError(isPermissionError ? contextualError : firestoreError);
         setData(null);
         setIsLoading(false);
 
-        // Notify global error handler
-        errorEmitter.emit('permission-error', contextualError);
+        if (isPermissionError && user) {
+          errorEmitter.emit('permission-error', contextualError);
+        }
       }
     );
 
@@ -128,7 +139,7 @@ export function useCollection<T = any>(
   }, [memoizedTargetRefOrQuery, user?.uid]); 
 
   if(memoizedTargetRefOrQuery && !memoizedTargetRefOrQuery.__memo) {
-    throw new Error(memoizedTargetRefOrQuery + ' was not properly memoized using useMemoFirebase');
+    console.warn('[useCollection] Target query was not properly memoized using useMemoFirebase. This can cause performance issues or infinite loops.');
   }
   
   return { data, isLoading, error };

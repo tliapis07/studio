@@ -17,9 +17,9 @@ export async function generateStaticParams() {
   return []; 
 }
 
-export default async function LeadDetailPage({ params }: { params: Promise<{ id: string }> }) {
-  const resolvedParams = await params;
-  const id = resolvedParams.id;
+export default async function LeadDetailPage(props: { params: Promise<{ id: string }> }) {
+  const params = await props.params;
+  const id = params.id;
 
   return (
     <LeadDetailClient id={id} />
