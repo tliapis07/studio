@@ -1,8 +1,7 @@
-
 'use client';
 
 import React, { createContext, useContext, useEffect, useState } from 'react';
-import { useUser, useFirestore, useDoc } from '@/firebase';
+import { useUser, useFirestore, useDoc, useMemoFirebase } from '@/firebase';
 import { doc, setDoc } from 'firebase/firestore';
 import { UserProfile } from '@/lib/types';
 
@@ -23,14 +22,20 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
   const [brandColorState, setBrandColorState] = useState<string>('248 81% 59%');
   const { user } = useUser();
   const db = useFirestore();
-  const profileRef = user ? doc(db, 'users', user.uid) : null;
-  const { data: profile } = useDoc<UserProfile>(profileRef as any);
+
+  // STABLE REFERENCE: Memoize profile reference to prevent infinite subscription loops
+  const profileRef = useMemoFirebase(() => {
+    if (!db || !user) return null;
+    return doc(db, 'users', user.uid);
+  }, [db, user?.uid]);
+
+  const { data: profile } = useDoc<UserProfile>(profileRef);
 
   useEffect(() => {
     const savedTheme = localStorage.getItem('theme') as Theme | null;
     if (savedTheme) {
       setThemeState(savedTheme);
-    } else if (window.matchMedia('(prefers-color-scheme: dark)').matches) {
+    } else if (typeof window !== 'undefined' && window.matchMedia('(prefers-color-scheme: dark)').matches) {
       setThemeState('dark');
     } else {
       setThemeState('light');
@@ -56,7 +61,6 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     const root = window.document.documentElement;
     if (brandColorState) {
-      // Peripherally update all related color variables
       root.style.setProperty('--primary', brandColorState);
       root.style.setProperty('--ring', brandColorState);
       root.style.setProperty('--sidebar-primary', brandColorState);

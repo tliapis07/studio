@@ -38,7 +38,7 @@ import {
   Check
 } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
-import { useUser, useFirestore, useDoc, useAuth } from '@/firebase';
+import { useUser, useFirestore, useDoc, useAuth, useMemoFirebase } from '@/firebase';
 import { doc, setDoc, serverTimestamp, deleteDoc } from 'firebase/firestore';
 import { getStorage, ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -80,7 +80,6 @@ const BRAND_PRESETS = [
 
 export default function SettingsPage() {
   const { user } = useUser();
-  const auth = useAuth();
   const db = useFirestore();
   const router = useRouter();
   const { theme, setTheme, brandColor, setBrandColor } = useTheme();
@@ -89,8 +88,13 @@ export default function SettingsPage() {
   const [isSaving, setIsSaving] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
 
-  const profileRef = user ? doc(db, 'users', user.uid) : null;
-  const { data: profile, isLoading: profileLoading } = useDoc<UserProfile>(profileRef as any);
+  // STABLE REFERENCE: Memoize the doc reference to prevent high-velocity re-renders
+  const profileRefStable = useMemoFirebase(() => {
+    if (!db || !user) return null;
+    return doc(db, 'users', user.uid);
+  }, [db, user?.uid]);
+
+  const { data: profile, isLoading: profileLoading } = useDoc<UserProfile>(profileRefStable);
 
   const handleActionClick = async () => {
     try {
@@ -214,39 +218,45 @@ export default function SettingsPage() {
         <TabsContent value="profile" className="space-y-6 animate-in slide-in-from-top-4 duration-300">
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
             <Card className="lg:col-span-1 bg-card/50 border-2 border-border/50 shadow-xl rounded-3xl overflow-hidden h-fit">
-              <CardHeader className="p-8 pb-4 text-center">
-                <div className="relative mx-auto w-32 h-32 mb-4 group">
-                  <Avatar className="w-full h-full border-4 border-primary/20 shadow-2xl">
-                    <AvatarImage src={profile?.profilePicURL || user?.photoURL || ''} />
-                    <AvatarFallback className="text-4xl font-black bg-primary/10 text-primary">{user?.displayName?.[0] || 'P'}</AvatarFallback>
-                  </Avatar>
-                  <label className="absolute bottom-0 right-0 h-10 w-10 bg-primary rounded-full flex items-center justify-center cursor-pointer shadow-xl border-4 border-background hover:scale-110 transition-transform">
-                    {isUploading ? <Loader2 className="h-5 w-5 text-white animate-spin" /> : <Camera className="h-5 w-5 text-white" />}
-                    <input type="file" className="hidden" accept="image/*" onChange={handleFileUpload} disabled={isUploading} />
-                  </label>
-                </div>
-                <CardTitle className="text-2xl font-black">{profile?.displayName || user?.displayName || 'Partner'}</CardTitle>
-                <CardDescription className="font-bold text-primary uppercase text-[10px] tracking-widest mt-1">Lead Partner @ SalesStream</CardDescription>
-              </CardHeader>
-              <CardContent className="p-8 pt-0 space-y-4">
-                 <div className="p-4 rounded-2xl bg-muted/20 border-2 border-border/50 text-center">
-                    <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground mb-1">Current Status</p>
-                    <p className="text-sm font-bold flex items-center justify-center gap-2">
-                      <span className="h-2 w-2 rounded-full bg-emerald-500" />
-                      {profile?.status || 'Available'}
-                    </p>
-                 </div>
-                 <div className="grid grid-cols-2 gap-3">
-                    <Button variant="outline" className="h-14 flex-col gap-1 rounded-2xl border-2 hover:bg-primary/10" onClick={() => toast({ title: "Feedback Form", description: "Opening organizational feedback portal..." })}>
-                       <MessageSquare className="h-4 w-4 text-primary" />
-                       <span className="text-[8px] font-black uppercase">Feedback</span>
-                    </Button>
-                    <Button variant="outline" className="h-14 flex-col gap-1 rounded-2xl border-2 hover:bg-primary/10" onClick={() => window.open('https://play.google.com/store', '_blank')}>
-                       <Star className="h-4 w-4 text-amber-500" />
-                       <span className="text-[8px] font-black uppercase">Rate App</span>
-                    </Button>
-                 </div>
-              </CardContent>
+              {profileLoading ? (
+                <div className="p-20 flex flex-col items-center gap-4"><Loader2 className="h-10 w-10 animate-spin text-primary" /></div>
+              ) : (
+                <>
+                  <CardHeader className="p-8 pb-4 text-center">
+                    <div className="relative mx-auto w-32 h-32 mb-4 group">
+                      <Avatar className="w-full h-full border-4 border-primary/20 shadow-2xl">
+                        <AvatarImage src={profile?.profilePicURL || user?.photoURL || ''} />
+                        <AvatarFallback className="text-4xl font-black bg-primary/10 text-primary">{user?.displayName?.[0] || 'P'}</AvatarFallback>
+                      </Avatar>
+                      <label className="absolute bottom-0 right-0 h-10 w-10 bg-primary rounded-full flex items-center justify-center cursor-pointer shadow-xl border-4 border-background hover:scale-110 transition-transform">
+                        {isUploading ? <Loader2 className="h-5 w-5 text-white animate-spin" /> : <Camera className="h-5 w-5 text-white" />}
+                        <input type="file" className="hidden" accept="image/*" onChange={handleFileUpload} disabled={isUploading} />
+                      </label>
+                    </div>
+                    <CardTitle className="text-2xl font-black">{profile?.displayName || user?.displayName || 'Partner'}</CardTitle>
+                    <CardDescription className="font-bold text-primary uppercase text-[10px] tracking-widest mt-1">Lead Partner @ SalesStream</CardDescription>
+                  </CardHeader>
+                  <CardContent className="p-8 pt-0 space-y-4">
+                    <div className="p-4 rounded-2xl bg-muted/20 border-2 border-border/50 text-center">
+                        <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground mb-1">Current Status</p>
+                        <p className="text-sm font-bold flex items-center justify-center gap-2">
+                          <span className="h-2 w-2 rounded-full bg-emerald-500" />
+                          {profile?.status || 'Available'}
+                        </p>
+                    </div>
+                    <div className="grid grid-cols-2 gap-3">
+                        <Button variant="outline" className="h-14 flex-col gap-1 rounded-2xl border-2 hover:bg-primary/10" onClick={() => toast({ title: "Feedback Form", description: "Opening organizational feedback portal..." })}>
+                          <MessageSquare className="h-4 w-4 text-primary" />
+                          <span className="text-[8px] font-black uppercase">Feedback</span>
+                        </Button>
+                        <Button variant="outline" className="h-14 flex-col gap-1 rounded-2xl border-2 hover:bg-primary/10" onClick={() => window.open('https://play.google.com/store', '_blank')}>
+                          <Star className="h-4 w-4 text-amber-500" />
+                          <span className="text-[8px] font-black uppercase">Rate App</span>
+                        </Button>
+                    </div>
+                  </CardContent>
+                </>
+              )}
             </Card>
 
             <Card className="lg:col-span-2 bg-card/50 border-2 border-border/50 shadow-xl rounded-3xl">
@@ -330,8 +340,8 @@ export default function SettingsPage() {
                     <p className="text-[10px] text-muted-foreground font-bold uppercase tracking-widest">Smaller fonts & high-density tables</p>
                   </div>
                   <Switch 
-                    checked={profile?.compactModeEnabled} 
-                    onCheckedChange={(checked) => { handleActionClick(); setDoc(profileRef as any, { compactModeEnabled: checked }, { merge: true }); }} 
+                    checked={profile?.compactModeEnabled || false} 
+                    onCheckedChange={(checked) => { handleActionClick(); setDoc(profileRefStable as any, { compactModeEnabled: checked }, { merge: true }); }} 
                   />
                 </div>
               </CardContent>
@@ -375,42 +385,6 @@ export default function SettingsPage() {
                     This setting modifies the <strong>--primary</strong> color variable, altering all headings, buttons, and highlighted text elements to match your brand.
                   </p>
                 </div>
-              </CardContent>
-            </Card>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-            <Card className="bg-card/50 border-2 border-border/50 rounded-3xl shadow-xl">
-              <CardHeader className="p-8 pb-4">
-                <CardTitle className="text-xl font-black">Synchronization & Sync</CardTitle>
-                <CardDescription>Monitor your real-time organizational connection.</CardDescription>
-              </CardHeader>
-              <CardContent className="p-8 space-y-6">
-                 <div className="space-y-4">
-                    <div className="flex items-center justify-between p-5 rounded-2xl border-2 border-emerald-500/20 bg-emerald-500/5">
-                       <div className="flex items-center gap-4">
-                          <div className="h-10 w-10 rounded-xl bg-emerald-500/20 flex items-center justify-center">
-                             <Wifi className="h-5 w-5 text-emerald-500" />
-                          </div>
-                          <div>
-                             <p className="text-sm font-black">Firestore Persistence</p>
-                             <p className="text-[10px] text-emerald-600 font-bold uppercase">Active & Optimized</p>
-                          </div>
-                       </div>
-                       <Button size="sm" variant="outline" onClick={handleActionClick} className="text-[9px] font-black uppercase tracking-widest h-8 border-emerald-500/30">Force Sync</Button>
-                    </div>
-
-                    <div className="flex items-center justify-between p-6 rounded-2xl bg-muted/20 border-2 border-border/50">
-                      <div className="space-y-1">
-                        <p className="text-sm font-black">Notification Sounds</p>
-                        <p className="text-[10px] text-muted-foreground font-bold uppercase tracking-widest">Audio alerts for new team activity</p>
-                      </div>
-                      <Switch 
-                        checked={profile?.notificationSoundsEnabled} 
-                        onCheckedChange={(checked) => { handleActionClick(); setDoc(profileRef as any, { notificationSoundsEnabled: checked }, { merge: true }); }} 
-                      />
-                    </div>
-                 </div>
               </CardContent>
             </Card>
           </div>

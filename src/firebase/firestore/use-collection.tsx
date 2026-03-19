@@ -46,33 +46,28 @@ const USER_OWNED_COLLECTIONS = [
 export function useCollection<T = any>(
     memoizedTargetRefOrQuery: ((CollectionReference<DocumentData> | Query<DocumentData>) & {__memo?: boolean})  | null | undefined,
 ): UseCollectionResult<T> {
-  type ResultItemType = WithId<T>;
-  type StateDataType = ResultItemType[] | null;
-
   const { user } = useUser();
-  const [data, setData] = useState<StateDataType>(null);
+  const [data, setData] = useState<WithId<T>[] | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [error, setError] = useState<FirestoreError | Error | null>(null);
   
-  // Track last used query to avoid flickering during filter injection
-  const lastQueryRef = useRef<string>('');
+  const lastQueryKeyRef = useRef<string>('');
 
   useEffect(() => {
+    // 1. FAST BAIL: No query or no user for protected collections
     if (!memoizedTargetRefOrQuery) {
       setData(null);
       setIsLoading(false);
-      setError(null);
       return;
     }
 
-    // 1. HIGH-SPEED PATH DETECTION
+    // High-speed root collection detection
     let collectionName = '';
     try {
       if (memoizedTargetRefOrQuery.type === 'collection') {
         collectionName = (memoizedTargetRefOrQuery as CollectionReference).path;
       } else {
         const internal = memoizedTargetRefOrQuery as any;
-        // Fast-path for Internal Firestore Query structure
         const segments = internal._query?.path?.segments || internal.path?.segments;
         if (segments && segments.length > 0) {
           collectionName = segments[0];
@@ -82,40 +77,44 @@ export function useCollection<T = any>(
 
     let finalQuery = memoizedTargetRefOrQuery as Query<DocumentData>;
 
-    // 2. SECURITY FILTER INJECTION (CRITICAL FOR PERMISSIONS)
+    // 2. SECURITY GUARD: Inject ownerUid if targeting a user-owned collection
     if (USER_OWNED_COLLECTIONS.includes(collectionName)) {
       if (!user) {
-        // Halt query execution until user is available to prevent Permission Denied
-        setData(null);
+        // Pause until auth resolves to prevent permission crashes
         setIsLoading(true);
         return;
       }
-      
-      // Inject ownership filter to satisfy "Rules are not Filters"
+      // Satisfaction of "Rules are not Filters"
       finalQuery = query(finalQuery, where('ownerUid', '==', user.uid));
     }
 
-    const currentQueryKey = JSON.stringify((finalQuery as any)._query || collectionName);
-    if (currentQueryKey === lastQueryRef.current) return;
-    lastQueryRef.current = currentQueryKey;
+    // 3. CACHE KEY: Prevent redundant re-subscriptions
+    const queryKey = JSON.stringify((finalQuery as any)._query || collectionName);
+    if (queryKey === lastQueryKeyRef.current) return;
+    lastQueryKeyRef.current = queryKey;
 
     setIsLoading(true);
     setError(null);
 
-    // 3. SNAPSHOT LISTENER
     const unsubscribe = onSnapshot(
       finalQuery,
       (snapshot: QuerySnapshot<DocumentData>) => {
-        const results: ResultItemType[] = [];
-        for (const doc of snapshot.docs) {
-          results.push({ ...(doc.data() as T), id: doc.id });
-        }
+        const results: WithId<T>[] = snapshot.docs.map(doc => ({
+          ...(doc.data() as T),
+          id: doc.id
+        }));
         setData(results);
         setError(null);
         setIsLoading(false);
       },
       (firestoreError: FirestoreError) => {
         const isPermissionError = firestoreError.code === 'permission-denied';
+        
+        console.error(
+          `[useCollection] ${isPermissionError ? 'PERMISSION DENIED' : 'Error'} on /${collectionName}:`, 
+          firestoreError.message
+        );
+
         const contextualError = new FirestorePermissionError({
           operation: 'list',
           path: collectionName || 'unknown',
@@ -134,8 +133,9 @@ export function useCollection<T = any>(
     return () => unsubscribe();
   }, [memoizedTargetRefOrQuery, user?.uid]); 
 
-  if(memoizedTargetRefOrQuery && !memoizedTargetRefOrQuery.__memo) {
-    console.warn('[useCollection] Target query was not properly memoized. This can cause performance issues.');
+  // DIAGNOSTIC: Warn in dev if query isn't stable
+  if (process.env.NODE_ENV === 'development' && memoizedTargetRefOrQuery && !memoizedTargetRefOrQuery.__memo) {
+    console.warn('[useCollection] Un-memoized query detected. This will impact boot performance.');
   }
   
   return { data, isLoading, error };
