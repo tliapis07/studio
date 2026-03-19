@@ -11,7 +11,9 @@
     "publish": "next build && xcopy /E /I /Y out \"C:\\Users\\Tim\\Desktop\\SalesStream\\App Publishes\"",
     "start": "next start",
     "lint": "next lint",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "cap:add": "npx cap add android",
+    "cap:sync": "npx cap sync android"
   },
   "dependencies": {
     "@capacitor/android": "^8.2.0",

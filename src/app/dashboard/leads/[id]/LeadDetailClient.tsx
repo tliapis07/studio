@@ -94,7 +94,12 @@ export default function LeadDetailClient({ id }: { id: string }) {
   };
 
   if (leadRef.isLoading) return <div className="p-8 text-center italic text-muted-foreground">Synchronizing lead data...</div>;
-  if (!lead) return <div className="p-8 text-center">Lead not found.</div>;
+  if (!lead) return <div className="p-8 text-center py-20">
+    <p className="text-xl font-bold mb-4">Lead not found.</p>
+    <Button asChild variant="outline">
+      <Link href="/dashboard/leads">Return to Pipeline</Link>
+    </Button>
+  </div>;
 
   return (
     <div className="space-y-6 animate-in fade-in duration-500">
