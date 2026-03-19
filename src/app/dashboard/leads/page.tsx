@@ -1,6 +1,7 @@
+
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useRef } from 'react';
 import { 
   useCollection, 
   useFirestore, 
@@ -59,11 +60,12 @@ import {
   Clock,
   UserCheck,
   UserPlus,
-  Download
+  Download,
+  Loader2
 } from 'lucide-react';
 import { Lead, LeadStatus, TeamMember } from '@/lib/types';
-import { format } from 'date-fns';
 import { toast } from '@/hooks/use-toast';
+import Papa from 'papaparse';
 
 const STATUS_OPTIONS: { label: string; value: LeadStatus; color: string }[] = [
   { label: 'New', value: 'new', color: 'bg-blue-500/10 text-blue-500' },
@@ -84,12 +86,14 @@ const MOCK_TEAM = [
 export default function LeadsPage() {
   const { user } = useUser();
   const db = useFirestore();
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [repFilter, setRepFilter] = useState<string>('all');
   const [selectedLeads, setSelectedLeads] = useState<string[]>([]);
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [viewingLead, setViewingLead] = useState<Lead | null>(null);
+  const [isImporting, setIsImporting] = useState(false);
 
   const leadsQuery = useMemoFirebase(() => {
     if (!db || !user) return null;
@@ -136,6 +140,48 @@ export default function LeadsPage() {
     toast({ title: "Lead Added", description: `${newLead.name} assigned to the team.` });
   };
 
+  const handleCsvImport = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !db) return;
+
+    setIsImporting(true);
+    Papa.parse(file, {
+      header: true,
+      skipEmptyLines: true,
+      complete: (results) => {
+        let count = 0;
+        results.data.forEach((row: any) => {
+          if (row.name) {
+            addDocumentNonBlocking(collection(db, 'leads'), {
+              ownerUid: user?.uid || 'user1',
+              name: row.name,
+              email: row.email || '',
+              phone: row.phone || '',
+              company: row.company || '',
+              status: 'new',
+              dealValue: Number(row.value) || 0,
+              source: 'CSV Import',
+              tags: [],
+              createdAt: serverTimestamp(),
+              updatedAt: serverTimestamp(),
+              notesCount: 0,
+              callsCount: 0,
+              customFields: {}
+            });
+            count++;
+          }
+        });
+        setIsImporting(false);
+        toast({ title: "Import Complete", description: `Successfully imported ${count} leads.` });
+        if (fileInputRef.current) fileInputRef.current.value = '';
+      },
+      error: (error) => {
+        setIsImporting(false);
+        toast({ variant: "destructive", title: "Import Failed", description: error.message });
+      }
+    });
+  };
+
   const handleAssignToRep = (repId: string) => {
     if (!db || selectedLeads.length === 0) return;
     
@@ -153,7 +199,7 @@ export default function LeadsPage() {
     <div className="space-y-6 pb-24 md:pb-6">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-bold font-headline">Team Leads</h1>
+          <h1 className="text-3xl font-bold font-headline">SalesStream Leads</h1>
           <p className="text-muted-foreground">Manage collective relationships and organizational prospect data.</p>
         </div>
         <div className="flex items-center gap-2">
@@ -180,12 +226,11 @@ export default function LeadsPage() {
             </DropdownMenu>
           )}
           
-          <Button variant="outline" size="sm" className="gap-2 border-primary/20 hover:bg-primary/5 h-9">
-            <Download className="h-4 w-4 text-primary" /> Export Leads
+          <Button variant="outline" size="sm" className="gap-2 border-primary/20 hover:bg-primary/5 h-9" onClick={() => fileInputRef.current?.click()} disabled={isImporting}>
+            {isImporting ? <Loader2 className="h-4 w-4 animate-spin" /> : <FileUp className="h-4 w-4 text-primary" />}
+            {isImporting ? 'Importing...' : 'Import CSV'}
           </Button>
-          <Button variant="outline" size="sm" className="gap-2 border-primary/20 hover:bg-primary/5 h-9 hidden md:flex">
-            <FileUp className="h-4 w-4 text-primary" /> Import CSV
-          </Button>
+          <input type="file" ref={fileInputRef} onChange={handleCsvImport} accept=".csv" className="hidden" />
 
           <Dialog open={isAddModalOpen} onOpenChange={setIsAddModalOpen}>
             <DialogTrigger asChild>
@@ -362,37 +407,6 @@ export default function LeadsPage() {
           </Table>
         </div>
       </Card>
-
-      <Dialog open={!!viewingLead} onOpenChange={() => setViewingLead(null)}>
-        <DialogContent className="sm:max-w-[800px] max-h-[90vh] md:h-[80vh] bg-card/95 backdrop-blur-2xl border-border/50 flex flex-col p-0 overflow-hidden sm:rounded-2xl">
-          {viewingLead && (
-            <>
-              <div className="p-6 md:p-8 border-b border-border/50 bg-primary/5">
-                <div className="flex flex-col md:flex-row items-start justify-between gap-4">
-                  <div className="space-y-1">
-                    <div className="flex items-center gap-3">
-                      <h2 className="text-2xl md:text-3xl font-bold font-headline">{viewingLead.name}</h2>
-                      <Badge className={STATUS_OPTIONS.find(s => s.value === viewingLead.status)?.color}>{viewingLead.status.toUpperCase()}</Badge>
-                    </div>
-                    <div className="flex flex-wrap gap-x-4 gap-y-1 text-sm text-muted-foreground">
-                      <span className="flex items-center gap-1.5 font-bold"><Building2 className="h-4 w-4" /> {viewingLead.company}</span>
-                      <span className="flex items-center gap-1.5 font-bold"><UserCheck className="h-4 w-4 text-accent" /> Assigned: {MOCK_TEAM.find(m => m.id === viewingLead.ownerUid)?.name}</span>
-                    </div>
-                  </div>
-                  <div className="text-left md:text-right w-full md:w-auto p-4 bg-background/50 rounded-xl border border-border/50 md:bg-transparent md:border-none">
-                    <p className="text-[10px] uppercase font-bold text-muted-foreground tracking-widest">Team Deal Value</p>
-                    <p className="text-3xl font-black text-primary">${viewingLead.dealValue.toLocaleString()}</p>
-                  </div>
-                </div>
-              </div>
-              <div className="p-4 border-t border-border/50 bg-background/80 flex flex-col md:flex-row justify-end gap-2 sticky bottom-0 z-10 backdrop-blur-md">
-                <Button variant="ghost" className="w-full md:w-auto h-11" onClick={() => setViewingLead(null)}>Close</Button>
-                <Button className="w-full md:w-auto bg-primary shadow-xl shadow-primary/20 font-bold h-11">Manage Assignment</Button>
-              </div>
-            </>
-          )}
-        </DialogContent>
-      </Dialog>
     </div>
   );
 }

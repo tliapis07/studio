@@ -4,7 +4,7 @@
 import { useState, useEffect } from 'react';
 import { SidebarProvider, Sidebar, SidebarContent, SidebarHeader, SidebarTrigger, SidebarInset } from '@/components/ui/sidebar';
 import { NavMain } from '@/components/nav-main';
-import { TrendingUp, LayoutDashboard, Layers, Users, Calendar as CalendarIcon, Settings, BarChart3, Sparkles, LogOut, History } from 'lucide-react';
+import { TrendingUp, Settings, LogOut, History, Bell, Sparkles, X } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Toaster } from '@/components/ui/toaster';
 import { Button } from '@/components/ui/button';
@@ -22,6 +22,8 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger 
 } from '@/components/ui/dropdown-menu';
+import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
+import { ScrollArea } from '@/components/ui/scroll-area';
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
@@ -29,20 +31,14 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const { user, isUserLoading } = useUser();
   const auth = useAuth();
   const [isAiOpen, setIsAiOpen] = useState(false);
+  const [isHistoryOpen, setIsHistoryOpen] = useState(false);
+  const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
 
   useEffect(() => {
     if (!isUserLoading && !user) {
       router.push('/');
     }
   }, [user, isUserLoading, router]);
-
-  const mobileNavItems = [
-    { icon: LayoutDashboard, label: 'Dash', href: '/dashboard' },
-    { icon: Layers, label: 'Pipe', href: '/dashboard/pipeline' },
-    { icon: Users, label: 'Leads', href: '/dashboard/leads' },
-    { icon: BarChart3, label: 'Stats', href: '/dashboard/analytics' },
-    { icon: CalendarIcon, label: 'Plan', href: '/dashboard/calendar' },
-  ];
 
   const handleSignOut = async () => {
     await signOut(auth);
@@ -87,7 +83,21 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
               <Sparkles className="h-4 w-4 text-primary" /> Partner AI
             </Button>
 
-            <Button variant="ghost" size="icon" className="h-9 w-9 text-muted-foreground">
+            <Button 
+              variant="ghost" 
+              size="icon" 
+              className="h-9 w-9 text-muted-foreground"
+              onClick={() => setIsNotificationsOpen(true)}
+            >
+              <Bell className="h-4 w-4" />
+            </Button>
+
+            <Button 
+              variant="ghost" 
+              size="icon" 
+              className="h-9 w-9 text-muted-foreground"
+              onClick={() => setIsHistoryOpen(true)}
+            >
               <History className="h-4 w-4" />
             </Button>
             
@@ -124,25 +134,88 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           {children}
         </main>
 
-        <AIAssistant floating isOpenExternal={isAiOpen} onCloseExternal={() => setIsAiOpen(false)} />
+        {/* Floating AI Panel */}
+        <div className={`fixed bottom-6 right-6 z-50 transition-all duration-300 transform ${isAiOpen ? 'translate-y-0 opacity-100 scale-100' : 'translate-y-10 opacity-0 scale-95 pointer-events-none'}`}>
+          <div className="w-[380px] shadow-2xl rounded-3xl overflow-hidden border-2 border-primary/20 bg-background">
+             <AIAssistant floating isOpenExternal={isAiOpen} onCloseExternal={() => setIsAiOpen(false)} />
+          </div>
+        </div>
+        
+        {!isAiOpen && (
+          <Button 
+            onClick={() => setIsAiOpen(true)}
+            className="fixed bottom-6 right-6 h-14 w-14 rounded-full shadow-2xl bg-primary hover:bg-primary/90 transition-all hover:scale-110 z-40 group"
+          >
+            <Sparkles className="h-6 w-6 group-hover:animate-pulse" />
+          </Button>
+        )}
+
+        {/* Activity Panels */}
+        <Sheet open={isHistoryOpen} onOpenChange={setIsHistoryOpen}>
+          <SheetContent side="right" className="w-[400px] sm:w-[540px]">
+            <SheetHeader>
+              <SheetTitle className="flex items-center gap-2">
+                <History className="h-5 w-5 text-primary" /> Team History Log
+              </SheetTitle>
+            </SheetHeader>
+            <ScrollArea className="h-full mt-6 pr-4">
+              <div className="space-y-6">
+                {[
+                  { user: "Alex", action: "Assigned lead 'Tesla' to Jordan", time: "2m ago" },
+                  { user: "Sarah", action: "Updated status for 'Acme Corp' to Proposal", time: "15m ago" },
+                  { user: "Jordan", action: "Logged Discovery Call with 'Stark Ind'", time: "45m ago" },
+                  { user: "Alex", action: "Created new team event 'Q2 Strategy'", time: "2h ago" },
+                ].map((item, i) => (
+                  <div key={i} className="flex gap-4 items-start p-4 rounded-xl bg-muted/20 border border-border/50">
+                    <Avatar className="h-8 w-8">
+                      <AvatarFallback>{item.user[0]}</AvatarFallback>
+                    </Avatar>
+                    <div className="space-y-1">
+                      <p className="text-sm font-bold">{item.user} <span className="font-medium text-muted-foreground">{item.action}</span></p>
+                      <p className="text-[10px] text-muted-foreground font-bold uppercase tracking-widest">{item.time}</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </ScrollArea>
+          </SheetContent>
+        </Sheet>
+
+        <Sheet open={isNotificationsOpen} onOpenChange={setIsNotificationsOpen}>
+          <SheetContent side="right" className="w-[350px]">
+            <SheetHeader>
+              <SheetTitle className="flex items-center gap-2">
+                <Bell className="h-5 w-5 text-primary" /> Partner Notifications
+              </SheetTitle>
+            </SheetHeader>
+            <ScrollArea className="h-full mt-6">
+              <div className="space-y-4">
+                {[
+                  { title: "Team Quota Milestone", desc: "Team hit 85% of monthly target!", type: "success" },
+                  { title: "Lead Response Needed", desc: "Stark Ind has been in 'Qualified' for 5 days.", type: "warning" },
+                  { title: "New Training Added", desc: "Sarah uploaded 'Advanced Closing'.", type: "info" },
+                ].map((n, i) => (
+                  <div key={i} className={`p-4 rounded-xl border-2 ${n.type === 'success' ? 'bg-emerald-500/5 border-emerald-500/20' : n.type === 'warning' ? 'bg-rose-500/5 border-rose-500/20' : 'bg-primary/5 border-primary/20'}`}>
+                    <p className="text-sm font-black">{n.title}</p>
+                    <p className="text-xs text-muted-foreground mt-1 font-medium">{n.desc}</p>
+                  </div>
+                ))}
+              </div>
+            </ScrollArea>
+          </SheetContent>
+        </Sheet>
 
         <nav className="md:hidden fixed bottom-0 left-0 right-0 h-16 bg-card/80 backdrop-blur-xl border-t border-border/50 flex items-center justify-around px-2 z-40">
-          {mobileNavItems.map((item) => (
+           {[
+              { icon: TrendingUp, href: '/dashboard' },
+              { icon: Settings, href: '/dashboard/settings' },
+           ].map((item) => (
             <Link key={item.href} href={item.href} className="flex flex-col items-center gap-1">
               <div className={`p-1.5 rounded-lg transition-all ${pathname === item.href ? 'bg-primary text-white scale-110' : 'text-muted-foreground hover:text-primary'}`}>
                 <item.icon className="h-5 w-5" />
               </div>
-              <span className={`text-[8px] font-bold uppercase tracking-widest ${pathname === item.href ? 'text-primary font-black' : 'text-muted-foreground'}`}>
-                {item.label}
-              </span>
             </Link>
           ))}
-          <Link href="/dashboard/settings" className="flex flex-col items-center gap-1">
-             <div className={`p-1.5 rounded-lg ${pathname === '/dashboard/settings' ? 'bg-primary text-white' : 'text-muted-foreground'}`}>
-               <Settings className="h-5 w-5" />
-             </div>
-             <span className="text-[8px] font-bold uppercase tracking-widest text-muted-foreground">Sets</span>
-          </Link>
         </nav>
       </SidebarInset>
       <Toaster />

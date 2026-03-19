@@ -1,3 +1,4 @@
+
 'use client';
 
 import Link from 'next/link';
@@ -9,7 +10,8 @@ import {
   Calendar as CalendarIcon, 
   Settings, 
   Layers,
-  GraduationCap
+  GraduationCap,
+  History
 } from 'lucide-react';
 import { 
   SidebarGroup, 
@@ -25,7 +27,8 @@ const items = [
   { title: 'Leads', url: '/dashboard/leads', icon: Users },
   { title: 'Analytics', url: '/dashboard/analytics', icon: BarChart3 },
   { title: 'Calendar', url: '/dashboard/calendar', icon: CalendarIcon },
-  { title: 'Training Materials', url: '/dashboard/training', icon: GraduationCap },
+  { title: 'Team History', url: '/dashboard/team-history', icon: History },
+  { title: 'Training Hub', url: '/dashboard/training', icon: GraduationCap },
 ];
 
 const secondaryItems = [
@@ -38,7 +41,7 @@ export function NavMain() {
   return (
     <>
       <SidebarGroup>
-        <SidebarGroupLabel>Main Navigation</SidebarGroupLabel>
+        <SidebarGroupLabel>Organizational Control</SidebarGroupLabel>
         <SidebarMenu>
           {items.map((item) => (
             <SidebarMenuItem key={item.title}>

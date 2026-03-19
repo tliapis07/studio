@@ -24,17 +24,18 @@ const OnboardingTour = () => {
       target: 'body',
       placement: 'center',
       content: (
-        <div className="text-left space-y-2">
-          <h3 className="font-black text-primary text-lg">Welcome to SalesStream!</h3>
-          <p className="text-sm font-medium">Ready for a quick 1-minute tour of your new Partner Portal? We'll show you how to manage your team and track performance.</p>
+        <div className="text-left space-y-3 p-2">
+          <h3 className="font-black text-primary text-xl">Welcome to SalesStream!</h3>
+          <p className="text-sm font-medium leading-relaxed">Ready for a comprehensive tour of your new high-performance Partner Portal? We'll show you how to manage your organization efficiently.</p>
         </div>
       ),
       disableBeacon: true,
     },
     {
       target: '[data-sidebar="sidebar"]',
-      content: 'Access all team resources here: Pipeline, Leads, Analytics, and Training Materials.',
+      content: 'Access all team resources here: Pipeline, Leads, Analytics, and the new Training Hub.',
       placement: 'right',
+      disableScrolling: false,
     },
     {
       target: '.stat-cards-grid',
@@ -52,20 +53,15 @@ const OnboardingTour = () => {
       placement: 'left',
     },
     {
-      target: '.quota-attainment-card',
-      content: 'Monitor individual rep progress toward their monthly sales targets.',
-      placement: 'left',
-    },
-    {
       target: '.sales-toolkit-card',
       content: 'Equip your team with scripts, templates, and objection handlers.',
       placement: 'top',
     },
     {
-      target: '[data-sidebar="trigger"]',
-      content: 'You can collapse the sidebar anytime to focus on your data.',
-      placement: 'right',
-    },
+      target: '.fixed.bottom-6.right-6',
+      content: 'Need help? Your Partner AI assistant is always available for quick tasks and insights.',
+      placement: 'left',
+    }
   ];
 
   const handleJoyrideCallback = (data: CallBackProps) => {
@@ -83,12 +79,15 @@ const OnboardingTour = () => {
       continuous
       showProgress
       showSkipButton
+      scrollToFirstStep
+      scrollDuration={400}
+      scrollOffset={100}
       callback={handleJoyrideCallback}
       styles={{
         options: {
           arrowColor: 'hsl(var(--card))',
           backgroundColor: 'hsl(var(--card))',
-          overlayColor: 'rgba(0, 0, 0, 0.75)',
+          overlayColor: 'rgba(0, 0, 0, 0.85)',
           primaryColor: 'hsl(var(--primary))',
           textColor: 'hsl(var(--foreground))',
           zIndex: 1000,
@@ -96,12 +95,14 @@ const OnboardingTour = () => {
         tooltipContainer: {
           textAlign: 'left',
           borderRadius: '1.5rem',
-          padding: '1rem',
+          padding: '1.5rem',
           border: '2px solid hsl(var(--border))',
+          boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.5)',
         },
         buttonNext: {
           borderRadius: '0.75rem',
           fontWeight: '900',
+          padding: '0.75rem 1.5rem',
           textTransform: 'uppercase',
           fontSize: '11px',
           letterSpacing: '0.1em',

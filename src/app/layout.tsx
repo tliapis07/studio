@@ -4,8 +4,8 @@ import './globals.css';
 import { FirebaseClientProvider } from '@/firebase';
 
 export const metadata: Metadata = {
-  title: 'SalesStream CRM | AI-Powered Sales Velocity',
-  description: 'Manage leads, track pipeline, and accelerate growth with local AI assistance.',
+  title: 'SalesStream | AI-Powered Team Velocity',
+  description: 'The high-performance partner portal for organizational sales management.',
 };
 
 export default function RootLayout({

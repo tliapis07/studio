@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState } from 'react';
@@ -17,7 +18,9 @@ import {
   Trash2, 
   MoreVertical,
   Filter,
-  CheckCircle2
+  Link as LinkIcon,
+  FileCode,
+  Upload
 } from 'lucide-react';
 import { 
   Dialog, 
@@ -37,14 +40,16 @@ import {
 import { TrainingMaterial } from '@/lib/types';
 import { toast } from '@/hooks/use-toast';
 
-const SUBJECTS = ["Cold Calling", "Closing Techniques", "Product Knowledge", "Objection Handling", "CRM Training"];
-
 export default function TrainingPage() {
   const { user } = useUser();
   const db = useFirestore();
   const [search, setSearch] = useState('');
   const [selectedSubject, setSelectedSubject] = useState('all');
   const [isAddOpen, setIsAddOpen] = useState(false);
+  const [isNewSubjectOpen, setIsNewSubjectOpen] = useState(false);
+
+  // Mock subjects for now - in real app would pull from 'training_subjects'
+  const [subjects, setSubjects] = useState(["Cold Calling", "Closing Techniques", "Product Knowledge", "Objection Handling", "CRM Training"]);
 
   const trainingQuery = useMemoFirebase(() => {
     if (!db || !user) return null;
@@ -63,97 +68,70 @@ export default function TrainingPage() {
   const handleAddMaterial = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     if (!db || !user) return;
-
     const formData = new FormData(e.currentTarget);
     const newMaterial = {
       userId: user.uid,
       title: formData.get('title') as string,
       subject: formData.get('subject') as string,
       content: formData.get('content') as string,
+      type: formData.get('type') as string,
+      fileUrl: formData.get('url') as string || '',
       createdAt: serverTimestamp(),
     };
+    await addDoc(collection(db, 'training_materials'), newMaterial);
+    setIsAddOpen(false);
+    toast({ title: "Resource Added", description: "Material published to library." });
+  };
 
-    try {
-      await addDoc(collection(db, 'training_materials'), newMaterial);
-      setIsAddOpen(false);
-      toast({ title: "Resource Added", description: "The training material has been successfully published." });
-    } catch (err) {
-      toast({ variant: "destructive", title: "Error", description: "Failed to add resource." });
+  const handleAddSubject = (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    const formData = new FormData(e.currentTarget);
+    const name = formData.get('name') as string;
+    if (name) {
+      setSubjects(prev => [...prev, name]);
+      setIsNewSubjectOpen(false);
+      toast({ title: "Subject Created", description: `Added '${name}' to categories.` });
     }
   };
 
   const handleDelete = async (id: string) => {
     if (!db) return;
-    try {
-      await deleteDoc(doc(db, 'training_materials', id));
-      toast({ title: "Resource Removed", description: "Training material has been deleted." });
-    } catch (err) {
-      toast({ variant: "destructive", title: "Error", description: "Failed to delete resource." });
-    }
+    await deleteDoc(doc(db, 'training_materials', id));
+    toast({ title: "Resource Removed", description: "Deleted from library." });
   };
 
   return (
     <div className="space-y-8 pb-20 md:pb-8 animate-in fade-in duration-500">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
         <div>
-          <h1 className="text-4xl font-black font-headline tracking-tight">Training Materials</h1>
-          <p className="text-muted-foreground font-medium">Equip your team with the knowledge to close more deals.</p>
+          <h1 className="text-4xl font-black font-headline tracking-tight">Training Hub</h1>
+          <p className="text-muted-foreground font-medium">Organizational resources for top-tier performance.</p>
         </div>
-        <Dialog open={isAddOpen} onOpenChange={setIsAddOpen}>
-          <DialogTrigger asChild>
-            <Button className="bg-primary shadow-xl shadow-primary/20 h-14 px-8 rounded-2xl font-black uppercase tracking-widest text-xs gap-3">
-              <Plus className="h-6 w-6" /> Add Resource
-            </Button>
-          </DialogTrigger>
-          <DialogContent className="sm:max-w-[600px] bg-card/95 backdrop-blur-2xl border-2 border-border/50 rounded-3xl">
-            <DialogHeader>
-              <DialogTitle className="text-2xl font-black">Create Training Resource</DialogTitle>
-            </DialogHeader>
-            <form onSubmit={handleAddMaterial} className="space-y-6 pt-4">
-              <div className="space-y-2">
-                <label className="text-xs font-black uppercase tracking-widest text-muted-foreground">Title</label>
-                <Input name="title" placeholder="e.g. Advanced Closing Techniques" className="h-12 rounded-xl bg-background/50 border-2" required />
-              </div>
-              <div className="space-y-2">
-                <label className="text-xs font-black uppercase tracking-widest text-muted-foreground">Subject</label>
-                <select name="subject" className="w-full h-12 rounded-xl bg-background/50 border-2 border-input px-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary/20" required>
-                  {SUBJECTS.map(s => <option key={s} value={s}>{s}</option>)}
-                </select>
-              </div>
-              <div className="space-y-2">
-                <label className="text-xs font-black uppercase tracking-widest text-muted-foreground">Content / Instructions</label>
-                <Textarea name="content" placeholder="Enter the training details here..." className="min-h-[200px] rounded-xl bg-background/50 border-2" required />
-              </div>
-              <DialogFooter>
-                <Button type="submit" className="w-full h-14 font-black uppercase tracking-widest text-xs rounded-2xl shadow-xl shadow-primary/20">Publish Resource</Button>
-              </DialogFooter>
-            </form>
-          </DialogContent>
-        </Dialog>
+        <div className="flex gap-3">
+          <Button variant="outline" onClick={() => setIsNewSubjectOpen(true)} className="h-14 px-6 rounded-2xl font-black uppercase tracking-widest text-xs gap-3">
+            <Plus className="h-5 w-5" /> New Subject
+          </Button>
+          <Button onClick={() => setIsAddOpen(true)} className="bg-primary shadow-xl shadow-primary/20 h-14 px-8 rounded-2xl font-black uppercase tracking-widest text-xs gap-3">
+            <Upload className="h-6 w-6" /> Upload Material
+          </Button>
+        </div>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
         <Card className="bg-card/50 border-2 border-border/50 rounded-3xl h-fit">
           <CardHeader className="p-6">
             <CardTitle className="text-sm font-black uppercase tracking-widest flex items-center gap-3">
-              <Folder className="h-5 w-5 text-primary" /> Subjects
+              <Folder className="h-5 w-5 text-primary" /> Categories
             </CardTitle>
           </CardHeader>
           <CardContent className="p-0">
             <div className="flex flex-col">
-              <button 
-                onClick={() => setSelectedSubject('all')}
-                className={`flex items-center gap-3 px-6 py-4 text-sm font-bold transition-all border-l-4 ${selectedSubject === 'all' ? 'bg-primary/10 border-primary text-primary' : 'border-transparent hover:bg-muted/50'}`}
-              >
+              <button onClick={() => setSelectedSubject('all')} className={`flex items-center gap-3 px-6 py-4 text-sm font-bold transition-all border-l-4 ${selectedSubject === 'all' ? 'bg-primary/10 border-primary text-primary' : 'border-transparent hover:bg-muted/50'}`}>
                 <BookOpen className="h-4 w-4" /> All Materials
               </button>
-              {SUBJECTS.map(subject => (
-                <button 
-                  key={subject}
-                  onClick={() => setSelectedSubject(subject)}
-                  className={`flex items-center gap-3 px-6 py-4 text-sm font-bold transition-all border-l-4 ${selectedSubject === subject ? 'bg-primary/10 border-primary text-primary' : 'border-transparent hover:bg-muted/50'}`}
-                >
-                  <FileText className="h-4 w-4" /> {subject}
+              {subjects.map(s => (
+                <button key={s} onClick={() => setSelectedSubject(s)} className={`flex items-center gap-3 px-6 py-4 text-sm font-bold transition-all border-l-4 ${selectedSubject === s ? 'bg-primary/10 border-primary text-primary' : 'border-transparent hover:bg-muted/50'}`}>
+                  <Folder className="h-4 w-4" /> {s}
                 </button>
               ))}
             </div>
@@ -161,19 +139,11 @@ export default function TrainingPage() {
         </Card>
 
         <div className="md:col-span-3 space-y-6">
-          <div className="flex flex-col sm:flex-row items-center gap-4 bg-card/30 p-3 rounded-2xl border-2 border-border/50 backdrop-blur-md">
-            <div className="relative flex-1 w-full">
+          <div className="flex items-center gap-4 bg-card/30 p-3 rounded-2xl border-2 border-border/50 backdrop-blur-md">
+            <div className="relative flex-1">
               <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
-              <Input 
-                placeholder="Search training materials..." 
-                className="pl-12 h-12 bg-background/50 rounded-xl border-2 border-transparent focus:border-primary/30"
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-              />
+              <Input placeholder="Search materials..." className="pl-12 h-12 bg-background/50 rounded-xl border-2 border-transparent focus:border-primary/30" value={search} onChange={(e) => setSearch(e.target.value)} />
             </div>
-            <Button variant="outline" className="h-12 px-6 gap-2 rounded-xl border-2 hover:bg-muted/50">
-              <Filter className="h-4 w-4" /> Filter
-            </Button>
           </div>
 
           {isLoading ? (
@@ -182,38 +152,26 @@ export default function TrainingPage() {
             </div>
           ) : filteredMaterials.length > 0 ? (
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-              {filteredMaterials.map((material) => (
-                <Card key={material.id} className="bg-card/50 border-2 border-border/50 rounded-3xl overflow-hidden hover:border-primary/40 transition-all shadow-lg hover:shadow-2xl group flex flex-col">
+              {filteredMaterials.map((m) => (
+                <Card key={m.id} className="bg-card/50 border-2 border-border/50 rounded-3xl overflow-hidden hover:border-primary/40 transition-all shadow-lg flex flex-col">
                   <CardHeader className="p-6 bg-primary/5 border-b-2 border-border/50">
                     <div className="flex items-start justify-between">
                       <div className="space-y-1">
-                        <Badge variant="secondary" className="bg-primary/10 text-primary text-[9px] uppercase font-black px-2 py-0.5 rounded-lg border-primary/20">{material.subject}</Badge>
-                        <CardTitle className="text-lg font-black leading-tight mt-2">{material.title}</CardTitle>
+                        <Badge variant="secondary" className="bg-primary/10 text-primary text-[9px] uppercase font-black px-2 py-0.5 rounded-lg">{m.subject}</Badge>
+                        <CardTitle className="text-lg font-black mt-2 flex items-center gap-2">
+                           {m.type === 'pdf' ? <FileText className="h-4 w-4 text-rose-500" /> : <LinkIcon className="h-4 w-4 text-blue-500" />}
+                           {m.title}
+                        </CardTitle>
                       </div>
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <Button variant="ghost" size="icon" className="h-8 w-8 rounded-lg">
-                            <MoreVertical className="h-4 w-4" />
-                          </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end" className="rounded-xl border-2 shadow-xl">
-                          <DropdownMenuItem className="gap-2 font-bold cursor-pointer"><FileText className="h-4 w-4" /> Edit Content</DropdownMenuItem>
-                          <DropdownMenuItem className="gap-2 font-bold cursor-pointer text-rose-500" onClick={() => handleDelete(material.id)}><Trash2 className="h-4 w-4" /> Delete Material</DropdownMenuItem>
-                        </DropdownMenuContent>
-                      </DropdownMenu>
+                      <Button variant="ghost" size="icon" onClick={() => handleDelete(m.id)} className="h-8 w-8 text-rose-500 hover:bg-rose-500/10"><Trash2 className="h-4 w-4" /></Button>
                     </div>
                   </CardHeader>
                   <CardContent className="p-6 flex-1">
-                    <p className="text-sm text-muted-foreground line-clamp-4 leading-relaxed font-medium italic">
-                      {material.content}
-                    </p>
+                    <p className="text-sm text-muted-foreground line-clamp-3 leading-relaxed">{m.content}</p>
                   </CardContent>
-                  <CardFooter className="p-6 pt-0 flex justify-between items-center mt-auto">
-                    <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground/60">
-                      {material.createdAt?.toDate ? material.createdAt.toDate().toLocaleDateString() : 'Just now'}
-                    </span>
-                    <Button variant="ghost" size="sm" className="gap-2 font-black uppercase text-[10px] tracking-widest text-primary hover:bg-primary/10 rounded-lg h-8">
-                      View Resource
+                  <CardFooter className="p-6 pt-0 mt-auto">
+                    <Button variant="outline" className="w-full gap-2 rounded-xl h-10 font-bold uppercase text-[10px] tracking-widest border-2">
+                      View Material
                     </Button>
                   </CardFooter>
                 </Card>
@@ -222,13 +180,74 @@ export default function TrainingPage() {
           ) : (
             <div className="flex flex-col items-center justify-center py-20 bg-muted/10 rounded-3xl border-2 border-dashed border-border/50">
               <GraduationCap className="h-20 w-20 text-muted-foreground/20 mb-6" />
-              <h3 className="text-xl font-black mb-2">No Training Resources</h3>
-              <p className="text-muted-foreground text-sm max-w-xs text-center font-medium">Equip your sales team by adding the first training material.</p>
-              <Button variant="outline" className="mt-8 rounded-xl h-12 px-8 font-black uppercase tracking-widest text-xs border-2" onClick={() => setIsAddOpen(true)}>Create Resource</Button>
+              <h3 className="text-xl font-black">Library Empty</h3>
+              <p className="text-muted-foreground text-sm font-medium">Add subjects and upload training resources to begin.</p>
             </div>
           )}
         </div>
       </div>
+
+      <Dialog open={isAddOpen} onOpenChange={setIsAddOpen}>
+        <DialogContent className="sm:max-w-[500px]">
+          <DialogHeader>
+            <DialogTitle>Upload Training Material</DialogTitle>
+          </DialogHeader>
+          <form onSubmit={handleAddMaterial} className="space-y-4 pt-4">
+            <div className="space-y-2">
+              <Label>Title</Label>
+              <Input name="title" required />
+            </div>
+            <div className="space-y-2">
+              <Label>Subject</Label>
+              <Select name="subject" required>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  {subjects.map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label>Type</Label>
+              <Select name="type" defaultValue="link">
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="pdf">PDF / Document</SelectItem>
+                  <SelectItem value="link">External Link</SelectItem>
+                  <SelectItem value="video">Video URL</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label>URL / Path</Label>
+              <Input name="url" placeholder="https://..." />
+            </div>
+            <div className="space-y-2">
+              <Label>Description</Label>
+              <Textarea name="content" required />
+            </div>
+            <DialogFooter>
+              <Button type="submit" className="w-full h-12">Publish to Library</Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={isNewSubjectOpen} onOpenChange={setIsNewSubjectOpen}>
+        <DialogContent className="sm:max-w-[400px]">
+          <DialogHeader>
+            <DialogTitle>Create New Subject</DialogTitle>
+          </DialogHeader>
+          <form onSubmit={handleAddSubject} className="space-y-4 pt-4">
+            <div className="space-y-2">
+              <Label>Subject Name</Label>
+              <Input name="name" required placeholder="e.g. Sales Psychology" />
+            </div>
+            <DialogFooter>
+              <Button type="submit" className="w-full">Create Subject</Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
