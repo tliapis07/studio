@@ -127,7 +127,7 @@ export default function NotesPage() {
     <div className="space-y-8 pb-20 md:pb-8 animate-in fade-in duration-500">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
         <div>
-          <h1 className="text-4xl font-black font-headline tracking-tight text-foreground">Sales Notes</h1>
+          <h1 className="text-4xl font-black font-headline tracking-tight text-primary">Sales Notes</h1>
           <p className="text-muted-foreground font-medium">Capture scripts, handling techniques, and strategy ideas.</p>
         </div>
         <div className="flex gap-3">

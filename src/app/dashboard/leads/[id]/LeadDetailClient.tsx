@@ -179,7 +179,7 @@ export default function LeadDetailClient({ id }: { id: string }) {
         </Button>
         <div className="flex-1">
           <div className="flex flex-wrap items-center gap-3">
-            <h1 className="text-3xl font-black font-headline tracking-tight">{lead.name}</h1>
+            <h1 className="text-3xl font-black font-headline tracking-tight text-primary">{lead.name}</h1>
             <Badge variant="outline" className="bg-primary/5 text-primary border-primary/20 font-black uppercase tracking-widest text-[10px]">{lead.status}</Badge>
             <div className="ml-auto flex gap-2">
               <Button variant="outline" size="sm" onClick={() => openWhatsApp(lead.phone)} className="gap-2 text-emerald-500 hover:bg-emerald-500/10 h-10 border-emerald-500/20 rounded-xl">

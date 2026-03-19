@@ -141,7 +141,7 @@ export default function TeamAnalyticsPage() {
     <div className="space-y-8 pb-20 md:pb-8 animate-in fade-in duration-500">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-bold font-headline tracking-tight">Partner Analytics</h1>
+          <h1 className="text-3xl font-bold font-headline tracking-tight text-primary">Partner Analytics</h1>
           <p className="text-muted-foreground text-sm font-medium">High-level intelligence and organizational-wide diagnostics.</p>
         </div>
         <Button 

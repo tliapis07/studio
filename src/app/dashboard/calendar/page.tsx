@@ -148,7 +148,7 @@ export default function CalendarPage() {
   return (
     <div className="space-y-8 pb-24 md:pb-8 animate-in fade-in duration-500">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
-        <div><h1 className="text-4xl font-black tracking-tight">Sales Calendar</h1><p className="text-muted-foreground font-medium">Synchronized organizational follow-ups.</p></div>
+        <div><h1 className="text-4xl font-black tracking-tight text-primary">Sales Calendar</h1><p className="text-muted-foreground font-medium">Synchronized organizational follow-ups.</p></div>
         <div className="flex flex-wrap items-center gap-4">
           <Button variant="outline" size="icon" className="h-12 w-12 rounded-2xl border-2" onClick={() => setIsTypeManageOpen(true)}><TagIcon className="h-5 w-5" /></Button>
           <div className="flex items-center gap-2 bg-card/50 p-2 rounded-2xl border-2 shadow-sm">

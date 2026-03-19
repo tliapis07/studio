@@ -164,7 +164,7 @@ export default function Dashboard() {
     <div className="space-y-10 animate-in fade-in duration-700 pb-24 md:pb-10">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
         <div className="space-y-1">
-          <h1 className="text-4xl md:text-5xl font-black font-headline tracking-tighter">Partner Center</h1>
+          <h1 className="text-4xl md:text-5xl font-black font-headline tracking-tighter text-primary">Partner Center</h1>
           <p className="text-muted-foreground font-medium">Real-time organizational velocity diagnostics.</p>
         </div>
         <div className="flex gap-3">

@@ -178,7 +178,7 @@ export default function SettingsPage() {
     <div className="max-w-5xl mx-auto space-y-8 pb-24 md:pb-8 animate-in fade-in duration-500">
       <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
         <div>
-          <h1 className="text-4xl font-black font-headline tracking-tight">Partner Settings</h1>
+          <h1 className="text-4xl font-black font-headline tracking-tight text-primary">Partner Settings</h1>
           <p className="text-muted-foreground font-medium">Manage organizational structure and partner-view preferences.</p>
         </div>
         <div className="flex gap-2">

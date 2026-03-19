@@ -113,7 +113,7 @@ export default function TeamHistoryPage() {
     <div className="space-y-8 animate-in fade-in duration-500 pb-20">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
         <div>
-          <h1 className="text-4xl font-black font-headline tracking-tight text-foreground">Team History</h1>
+          <h1 className="text-4xl font-black font-headline tracking-tight text-primary">Team History</h1>
           <p className="text-muted-foreground font-medium">Real-time organizational activity and interaction logs.</p>
         </div>
         <Button onClick={handleExport} variant="outline" className="h-12 px-6 rounded-xl border-2 gap-3 font-black uppercase tracking-widest text-[10px]">
