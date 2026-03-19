@@ -35,17 +35,27 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
 
   useEffect(() => {
+    // Correctly handle protected routes
     if (!isUserLoading && !user) {
-      router.push('/');
+      router.replace('/');
     }
   }, [user, isUserLoading, router]);
 
   const handleSignOut = async () => {
     await signOut(auth);
-    router.push('/');
+    router.replace('/');
   };
 
-  if (isUserLoading) return null;
+  if (isUserLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background dark">
+        <Loader2 className="h-10 w-10 animate-spin text-primary" />
+      </div>
+    );
+  }
+
+  // If not loading but no user, the useEffect handles the redirect
+  if (!user) return null;
 
   return (
     <SidebarProvider className="dark">
@@ -231,5 +241,24 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       </SidebarInset>
       <Toaster />
     </SidebarProvider>
+  );
+}
+
+function Loader2({ className }: { className?: string }) {
+  return (
+    <svg 
+      xmlns="http://www.w3.org/2000/svg" 
+      width="24" 
+      height="24" 
+      viewBox="0 0 24 24" 
+      fill="none" 
+      stroke="currentColor" 
+      strokeWidth="2" 
+      strokeLinecap="round" 
+      strokeLinejoin="round" 
+      className={className}
+    >
+      <path d="M21 12a9 9 0 1 1-6.219-8.56"/>
+    </svg>
   );
 }

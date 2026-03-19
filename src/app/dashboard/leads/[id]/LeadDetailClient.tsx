@@ -35,7 +35,7 @@ import { useDoc, useFirestore, useUser, useMemoFirebase, updateDocumentNonBlocki
 import { doc, collection, serverTimestamp } from 'firebase/firestore';
 import { Input } from '@/components/ui/input';
 import { toast } from '@/hooks/use-toast';
-import { format } from 'date-fns';
+import { format, isValid } from 'date-fns';
 
 export default function LeadDetailClient({ id }: { id: string }) {
   const db = useFirestore();
@@ -54,6 +54,11 @@ export default function LeadDetailClient({ id }: { id: string }) {
     if (!db || !lead || !followUpDate) return;
     const date = new Date(followUpDate);
     
+    if (!isValid(date)) {
+      toast({ variant: "destructive", title: "Invalid Date", description: "Please select a valid follow-up time." });
+      return;
+    }
+
     // Update lead follow-up
     updateDocumentNonBlocking(doc(db, 'leads', lead.id), {
       nextFollowUpAt: date,
@@ -75,7 +80,7 @@ export default function LeadDetailClient({ id }: { id: string }) {
 
     toast({
       title: "Follow-up Scheduled",
-      description: `Reminder and calendar event set for ${format(date, 'PPP p')}`,
+      description: `Reminder set for ${format(date, 'PPP p')}`,
     });
     setFollowUpDate('');
   };
@@ -98,6 +103,16 @@ export default function LeadDetailClient({ id }: { id: string }) {
     }
   };
 
+  const formatFollowUpDate = (dateField: any) => {
+    try {
+      if (!dateField) return null;
+      const d = dateField.toDate ? dateField.toDate() : new Date(dateField);
+      return isValid(d) ? format(d, 'PPP p') : null;
+    } catch {
+      return null;
+    }
+  };
+
   if (leadResult.isLoading) return <div className="p-8 text-center italic text-muted-foreground">Synchronizing lead data...</div>;
   if (!lead) return <div className="p-8 text-center py-20">
     <p className="text-xl font-bold mb-4">Lead not found.</p>
@@ -105,6 +120,8 @@ export default function LeadDetailClient({ id }: { id: string }) {
       <Link href="/dashboard/leads">Return to Pipeline</Link>
     </Button>
   </div>;
+
+  const displayFollowUp = formatFollowUpDate(lead.nextFollowUpAt);
 
   return (
     <div className="space-y-6 animate-in fade-in duration-500">
@@ -146,13 +163,11 @@ export default function LeadDetailClient({ id }: { id: string }) {
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
-                {lead.nextFollowUpAt ? (
+                {displayFollowUp ? (
                   <div className="flex items-center justify-between p-3 bg-background rounded-xl border border-primary/20">
                     <div className="flex items-center gap-3">
                       <Clock className="h-5 w-5 text-primary" />
-                      <span className="text-sm font-black">
-                        {format(lead.nextFollowUpAt.toDate ? lead.nextFollowUpAt.toDate() : new Date(lead.nextFollowUpAt), 'PPP p')}
-                      </span>
+                      <span className="text-sm font-black">{displayFollowUp}</span>
                     </div>
                     <Button variant="ghost" size="sm" onClick={() => updateDocumentNonBlocking(doc(db, 'leads', lead.id), { nextFollowUpAt: null })} className="text-rose-500 font-bold uppercase text-[10px]">Clear</Button>
                   </div>
@@ -214,11 +229,11 @@ export default function LeadDetailClient({ id }: { id: string }) {
                       <div className="space-y-3">
                         <div className="flex flex-col">
                           <span className="text-[10px] text-muted-foreground font-black uppercase tracking-widest">Email</span>
-                          <span className="text-sm font-bold">{lead.email}</span>
+                          <span className="text-sm font-bold">{lead.email || '—'}</span>
                         </div>
                         <div className="flex flex-col">
                           <span className="text-[10px] text-muted-foreground font-black uppercase tracking-widest">Phone</span>
-                          <span className="text-sm font-bold">{lead.phone}</span>
+                          <span className="text-sm font-bold">{lead.phone || '—'}</span>
                         </div>
                       </div>
                     </div>

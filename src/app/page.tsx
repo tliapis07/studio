@@ -1,24 +1,36 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { TrendingUp, LogIn, Loader2, ShieldCheck, Users } from 'lucide-react';
 import Image from 'next/image';
-import { useAuth } from '@/firebase';
+import { useAuth, useUser } from '@/firebase';
 import { signInWithPopup, GoogleAuthProvider, signInAnonymously } from 'firebase/auth';
 import { toast } from '@/hooks/use-toast';
 
 export default function LoginPage() {
   const [isLoading, setIsLoading] = useState(false);
+  const [mounted, setMounted] = useState(false);
   const router = useRouter();
   const auth = useAuth();
+  const { user, isUserLoading } = useUser();
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  // Auto-redirect if already logged in
+  useEffect(() => {
+    if (mounted && !isUserLoading && user) {
+      router.replace('/dashboard');
+    }
+  }, [user, isUserLoading, router, mounted]);
 
   const handleGoogleLogin = async () => {
     setIsLoading(true);
     const provider = new GoogleAuthProvider();
-    // Force account selection to fix silent failures and provide better UX
     provider.setCustomParameters({ prompt: 'select_account' });
     
     try {
@@ -29,26 +41,20 @@ export default function LoginPage() {
           description: `Welcome back, ${result.user.displayName || 'Partner'}.`,
         });
         router.push('/dashboard');
+      } else {
+        setIsLoading(false);
       }
     } catch (err: any) {
       console.error("Google Sign-in Error:", err);
-      
       let message = "Could not establish a secure session.";
       if (err.code === 'auth/popup-closed-by-user') {
         message = "Sign-in popup was closed before completion.";
       } else if (err.code === 'auth/popup-blocked') {
-        message = "Popup blocked! Please allow popups for this site in your browser settings.";
+        message = "Popup blocked! Please allow popups for this site.";
       } else if (err.code === 'auth/unauthorized-domain') {
-        message = "This domain is not authorized for Google Sign-in. Please check Firebase console.";
-      } else if (err.message) {
-        message = err.message;
+        message = "Domain not authorized. Check Firebase Authorized Domains.";
       }
-
-      toast({
-        variant: "destructive",
-        title: "Authentication Failed",
-        description: message,
-      });
+      toast({ variant: "destructive", title: "Authentication Failed", description: message });
       setIsLoading(false);
     }
   };
@@ -59,18 +65,27 @@ export default function LoginPage() {
       await signInAnonymously(auth);
       toast({
         title: "Guest Access",
-        description: "Welcome! You are browsing as a guest manager.",
+        description: "Welcome! Browsing as an organizational guest.",
       });
       router.push('/dashboard');
     } catch (err: any) {
+      console.error("Anonymous Sign-in Error:", err);
       toast({
         variant: "destructive",
         title: "Demo Access Failed",
-        description: "Could not start demo session.",
+        description: "Anonymous access is disabled or blocked.",
       });
       setIsLoading(false);
     }
   };
+
+  if (!mounted || (isUserLoading && !user)) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background dark">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen flex flex-col md:flex-row bg-background dark">
@@ -82,7 +97,7 @@ export default function LoginPage() {
               SalesStream
             </h1>
             <p className="text-muted-foreground text-xl font-medium leading-tight">
-              SalesStream: The high-performance partner portal for sales team management.
+              High-performance partner portal for organizational sales management.
             </p>
           </div>
 
@@ -90,7 +105,7 @@ export default function LoginPage() {
             <CardHeader className="space-y-2 text-center pt-10 pb-6">
               <CardTitle className="text-3xl font-black font-headline">Partner Access</CardTitle>
               <CardDescription className="text-base">
-                Secure management gateway for SalesStream CRM.
+                Secure management gateway.
               </CardDescription>
             </CardHeader>
             <CardContent className="grid gap-6 px-10 pb-10">
@@ -127,6 +142,7 @@ export default function LoginPage() {
                 onClick={handleDemoLogin}
                 disabled={isLoading}
               >
+                {isLoading ? <Loader2 className="h-5 w-5 animate-spin mr-2" /> : null}
                 Continue as Guest Manager
               </Button>
             </CardContent>
