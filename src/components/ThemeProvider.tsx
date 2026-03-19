@@ -1,3 +1,4 @@
+
 'use client';
 
 import React, { createContext, useContext, useEffect, useState } from 'react';
@@ -55,9 +56,11 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     const root = window.document.documentElement;
     if (brandColorState) {
+      // Peripherally update all related color variables
       root.style.setProperty('--primary', brandColorState);
-      // Automatically set light/dark variants based on the primary if needed
-      // For simplicity, we just override the core variable
+      root.style.setProperty('--ring', brandColorState);
+      root.style.setProperty('--sidebar-primary', brandColorState);
+      root.style.setProperty('--sidebar-ring', brandColorState);
     }
   }, [brandColorState]);
 

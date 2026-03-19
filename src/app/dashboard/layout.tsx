@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -58,19 +59,15 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   useEffect(() => {
     const setupNativeUI = async () => {
       try {
-        // Set Status Bar to Dark for consistent branding
         await StatusBar.setStyle({ style: Style.Dark });
         await StatusBar.setBackgroundColor({ color: '#171923' });
-      } catch (e) {
-        // Safe to ignore in web browser
-      }
+      } catch (e) {}
     };
 
     const setupBackButton = async () => {
       try {
         await App.addListener('backButton', ({ canGoBack }) => {
           if (!canGoBack || pathname === '/dashboard/') {
-            // Prevent accidental exit on main dashboard
             return;
           } else {
             window.history.back();
@@ -122,9 +119,9 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
   if (isUserLoading) {
     return (
-      <div className="min-h-screen flex flex-col items-center justify-center bg-background dark p-8">
+      <div className="min-h-screen flex flex-col items-center justify-center bg-background p-8">
         <Loader2 className="h-12 w-12 animate-spin text-primary opacity-50 mb-4" />
-        <p className="text-[10px] font-black uppercase tracking-[0.2em] animate-pulse">Establishing Partner Session...</p>
+        <p className="text-[10px] font-black uppercase tracking-[0.2em] animate-pulse text-primary">Establishing Partner Session...</p>
       </div>
     );
   }
@@ -132,7 +129,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   if (!user) return null;
 
   return (
-    <SidebarProvider className="dark">
+    <SidebarProvider>
       <OnboardingTour />
       <OfflineIndicator />
       <Sidebar variant="inset" collapsible="icon" className="border-r border-border/50">
@@ -153,14 +150,14 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
              <Button 
                 variant="ghost" 
                 onClick={handleSharePortal}
-                className="w-full justify-start gap-3 h-10 px-3 hover:bg-muted/50 rounded-lg text-muted-foreground group-data-[collapsible=icon]:p-0 group-data-[collapsible=icon]:justify-center"
+                className="w-full justify-start gap-3 h-10 px-3 hover:bg-primary/5 rounded-lg text-muted-foreground group-data-[collapsible=icon]:p-0 group-data-[collapsible=icon]:justify-center"
              >
-                <Share2 className="h-4 w-4" />
+                <Share2 className="h-4 w-4 text-primary" />
                 <span className="text-[10px] font-black uppercase tracking-widest group-data-[collapsible=icon]:hidden text-left">Share CRM</span>
              </Button>
              <div className="pt-4 border-t border-border/20">
-               <SidebarTrigger className="w-full justify-start gap-3 h-10 px-3 hover:bg-muted/50 rounded-lg text-muted-foreground">
-                  <PanelLeftClose className="h-4 w-4" />
+               <SidebarTrigger className="w-full justify-start gap-3 h-10 px-3 hover:bg-primary/5 rounded-lg text-muted-foreground">
+                  <PanelLeftClose className="h-4 w-4 text-primary" />
                   <span className="text-[10px] font-black uppercase tracking-widest group-data-[collapsible=icon]:hidden">Minimize Hub</span>
                </SidebarTrigger>
              </div>
@@ -174,32 +171,32 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       <SidebarInset>
         <header className="flex h-16 shrink-0 items-center justify-between px-6 transition-[width,height] ease-linear group-has-[[data-collapsible=icon]]/sidebar-wrapper:h-12 border-b border-border/50 sticky top-0 bg-background/80 backdrop-blur-xl z-30">
           <div className="flex items-center gap-2">
-            <SidebarTrigger className="hidden md:flex" />
+            <SidebarTrigger className="hidden md:flex text-primary" />
             <div className="md:hidden flex items-center gap-2">
                <TrendingUp className="h-6 w-6 text-primary" />
-               <span className="font-black text-lg tracking-tighter">SalesStream</span>
+               <span className="font-black text-lg tracking-tighter text-primary">SalesStream</span>
             </div>
           </div>
           <div className="flex items-center gap-3">
             <Button 
               variant="outline" 
               size="sm" 
-              className="hidden lg:flex gap-2 border-primary/30 bg-primary/5 hover:bg-primary/10 text-[10px] font-black uppercase tracking-widest h-10 px-6 rounded-xl shadow-sm"
+              className="hidden lg:flex gap-2 border-primary/30 bg-primary/5 hover:bg-primary/10 text-[10px] font-black uppercase tracking-widest h-10 px-6 rounded-xl shadow-sm text-primary"
               onClick={() => {
                 handleActionClick();
                 setIsAiOpen(true);
                 logEvent('ai_assistant_opened', { uid: user.uid });
               }}
             >
-              <Sparkles className="h-4 w-4 text-primary" /> Partner AI
+              <Sparkles className="h-4 w-4" /> Partner AI
             </Button>
 
-            <Button variant="ghost" size="icon" className="h-10 w-10 text-muted-foreground relative" onClick={() => { handleActionClick(); setIsNotificationsOpen(true); }}>
+            <Button variant="ghost" size="icon" className="h-10 w-10 text-primary relative" onClick={() => { handleActionClick(); setIsNotificationsOpen(true); }}>
               <Bell className="h-4 w-4" />
               <span className="absolute top-2.5 right-2.5 h-2 w-2 bg-rose-500 rounded-full border-2 border-background" />
             </Button>
 
-            <Button variant="ghost" size="icon" className="h-10 w-10 text-muted-foreground" onClick={() => { handleActionClick(); setIsHistoryOpen(true); }}>
+            <Button variant="ghost" size="icon" className="h-10 w-10 text-primary" onClick={() => { handleActionClick(); setIsHistoryOpen(true); }}>
               <History className="h-4 w-4" />
             </Button>
             
@@ -207,10 +204,10 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
               <DropdownMenuTrigger asChild>
                 <Button variant="ghost" className="flex items-center gap-3 px-2 h-10 hover:bg-muted/50 rounded-xl transition-all">
                   <div className="hidden sm:flex flex-col items-end">
-                    <span className="text-sm font-black leading-none">{user?.displayName || 'Partner'}</span>
+                    <span className="text-sm font-black leading-none text-foreground">{user?.displayName || 'Partner'}</span>
                     <span className="text-[9px] text-muted-foreground uppercase tracking-widest font-black mt-1">Lead Partner</span>
                   </div>
-                  <Avatar className="h-8 w-8 border-2 border-border shadow-sm">
+                  <Avatar className="h-8 w-8 border-2 border-primary shadow-sm">
                     <AvatarImage src={user?.photoURL || ''} />
                     <AvatarFallback className="bg-primary/10 text-primary font-black">{user?.displayName?.[0] || 'P'}</AvatarFallback>
                   </Avatar>
@@ -220,7 +217,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                 <DropdownMenuLabel className="text-[10px] font-black uppercase tracking-widest opacity-50">Account Space</DropdownMenuLabel>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem asChild className="rounded-lg">
-                  <Link href="/dashboard/settings" className="cursor-pointer font-bold"><Settings className="h-4 w-4 mr-2" /> Settings</Link>
+                  <Link href="/dashboard/settings" className="cursor-pointer font-bold"><Settings className="h-4 w-4 mr-2 text-primary" /> Settings</Link>
                 </DropdownMenuItem>
                 <DropdownMenuItem onClick={() => setIsLogoutConfirmOpen(true)} className="text-rose-500 cursor-pointer font-bold rounded-lg">
                   <LogOut className="h-4 w-4 mr-2" /> Sign Out
@@ -230,7 +227,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           </div>
         </header>
 
-        <main className="flex-1 p-4 md:p-8 overflow-y-auto overflow-x-hidden">
+        <main className="flex-1 p-4 md:p-8 overflow-y-auto overflow-x-hidden bg-background">
           {children}
         </main>
 
@@ -248,15 +245,15 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
               setIsAiOpen(true);
               logEvent('ai_assistant_opened', { uid: user.uid });
             }}
-            className="fixed bottom-6 right-6 h-14 w-14 rounded-2xl shadow-3xl bg-primary hover:bg-primary/90 transition-all hover:scale-110 z-40 group"
+            className="fixed bottom-6 right-6 h-14 w-14 rounded-2xl shadow-3xl bg-primary text-primary-foreground hover:bg-primary/90 transition-all hover:scale-110 z-40 group"
           >
             <Sparkles className="h-6 w-6 group-hover:animate-pulse" />
           </Button>
         )}
 
         <Sheet open={isHistoryOpen} onOpenChange={setIsHistoryOpen}>
-          <SheetContent side="right" className="w-[400px] sm:w-[500px] rounded-l-3xl border-l-2 p-8">
-            <SheetHeader><SheetTitle className="flex items-center gap-3 text-2xl font-black"><History className="h-6 w-6 text-primary" /> Team Activity Feed</SheetTitle></SheetHeader>
+          <SheetContent side="right" className="w-[400px] sm:w-[500px] rounded-l-3xl border-l-2 p-8 bg-card">
+            <SheetHeader><SheetTitle className="flex items-center gap-3 text-2xl font-black text-primary"><History className="h-6 w-6" /> Team Activity Feed</SheetTitle></SheetHeader>
             <ScrollArea className="h-full mt-8 pr-4">
               <div className="space-y-6">
                 {[
@@ -265,9 +262,9 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                   { u: "Jordan", a: "Logged Call with 'Stark Ind'", t: "45m ago" },
                 ].map((item, i) => (
                   <div key={i} className="flex gap-4 items-start p-5 rounded-2xl bg-muted/20 border-2 border-border/50 hover:border-primary/20 transition-all">
-                    <Avatar className="h-9 w-9 border-2 border-primary/10"><AvatarFallback className="font-black text-[10px]">{item.u[0]}</AvatarFallback></Avatar>
+                    <Avatar className="h-9 w-9 border-2 border-primary/10"><AvatarFallback className="font-black text-[10px] text-primary">{item.u[0]}</AvatarFallback></Avatar>
                     <div className="space-y-1 flex-1">
-                      <p className="text-sm font-black">{item.u} <span className="font-medium text-muted-foreground">{item.a}</span></p>
+                      <p className="text-sm font-black text-foreground">{item.u} <span className="font-medium text-muted-foreground">{item.a}</span></p>
                       <p className="text-[9px] text-muted-foreground font-black uppercase tracking-[0.2em]">{item.t}</p>
                     </div>
                   </div>
@@ -284,7 +281,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
               { icon: Settings, href: '/dashboard/settings' },
            ].map((item) => (
             <Link key={item.href} href={item.href} onClick={handleActionClick} className="flex flex-col items-center gap-1 group">
-              <div className={`p-2 rounded-xl transition-all ${pathname === item.href ? 'bg-primary text-white scale-110 shadow-lg shadow-primary/20' : 'text-muted-foreground hover:text-primary'}`}>
+              <div className={`p-2 rounded-xl transition-all ${pathname === item.href ? 'bg-primary text-primary-foreground scale-110 shadow-lg shadow-primary/20' : 'text-muted-foreground hover:text-primary'}`}>
                 <item.icon className="h-5 w-5" />
               </div>
             </Link>
@@ -292,16 +289,16 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         </nav>
 
         <AlertDialog open={isLogoutConfirmOpen} onOpenChange={setIsLogoutConfirmOpen}>
-          <AlertDialogContent className="rounded-3xl border-2">
+          <AlertDialogContent className="rounded-3xl border-2 bg-card">
             <AlertDialogHeader>
-              <AlertDialogTitle className="text-xl font-black">Secure Sign-Out?</AlertDialogTitle>
+              <AlertDialogTitle className="text-xl font-black text-primary">Secure Sign-Out?</AlertDialogTitle>
               <AlertDialogDescription>
                 Are you sure you want to end your active partner session? Your organizational data will remain synced and secure.
               </AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>
               <AlertDialogCancel className="rounded-xl font-bold uppercase text-[10px]">Stay Logged In</AlertDialogCancel>
-              <AlertDialogAction onClick={handleSignOut} className="bg-rose-500 hover:bg-rose-600 rounded-xl font-bold uppercase text-[10px]">End Session</AlertDialogAction>
+              <AlertDialogAction onClick={handleSignOut} className="bg-rose-500 hover:bg-rose-600 rounded-xl font-bold uppercase text-[10px] text-white">End Session</AlertDialogAction>
             </AlertDialogFooter>
           </AlertDialogContent>
         </AlertDialog>

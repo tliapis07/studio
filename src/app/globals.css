@@ -5,26 +5,36 @@
 
 @layer base {
   :root {
-    --background: 231 10% 98%;
-    --foreground: 231 10% 3.9%;
+    --background: 0 0% 100%;
+    --foreground: 224 71.4% 4.1%;
     --card: 0 0% 100%;
-    --card-foreground: 231 10% 3.9%;
+    --card-foreground: 224 71.4% 4.1%;
     --popover: 0 0% 100%;
-    --popover-foreground: 231 10% 3.9%;
+    --popover-foreground: 224 71.4% 4.1%;
     --primary: 248 81% 59%;
-    --primary-foreground: 0 0% 98%;
-    --secondary: 231 10% 96.1%;
-    --secondary-foreground: 248 81% 5%;
-    --muted: 231 10% 96.1%;
-    --muted-foreground: 231 10% 45.1%;
-    --accent: 198 89% 72%;
-    --accent-foreground: 248 81% 5%;
+    --primary-foreground: 210 20% 98%;
+    --secondary: 220 14.3% 95.9%;
+    --secondary-foreground: 220.9 39.3% 11%;
+    --muted: 220 14.3% 95.9%;
+    --muted-foreground: 220 8.9% 46.1%;
+    --accent: 220 14.3% 95.9%;
+    --accent-foreground: 220.9 39.3% 11%;
     --destructive: 0 84.2% 60.2%;
-    --destructive-foreground: 0 0% 98%;
-    --border: 231 10% 89.8%;
-    --input: 231 10% 89.8%;
+    --destructive-foreground: 210 20% 98%;
+    --border: 220 13% 91%;
+    --input: 220 13% 91%;
     --ring: 248 81% 59%;
     --radius: 0.75rem;
+    
+    --sidebar-background: 210 40% 98%;
+    --sidebar-foreground: 240 5.3% 26.1%;
+    --sidebar-primary: 248 81% 59%;
+    --sidebar-primary-foreground: 0 0% 98%;
+    --sidebar-accent: 240 4.8% 95.9%;
+    --sidebar-accent-foreground: 240 5.9% 10%;
+    --sidebar-border: 220 13% 91%;
+    --sidebar-ring: 248 81% 59%;
+
     --chart-1: 248 81% 59%;
     --chart-2: 198 89% 72%;
     --chart-3: 173 58% 39%;
@@ -72,7 +82,6 @@
   }
 }
 
-/* Custom Scrollbar for compact feel */
 ::-webkit-scrollbar {
   width: 6px;
   height: 6px;
