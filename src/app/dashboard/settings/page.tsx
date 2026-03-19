@@ -31,7 +31,9 @@ import {
   Trash2,
   AlertTriangle,
   RefreshCw,
-  Share2
+  Share2,
+  Star,
+  MessageSquare
 } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
 import { useUser, useFirestore, useDoc, useAuth } from '@/firebase';
@@ -54,6 +56,7 @@ import {
 import { deleteUser } from 'firebase/auth';
 import { useRouter } from 'next/navigation';
 import { logEvent } from '@/lib/firebase';
+import { Haptics, ImpactStyle } from '@capacitor/haptics';
 
 const TIMEZONES = [
   "UTC", "America/New_York", "America/Chicago", "America/Denver", "America/Los_Angeles", 
@@ -77,9 +80,16 @@ export default function SettingsPage() {
   const profileRef = user ? doc(db, 'users', user.uid) : null;
   const { data: profile, isLoading: profileLoading } = useDoc<UserProfile>(profileRef as any);
 
+  const handleActionClick = async () => {
+    try {
+      await Haptics.impact({ style: ImpactStyle.Light });
+    } catch (e) {}
+  };
+
   const handleUpdateProfile = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     if (!user || !db) return;
+    handleActionClick();
     setIsSaving(true);
     const formData = new FormData(e.currentTarget);
     
@@ -137,12 +147,14 @@ export default function SettingsPage() {
   };
 
   const handleResetApp = () => {
+    handleActionClick();
     localStorage.clear();
     logEvent('system_reset', { uid: user?.uid });
     window.location.reload();
   };
 
   const handleShare = async () => {
+    handleActionClick();
     const shareData = {
       title: 'SalesStream CRM',
       text: 'Manage your telesales pipeline with SalesStream CRM.',
@@ -211,6 +223,16 @@ export default function SettingsPage() {
                       <span className="h-2 w-2 rounded-full bg-emerald-500" />
                       {profile?.status || 'Available'}
                     </p>
+                 </div>
+                 <div className="grid grid-cols-2 gap-3">
+                    <Button variant="outline" className="h-14 flex-col gap-1 rounded-2xl border-2 hover:bg-primary/10" onClick={() => toast({ title: "Feedback Form", description: "Opening organizational feedback portal..." })}>
+                       <MessageSquare className="h-4 w-4 text-primary" />
+                       <span className="text-[8px] font-black uppercase">Feedback</span>
+                    </Button>
+                    <Button variant="outline" className="h-14 flex-col gap-1 rounded-2xl border-2 hover:bg-primary/10" onClick={() => window.open('https://play.google.com/store', '_blank')}>
+                       <Star className="h-4 w-4 text-amber-500" />
+                       <span className="text-[8px] font-black uppercase">Rate App</span>
+                    </Button>
                  </div>
               </CardContent>
             </Card>
@@ -297,7 +319,7 @@ export default function SettingsPage() {
                   </div>
                   <Switch 
                     checked={profile?.compactModeEnabled} 
-                    onCheckedChange={(checked) => setDoc(profileRef as any, { compactModeEnabled: checked }, { merge: true })} 
+                    onCheckedChange={(checked) => { handleActionClick(); setDoc(profileRef as any, { compactModeEnabled: checked }, { merge: true }); }} 
                   />
                 </div>
               </CardContent>
@@ -320,7 +342,7 @@ export default function SettingsPage() {
                              <p className="text-[10px] text-emerald-600 font-bold uppercase">Active & Optimized</p>
                           </div>
                        </div>
-                       <Button size="sm" variant="outline" className="text-[9px] font-black uppercase tracking-widest h-8 border-emerald-500/30">Force Sync</Button>
+                       <Button size="sm" variant="outline" onClick={handleActionClick} className="text-[9px] font-black uppercase tracking-widest h-8 border-emerald-500/30">Force Sync</Button>
                     </div>
 
                     <div className="flex items-center justify-between p-6 rounded-2xl bg-muted/20 border-2 border-border/50">
@@ -330,7 +352,7 @@ export default function SettingsPage() {
                       </div>
                       <Switch 
                         checked={profile?.notificationSoundsEnabled} 
-                        onCheckedChange={(checked) => setDoc(profileRef as any, { notificationSoundsEnabled: checked }, { merge: true })} 
+                        onCheckedChange={(checked) => { handleActionClick(); setDoc(profileRef as any, { notificationSoundsEnabled: checked }, { merge: true }); }} 
                       />
                     </div>
                  </div>

@@ -35,6 +35,11 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import OfflineIndicator from '@/components/OfflineIndicator';
 import { logEvent } from '@/lib/firebase';
 
+// Mobile Plugins
+import { StatusBar, Style } from '@capacitor/status-bar';
+import { App } from '@capacitor/app';
+import { Haptics, ImpactStyle } from '@capacitor/haptics';
+
 // Performance Optimization: Lazy-load heavy organizational assistant and onboarding
 const AIAssistant = dynamic(() => import('@/components/AIAssistant'), { ssr: false });
 const OnboardingTour = dynamic(() => import('@/components/OnboardingTour'), { ssr: false });
@@ -48,6 +53,39 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const [isHistoryOpen, setIsHistoryOpen] = useState(false);
   const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
   const [isLogoutConfirmOpen, setIsLogoutConfirmOpen] = useState(false);
+
+  // Native Mobile Lifecycle Handlers
+  useEffect(() => {
+    const setupNativeUI = async () => {
+      try {
+        // Set Status Bar to Dark for consistent branding
+        await StatusBar.setStyle({ style: Style.Dark });
+        await StatusBar.setBackgroundColor({ color: '#171923' });
+      } catch (e) {
+        // Safe to ignore in web browser
+      }
+    };
+
+    const setupBackButton = async () => {
+      try {
+        await App.addListener('backButton', ({ canGoBack }) => {
+          if (!canGoBack || pathname === '/dashboard/') {
+            // Prevent accidental exit on main dashboard
+            return;
+          } else {
+            window.history.back();
+          }
+        });
+      } catch (e) {}
+    };
+
+    setupNativeUI();
+    setupBackButton();
+
+    return () => {
+      App.removeAllListeners();
+    };
+  }, [pathname]);
 
   useEffect(() => {
     if (!isUserLoading && !user) {
@@ -63,7 +101,14 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     router.replace('/');
   };
 
+  const handleActionClick = async () => {
+    try {
+      await Haptics.impact({ style: ImpactStyle.Medium });
+    } catch (e) {}
+  };
+
   const handleSharePortal = async () => {
+    handleActionClick();
     try {
       if (navigator.share) {
         await navigator.share({
@@ -141,6 +186,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
               size="sm" 
               className="hidden lg:flex gap-2 border-primary/30 bg-primary/5 hover:bg-primary/10 text-[10px] font-black uppercase tracking-widest h-10 px-6 rounded-xl shadow-sm"
               onClick={() => {
+                handleActionClick();
                 setIsAiOpen(true);
                 logEvent('ai_assistant_opened', { uid: user.uid });
               }}
@@ -148,12 +194,12 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
               <Sparkles className="h-4 w-4 text-primary" /> Partner AI
             </Button>
 
-            <Button variant="ghost" size="icon" className="h-10 w-10 text-muted-foreground relative" onClick={() => setIsNotificationsOpen(true)}>
+            <Button variant="ghost" size="icon" className="h-10 w-10 text-muted-foreground relative" onClick={() => { handleActionClick(); setIsNotificationsOpen(true); }}>
               <Bell className="h-4 w-4" />
               <span className="absolute top-2.5 right-2.5 h-2 w-2 bg-rose-500 rounded-full border-2 border-background" />
             </Button>
 
-            <Button variant="ghost" size="icon" className="h-10 w-10 text-muted-foreground" onClick={() => setIsHistoryOpen(true)}>
+            <Button variant="ghost" size="icon" className="h-10 w-10 text-muted-foreground" onClick={() => { handleActionClick(); setIsHistoryOpen(true); }}>
               <History className="h-4 w-4" />
             </Button>
             
@@ -198,6 +244,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           <Button 
             id="ai-assistant-trigger"
             onClick={() => {
+              handleActionClick();
               setIsAiOpen(true);
               logEvent('ai_assistant_opened', { uid: user.uid });
             }}
@@ -236,7 +283,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
               { icon: ContactIcon, href: '/dashboard/contacts' },
               { icon: Settings, href: '/dashboard/settings' },
            ].map((item) => (
-            <Link key={item.href} href={item.href} className="flex flex-col items-center gap-1 group">
+            <Link key={item.href} href={item.href} onClick={handleActionClick} className="flex flex-col items-center gap-1 group">
               <div className={`p-2 rounded-xl transition-all ${pathname === item.href ? 'bg-primary text-white scale-110 shadow-lg shadow-primary/20' : 'text-muted-foreground hover:text-primary'}`}>
                 <item.icon className="h-5 w-5" />
               </div>

@@ -2,43 +2,49 @@
 
 High-performance partner portal for telesales management. Built with Next.js, Firebase, and AI. Optimized for high-velocity organizational workflows.
 
-## 🚀 Production Deployment
+## 🚀 Deployment & APK Build Guide
 
-SalesStream is optimized for static export and native wrapping via Capacitor (Android/iOS).
+SalesStream is optimized for static export and native wrapping via Capacitor (Android/iOS). Follow these steps to generate your local APK.
 
-### 1. Build Static Assets
+### 1. Prerequisites
+- **Node.js** (v18+)
+- **Android Studio** (for APK generation)
+- **Firebase Project** (with Auth and Firestore enabled)
+
+### 2. Local Setup & Build
 ```bash
+# Install dependencies
+npm install
+
+# Generate production static assets
 npm run build
 ```
 This generates the `out/` folder containing the standalone SPA.
 
-### 2. Android Deployment
-Ensure you have Android Studio installed and the `ANDROID_HOME` env variable set.
-
-**Sync Assets:**
+### 3. Capacitor Android Sync
 ```bash
-npm run cap:sync
+# Synchronize web assets with the Android project
+npx cap sync android
 ```
 
-**Build APK:**
-1. Open in Android Studio: `npx cap open android`
-2. In Android Studio: `Build > Build Bundle(s) / APK(s) > Build APK(s)`
-3. The APK will be located in `android/app/build/outputs/apk/debug/app-debug.apk`.
-
-### 3. Desktop Deployment (Tauri)
-- Ensure `tauri.conf.json` has `distDir` set to `../out`.
-- Build: `cargo tauri build`
+### 4. Build APK (Android Studio)
+1. Open the project in Android Studio: `npx cap open android`
+2. Wait for Gradle sync to complete.
+3. In the top menu, go to **Build > Build Bundle(s) / APK(s) > Build APK(s)**.
+4. Once finished, a notification will appear. Click **Locate** to find `app-debug.apk`.
+5. Install this APK on any Android device for testing.
 
 ## 🛠 Features
 - **Offline First:** Local Firestore persistence for interrupted connectivity.
 - **AI Strategic Suite:** Automated call script generation and lead summarization via Genkit + Gemini.
 - **Secure Dual-Auth:** Google Workspace + Email/Password with mandatory verification.
+- **Native Haptics:** Tactile feedback for high-impact actions on mobile.
 - **Enterprise Analytics:** Real-time organizational velocity diagnostics.
 
 ## 🔒 Security
-- **Defense in Depth:** Mandatory `ownerUid` filtering enforced at the hook layer.
-- **Rules are not Filters:** Queries are strictly scoped to authenticated user IDs before execution.
+- **ownerUid Enforcement:** Every query is strictly scoped to the authenticated user ID before execution.
+- **Defense in Depth:** The `useCollection` hook automatically injects ownership filters to prevent "Rules are not Filters" permission crashes.
 - **GDPR Ready:** Account termination flow wipes all organizational references from Firestore.
 
 ---
-**SalesStream v0.1.0** | High-Performance Partner CRM
+**SalesStream v0.1.0-prod** | High-Performance Partner CRM
