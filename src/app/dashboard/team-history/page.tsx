@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, useMemo } from 'react';
@@ -77,7 +76,7 @@ export default function TeamHistoryPage() {
     // Mock CSV logic
     const headers = "Date,User,Action,Content\n";
     const rows = filteredActivities.map(a => 
-      `${format(a.createdAt?.toDate ? a.createdAt.toDate() : new Date(), 'yyyy-MM-dd HH:mm')},${a.ownerName},${a.type},"${a.content.replace(/"/g, '""')}"`
+      `${format(a.createdAt?.toDate ? a.createdAt.toDate() : new Date(), 'yyyy-MM-dd HH:mm')},${a.ownerName || 'Unknown'},${a.type},"${(a.content || '').replace(/"/g, '""')}"`
     ).join("\n");
     const blob = new Blob([headers + rows], { type: 'text/csv' });
     const url = window.URL.createObjectURL(blob);
@@ -125,7 +124,7 @@ export default function TeamHistoryPage() {
             <SelectValue placeholder="Action Type" />
           </SelectTrigger>
           <SelectContent>
-            {ACTION_TYPES.map(t => <SelectItem key={m.value} value={t.value}>{t.label}</SelectItem>)}
+            {ACTION_TYPES.map(t => <SelectItem key={t.value} value={t.value}>{t.label}</SelectItem>)}
           </SelectContent>
         </Select>
         <Select value={dateRange} onValueChange={setDateRange}>
