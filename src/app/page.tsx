@@ -38,9 +38,12 @@ export default function LoginPage() {
     setMounted(true);
   }, []);
 
+  // Safe redirect logic
   useEffect(() => {
     if (mounted && !isUserLoading && user) {
+      console.log('[LoginPage] Authenticated user detected:', user.uid);
       if (user.emailVerified || user.isAnonymous || !user.email) {
+        console.log('[LoginPage] Redirecting to dashboard...');
         router.replace('/dashboard');
       } else {
         setAuthMode('verify-email');
@@ -51,13 +54,18 @@ export default function LoginPage() {
   const handleGoogleLogin = async () => {
     if (isLoading) return;
     setIsLoading(true);
+    console.log('[LoginPage] Starting Google Login');
     try {
       await setPersistence(auth, browserLocalPersistence);
       const provider = new GoogleAuthProvider();
       provider.setCustomParameters({ prompt: 'select_account' });
-      await signInWithPopup(auth, provider);
+      const result = await signInWithPopup(auth, provider);
+      console.log('[LoginPage] Google sign-in successful:', result.user.uid);
+      // Trigger immediate manual redirect as backup
+      router.push('/dashboard');
     } catch (err: any) {
       setIsLoading(false);
+      console.log('[LoginPage] Google sign-in error:', err.code);
       if (err.code === 'auth/popup-closed-by-user') {
         toast({ title: "Sign-in Cancelled", description: "The window was closed before completion." });
       } else if (err.code === 'auth/popup-blocked') {
@@ -72,6 +80,7 @@ export default function LoginPage() {
     e.preventDefault();
     if (isLoading) return;
     setIsLoading(true);
+    console.log('[LoginPage] Starting Email Auth:', authMode);
 
     try {
       if (authMode === 'email-signup') {
@@ -81,24 +90,29 @@ export default function LoginPage() {
         toast({ title: "Verification Sent", description: "Please check your inbox to activate your account." });
       } else {
         const cred = await signInWithEmailAndPassword(auth, email, password);
+        console.log('[LoginPage] Email sign-in successful:', cred.user.uid);
         if (!cred.user.emailVerified) {
           await sendEmailVerification(cred.user);
           setAuthMode('verify-email');
+        } else {
+          router.push('/dashboard');
         }
       }
     } catch (err: any) {
-      toast({ variant: "destructive", title: "Auth Error", description: err.message });
-    } finally {
       setIsLoading(false);
+      toast({ variant: "destructive", title: "Auth Error", description: err.message });
     }
   };
 
   const handleDemoLogin = async () => {
     if (isLoading) return;
     setIsLoading(true);
+    console.log('[LoginPage] Starting Guest Login');
     try {
       await setPersistence(auth, browserLocalPersistence);
-      await signInAnonymously(auth);
+      const result = await signInAnonymously(auth);
+      console.log('[LoginPage] Guest sign-in successful:', result.user.uid);
+      router.push('/dashboard');
     } catch (err: any) {
       setIsLoading(false);
       toast({ variant: "destructive", title: "Demo Access Failed" });
@@ -116,8 +130,10 @@ export default function LoginPage() {
             <TrendingUp className="h-8 w-8 text-primary absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2" />
           </div>
           <div className="space-y-2">
-            <h2 className="text-xl font-black font-headline tracking-tight uppercase">Synchronizing Portal</h2>
-            <p className="text-xs font-black uppercase tracking-widest text-muted-foreground animate-pulse">Establishing Secure Connection...</p>
+            <h2 className="text-xl font-black font-headline tracking-tight uppercase">SalesStream</h2>
+            <p className="text-xs font-black uppercase tracking-widest text-muted-foreground animate-pulse">
+              {isUserLoading ? 'Establishing Partner Session...' : 'Verifying Identity...'}
+            </p>
           </div>
         </div>
       </div>

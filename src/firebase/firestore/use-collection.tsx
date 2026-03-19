@@ -28,17 +28,6 @@ export interface UseCollectionResult<T> {
   error: FirestoreError | Error | null; // Error object, or null.
 }
 
-/* Internal implementation of Query for path extraction */
-export interface InternalQuery extends Query<DocumentData> {
-  _query: {
-    path: {
-      canonicalString(): string;
-      toString(): string;
-      segments: string[];
-    }
-  }
-}
-
 const USER_OWNED_COLLECTIONS = [
   'leads', 
   'contacts', 
@@ -51,7 +40,7 @@ const USER_OWNED_COLLECTIONS = [
 
 /**
  * React hook to subscribe to a Firestore collection or query in real-time.
- * Automatically injects ownerUid filter for root user-owned collections to prevent permission errors.
+ * Automatically injects ownerUid filter for user-owned collections to prevent permission errors.
  */
 export function useCollection<T = any>(
     memoizedTargetRefOrQuery: ((CollectionReference<DocumentData> | Query<DocumentData>) & {__memo?: boolean})  | null | undefined,
@@ -72,13 +61,13 @@ export function useCollection<T = any>(
       return;
     }
 
-    // 1. IMPROVED PATH DETECTION
+    // 1. ROBUST PATH DETECTION
     let collectionName = '';
     if (memoizedTargetRefOrQuery.type === 'collection') {
       collectionName = (memoizedTargetRefOrQuery as CollectionReference).path;
     } else {
-      // Cast to any to access internal _query path
-      const internal = memoizedTargetRefOrQuery as unknown as any;
+      // Cast to any to access internal _query path segments
+      const internal = memoizedTargetRefOrQuery as any;
       if (internal._query?.path?.segments) {
         collectionName = internal._query.path.segments[0];
       }
@@ -88,17 +77,16 @@ export function useCollection<T = any>(
 
     let finalQuery = memoizedTargetRefOrQuery as Query<DocumentData>;
 
-    // 2. PROACTIVE SECURITY FILTERING
+    // 2. SECURITY FILTER INJECTION
     if (USER_OWNED_COLLECTIONS.includes(collectionName)) {
       if (!user) {
-        console.warn('[useCollection] Blocking unauthorized query for:', collectionName);
+        console.warn('[useCollection] Unauthorized access attempt blocked for:', collectionName);
         setData([]);
         setIsLoading(false);
         return;
       }
       
-      // Inject ownership filter before listener is created
-      // Note: 'ownerUid' is the standard field used in SalesStream rules
+      // Inject ownership filter before establishing listener
       finalQuery = query(finalQuery, where('ownerUid', '==', user.uid));
       console.log('[useCollection] Injected ownerUid filter for:', collectionName, user.uid);
     }
@@ -106,7 +94,7 @@ export function useCollection<T = any>(
     setIsLoading(true);
     setError(null);
 
-    // 3. ESTABLISH LISTENER
+    // 3. SNAPHOT LISTENER
     const unsubscribe = onSnapshot(
       finalQuery,
       (snapshot: QuerySnapshot<DocumentData>) => {
@@ -119,7 +107,7 @@ export function useCollection<T = any>(
         setIsLoading(false);
       },
       (firestoreError: FirestoreError) => {
-        console.error(`[useCollection] Permission Denied on path: /${collectionName}. Ensure query includes ownerUid filter.`);
+        console.error(`[useCollection] Permission Denied: /${collectionName}. Check rules vs ownerUid query.`);
         
         const contextualError = new FirestorePermissionError({
           operation: 'list',
