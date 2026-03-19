@@ -1,9 +1,9 @@
 'use client';
 
 import { useState, useCallback } from 'react';
-import { useCollection, useFirestore, useUser, useMemoFirebase } from '@/firebase';
-import { collection, query, serverTimestamp, addDoc, deleteDoc, doc, updateDoc, where } from 'firebase/firestore';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
+import { useCollection, useFirestore, useUser, useMemoFirebase, addDocumentNonBlocking, updateDocumentNonBlocking, deleteDocumentNonBlocking } from '@/firebase';
+import { collection, query, serverTimestamp, doc, where } from 'firebase/firestore';
+import { Card, CardContent, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -58,7 +58,7 @@ export default function TrainingPage() {
   const [selectedSubject, setSelectedSubject] = useState('all');
   const [isAddOpen, setIsAddOpen] = useState(false);
   const [isNewSubjectOpen, setIsNewSubjectOpen] = useState(false);
-  const [editingMaterial, setEditingNote] = useState<TrainingMaterial | null>(null);
+  const [editingMaterial, setEditingMaterial] = useState<TrainingMaterial | null>(null);
   const [editingSubject, setEditingSubject] = useState<string | null>(null);
   const [uploadedFiles, setUploadedFiles] = useState<File[]>([]);
   const [uploadProgress, setUploadProgress] = useState<Record<string, number>>({});
@@ -119,7 +119,7 @@ export default function TrainingPage() {
     };
 
     if (editingMaterial) {
-      await updateDoc(doc(db, 'training_materials', editingMaterial.id), {
+      updateDocumentNonBlocking(doc(db, 'training_materials', editingMaterial.id), {
         ...baseMaterial,
         title: formData.get('title') as string,
       });
@@ -127,7 +127,7 @@ export default function TrainingPage() {
     } else {
       if (type === 'pdf' && uploadedFiles.length > 0) {
         for (const file of uploadedFiles) {
-          await addDoc(collection(db, 'training_materials'), {
+          addDocumentNonBlocking(collection(db, 'training_materials'), {
             ...baseMaterial,
             title: file.name,
             type: 'pdf',
@@ -136,7 +136,7 @@ export default function TrainingPage() {
           });
         }
       } else {
-        await addDoc(collection(db, 'training_materials'), {
+        addDocumentNonBlocking(collection(db, 'training_materials'), {
           ...baseMaterial,
           title: formData.get('title') as string,
           type: 'link',
@@ -148,7 +148,7 @@ export default function TrainingPage() {
     }
 
     setIsAddOpen(false);
-    setEditingNote(null);
+    setEditingMaterial(null);
     setUploadedFiles([]);
     setUploadProgress({});
   };
@@ -170,15 +170,10 @@ export default function TrainingPage() {
     }
   };
 
-  const handleDeleteMaterial = async (id: string) => {
+  const handleDeleteMaterial = (id: string) => {
     if (!db) return;
-    await deleteDoc(doc(db, 'training_materials', id));
+    deleteDocumentNonBlocking(doc(db, 'training_materials', id));
     toast({ title: "Resource Removed", description: "Deleted from library." });
-  };
-
-  const handleDeleteSubject = (subjectName: string) => {
-    setSubjects(prev => prev.filter(s => s !== subjectName));
-    toast({ title: "Subject Deleted", description: `'${subjectName}' removed from categories.` });
   };
 
   return (
@@ -192,7 +187,7 @@ export default function TrainingPage() {
           <Button variant="outline" size="icon" className="h-14 w-14 rounded-2xl border-2">
             <Settings2 className="h-6 w-6" />
           </Button>
-          <Button onClick={() => { setEditingNote(null); setIsAddOpen(true); }} className="bg-primary shadow-xl shadow-primary/20 h-14 px-8 rounded-2xl font-black uppercase tracking-widest text-xs gap-3">
+          <Button onClick={() => { setEditingMaterial(null); setIsAddOpen(true); }} className="bg-primary shadow-xl shadow-primary/20 h-14 px-8 rounded-2xl font-black uppercase tracking-widest text-xs gap-3">
             <Upload className="h-6 w-6" /> Upload Material
           </Button>
         </div>
@@ -221,7 +216,7 @@ export default function TrainingPage() {
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end">
                       <DropdownMenuItem onClick={() => { setEditingSubject(s); setIsNewSubjectOpen(true); }}><Edit2 className="h-4 w-4 mr-2" /> Rename</DropdownMenuItem>
-                      <DropdownMenuItem className="text-rose-500" onClick={() => handleDeleteSubject(s)}><Trash2 className="h-4 w-4 mr-2" /> Delete</DropdownMenuItem>
+                      <DropdownMenuItem className="text-rose-500" onClick={() => setSubjects(prev => prev.filter(sub => sub !== s))}><Trash2 className="h-4 w-4 mr-2" /> Delete</DropdownMenuItem>
                     </DropdownMenuContent>
                   </DropdownMenu>
                 </div>
@@ -263,7 +258,7 @@ export default function TrainingPage() {
                           <Button variant="ghost" size="icon" className="h-8 w-8 opacity-0 group-hover:opacity-100 transition-opacity"><MoreVertical className="h-4 w-4" /></Button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end">
-                          <DropdownMenuItem onClick={() => { setEditingNote(m); setIsAddOpen(true); }}><Edit2 className="h-4 w-4 mr-2" /> Edit</DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => { setEditingMaterial(m); setIsAddOpen(true); }}><Edit2 className="h-4 w-4 mr-2" /> Edit</DropdownMenuItem>
                           <DropdownMenuItem className="text-rose-500" onClick={() => handleDeleteMaterial(m.id)}><Trash2 className="h-4 w-4 mr-2" /> Delete</DropdownMenuItem>
                         </DropdownMenuContent>
                       </DropdownMenu>

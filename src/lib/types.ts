@@ -24,6 +24,8 @@ export interface UserProfile {
   language: string;
   currency: string;
   tabLayouts: Record<string, TabPreferences>;
+  organization?: string;
+  displayName?: string;
 }
 
 export interface Lead {
@@ -50,7 +52,7 @@ export interface Lead {
 
 export interface Contact {
   id: string;
-  userId: string;
+  ownerUid: string;
   name: string;
   phone: string;
   secondaryPhone?: string;
@@ -91,18 +93,19 @@ export interface CalendarEvent {
 
 export interface TrainingMaterial {
   id: string;
-  userId: string;
+  ownerUid: string;
   title: string;
   subject: string;
   content: string;
   type?: 'pdf' | 'link' | 'video' | 'doc' | 'image';
   fileUrl?: string;
   createdAt: any;
+  updatedAt: any;
 }
 
 export interface UserNote {
   id: string;
-  userId: string;
+  ownerUid: string;
   title: string;
   content: string;
   tags: string[];

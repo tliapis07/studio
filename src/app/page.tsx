@@ -36,16 +36,13 @@ export default function LoginPage() {
     
     try {
       await signInWithPopup(auth, provider);
-      // Redirect will be handled by the useEffect
     } catch (err: any) {
-      if (err.code === 'auth/popup-closed-by-user') {
-        setIsLoading(false);
-        return; // User cancelled, no need for a scary error toast
-      }
+      setIsLoading(false);
+      // Silence standard "user closed popup" errors
+      if (err.code === 'auth/popup-closed-by-user') return;
       
       console.error("Google Sign-in Error:", err);
       let message = "Could not establish a secure session.";
-      
       if (err.code === 'auth/operation-not-allowed') {
         message = "Google Sign-in is not enabled in Firebase Console.";
       }
@@ -55,7 +52,6 @@ export default function LoginPage() {
         title: "Authentication Failed", 
         description: message 
       });
-      setIsLoading(false);
     }
   };
 
@@ -65,13 +61,13 @@ export default function LoginPage() {
     try {
       await signInAnonymously(auth);
     } catch (err: any) {
+      setIsLoading(false);
       console.error("Anonymous Sign-in Error:", err);
       toast({
         variant: "destructive",
         title: "Demo Access Failed",
         description: "Anonymous sign-in is disabled or blocked.",
       });
-      setIsLoading(false);
     }
   };
 
@@ -84,17 +80,6 @@ export default function LoginPage() {
           <Loader2 className="h-10 w-10 animate-spin text-primary" />
           <p className="text-xs font-black uppercase tracking-widest text-muted-foreground animate-pulse">Establishing Secure Session...</p>
         </div>
-      </div>
-    );
-  }
-
-  // If user is already logged in, show a "Continue" button as fallback if redirect is slow
-  if (user) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-background dark">
-        <Button onClick={() => router.push('/dashboard')} className="gap-2 h-14 px-8 rounded-2xl font-black uppercase tracking-widest">
-          Enter Dashboard <ArrowRight className="h-5 w-5" />
-        </Button>
       </div>
     );
   }

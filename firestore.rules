@@ -11,24 +11,58 @@ service cloud.firestore {
       return request.auth != null;
     }
 
+    // Checks if the existing document is owned by the requester
     function isOwner() {
       return isSignedIn() && resource.data.ownerUid == request.auth.uid;
     }
 
-    function isCreatingAsOwner() {
+    // Checks if the new data being written assigns the requester as owner
+    function isAssigningToSelf() {
       return isSignedIn() && request.resource.data.ownerUid == request.auth.uid;
     }
 
-    // User Profile Rules
+    // User Profile Rules: Path-based ownership
     match /users/{userId} {
       allow read, write: if isSignedIn() && request.auth.uid == userId;
     }
 
-    // Global rule for all organizational data collections
-    match /{collectionName}/{docId} {
+    // Specific rules for root-level organizational collections
+    // This structure ensures that 'list' operations MUST include an ownerUid filter.
+    
+    match /leads/{leadId} {
       allow read, delete: if isOwner();
-      allow create: if isCreatingAsOwner();
-      allow update: if isOwner() && isCreatingAsOwner();
+      allow create: if isAssigningToSelf();
+      allow update: if isOwner(); // Allow owner to update, including reassignment
+    }
+
+    match /contacts/{contactId} {
+      allow read, delete: if isOwner();
+      allow create: if isAssigningToSelf();
+      allow update: if isOwner();
+    }
+
+    match /notes/{noteId} {
+      allow read, delete: if isOwner();
+      allow create: if isAssigningToSelf();
+      allow update: if isOwner();
+    }
+
+    match /activities/{activityId} {
+      allow read, delete: if isOwner();
+      allow create: if isAssigningToSelf();
+      allow update: if isOwner();
+    }
+
+    match /calendarEvents/{eventId} {
+      allow read, delete: if isOwner();
+      allow create: if isAssigningToSelf();
+      allow update: if isOwner();
+    }
+
+    match /training_materials/{materialId} {
+      allow read, delete: if isOwner();
+      allow create: if isAssigningToSelf();
+      allow update: if isOwner();
     }
   }
 }
