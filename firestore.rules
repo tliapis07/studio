@@ -3,128 +3,80 @@ service cloud.firestore {
   match /databases/{database}/documents {
 
     /**
-     * SalesStream Security Rules
-     *
-     * CORE PHILOSOPHY:
-     * This ruleset implements a strict user-ownership model. All application data is siloed 
-     * within top-level user documents to ensure data privacy and high performance. 
-     * Authorization is primarily derived from the user's authenticated UID matching 
-     * the document path.
-     *
-     * DATA STRUCTURE:
-     * - /users/{userId}: The root profile for each user, containing settings and preferences.
-     * - /users/{userId}/leads/{leadId}: Sales opportunities owned by the user.
-     * - /users/{userId}/tags/{tagId}: Reusable organizational categories defined by the user.
-     * - /users/{userId}/leads/{leadId}/activities/{activityId}: Interaction history for specific leads.
-     *
-     * KEY SECURITY DECISIONS:
-     * 1. Path-Based Authorization: All data is nested under the user's UID. Access is denied 
-     *    unless request.auth.uid matches the {userId} wildcard in the path.
-     * 2. Denormalization: Ownership fields (ownerUid) are required on Leads and Tags to 
-     *    provide defense-in-depth and simplify write operations.
-     * 3. Prototyping Flexibility: Rules do not enforce strict data types or full object 
-     *    shapes, allowing for rapid front-end iteration.
-     * 4. Relational Integrity: On creation of new documents, the rules enforce that internal 
-     *    ownership IDs match the authenticated user and the storage path.
+     * SalesStream Security Rules (Optimized for Root-Level Collections)
      */
 
-    // --- HELPER FUNCTIONS ---
-
-    /** @description Checks if the user is authenticated. */
     function isSignedIn() {
       return request.auth != null;
     }
 
-    /** @description Checks if the authenticated user's UID matches the provided userId. */
     function isOwner(userId) {
       return isSignedIn() && request.auth.uid == userId;
     }
 
-    /** @description Checks ownership and ensures the document exists for update/delete. */
-    function isExistingOwner(userId) {
-      return resource != null && isOwner(userId);
+    function isDocOwner() {
+      return isSignedIn() && (
+        resource == null || 
+        resource.data.ownerUid == request.auth.uid || 
+        resource.data.userId == request.auth.uid || 
+        resource.data.ownerId == request.auth.uid
+      );
     }
 
-    /** @description Verifies ownership of a parent Lead document via a get() call. */
-    function isParentLeadOwner(userId, leadId) {
-      return get(/databases/$(database)/documents/users/$(userId)/leads/$(leadId)).data.ownerUid == request.auth.uid;
+    function isWriteOwner() {
+      return isSignedIn() && (
+        request.resource.data.ownerUid == request.auth.uid || 
+        request.resource.data.userId == request.auth.uid || 
+        request.resource.data.ownerId == request.auth.uid
+      );
     }
 
-    // --- COLLECTION RULES ---
-
-    /**
-     * @description Rules for UserProfile documents.
-     * @path /users/{userId}
-     * @allow Authenticated user with UID 'abc' to get/list their own profile (get, list).
-     * @deny User 'xyz' attempting to update profile 'abc' (update).
-     * @principle Restricts access to a user's own data tree and validates ID consistency.
-     */
+    // User Profile Rules
     match /users/{userId} {
-      allow get, list: if isOwner(userId);
-      
-      allow create: if isOwner(userId) 
-        && request.resource.data.id == userId;
-      
-      allow update: if isExistingOwner(userId) 
-        && request.resource.data.id == resource.data.id;
-      
-      allow delete: if isExistingOwner(userId);
+      allow read, write: if isOwner(userId);
+    }
 
-      /**
-       * @description Rules for Lead documents.
-       * @path /users/{userId}/leads/{leadId}
-       * @allow User 'abc' creating a lead where ownerUid is 'abc' (create).
-       * @deny User 'abc' trying to read leads under /users/xyz/leads (list).
-       * @principle Enforces document ownership and relational integrity via denormalized ownerUid.
-       */
-      match /leads/{leadId} {
-        allow get, list: if isOwner(userId);
-        
-        allow create: if isOwner(userId) 
-          && request.resource.data.ownerUid == userId;
-        
-        allow update: if isExistingOwner(userId) 
-          && request.resource.data.ownerUid == resource.data.ownerUid;
-        
-        allow delete: if isExistingOwner(userId);
+    // Root-Level Data Collections (Leads, Contacts, Notes, etc.)
+    match /leads/{docId} {
+      allow read, delete: if isDocOwner();
+      allow create: if isWriteOwner();
+      allow update: if isDocOwner() && isWriteOwner();
+    }
 
-        /**
-         * @description Rules for Activity documents.
-         * @path /users/{userId}/leads/{leadId}/activities/{activityId}
-         * @allow User 'abc' adding a note to their own lead (create).
-         * @deny User 'abc' deleting an activity belonging to lead 'L123' owned by 'xyz' (delete).
-         * @principle Hierarchy-based security supplemented by a parent document ownership check.
-         */
-        match /activities/{activityId} {
-          allow get, list: if isOwner(userId);
-          
-          // CRITICAL: Activity schema is missing ownerUid. Using parent Lead check.
-          allow create: if isOwner(userId) && isParentLeadOwner(userId, leadId);
-          
-          allow update: if isExistingOwner(userId) && isParentLeadOwner(userId, leadId);
-          
-          allow delete: if isExistingOwner(userId) && isParentLeadOwner(userId, leadId);
-        }
-      }
+    match /contacts/{docId} {
+      allow read, delete: if isDocOwner();
+      allow create: if isWriteOwner();
+      allow update: if isDocOwner() && isWriteOwner();
+    }
 
-      /**
-       * @description Rules for Tag documents.
-       * @path /users/{userId}/tags/{tagId}
-       * @allow User 'abc' creating a 'Hot' tag with ownerUid 'abc' (create).
-       * @deny User 'abc' modifying a tag created by user 'xyz' (update).
-       * @principle Enforces owner-only writes and ensures tags remain within the creator's scope.
-       */
-      match /tags/{tagId} {
-        allow get, list: if isOwner(userId);
-        
-        allow create: if isOwner(userId) 
-          && request.resource.data.ownerUid == userId;
-        
-        allow update: if isExistingOwner(userId) 
-          && request.resource.data.ownerUid == resource.data.ownerUid;
-        
-        allow delete: if isExistingOwner(userId);
-      }
+    match /notes/{docId} {
+      allow read, delete: if isDocOwner();
+      allow create: if isWriteOwner();
+      allow update: if isDocOwner() && isWriteOwner();
+    }
+
+    match /calendarEvents/{docId} {
+      allow read, delete: if isDocOwner();
+      allow create: if isWriteOwner();
+      allow update: if isDocOwner() && isWriteOwner();
+    }
+
+    match /activities/{docId} {
+      allow read, delete: if isDocOwner();
+      allow create: if isWriteOwner();
+      allow update: if isDocOwner() && isWriteOwner();
+    }
+
+    match /training_materials/{docId} {
+      allow read, delete: if isDocOwner();
+      allow create: if isWriteOwner();
+      allow update: if isDocOwner() && isWriteOwner();
+    }
+
+    match /training_subjects/{docId} {
+      allow read, delete: if isDocOwner();
+      allow create: if isWriteOwner();
+      allow update: if isDocOwner() && isWriteOwner();
     }
   }
 }

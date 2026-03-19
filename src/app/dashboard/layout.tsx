@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -62,12 +61,14 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             <span className="text-[10px] text-muted-foreground uppercase tracking-widest font-bold">Partner View</span>
           </div>
         </SidebarHeader>
-        <SidebarContent>
-          <NavMain />
-          <div className="mt-auto px-4 pb-4 space-y-2">
-             <SidebarTrigger className="w-full justify-start gap-3 h-10 px-3 hover:bg-muted/50 rounded-lg text-muted-foreground">
+        <SidebarContent className="flex flex-col">
+          <div className="flex-1">
+            <NavMain />
+          </div>
+          <div className="px-4 pb-4 space-y-4">
+             <SidebarTrigger className="w-full justify-start gap-3 h-10 px-3 hover:bg-muted/50 rounded-lg text-muted-foreground border-t border-border/20 pt-4 mt-4">
                 <PanelLeftClose className="h-4 w-4" />
-                <span className="text-xs font-bold uppercase tracking-widest group-data-[collapsible=icon]:hidden">Minimize</span>
+                <span className="text-xs font-bold uppercase tracking-widest group-data-[collapsible=icon]:hidden">Minimize Sidebar</span>
              </SidebarTrigger>
           </div>
         </SidebarContent>
