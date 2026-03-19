@@ -3,80 +3,59 @@ service cloud.firestore {
   match /databases/{database}/documents {
 
     /**
-     * SalesStream Security Rules (Optimized for Root-Level Collections)
+     * SalesStream Security Rules
+     * Optimized for per-collection ownership validation.
      */
 
     function isSignedIn() {
       return request.auth != null;
     }
 
-    function isOwner(userId) {
-      return isSignedIn() && request.auth.uid == userId;
-    }
-
-    function isDocOwner() {
-      return isSignedIn() && (
-        resource == null || 
-        resource.data.ownerUid == request.auth.uid || 
-        resource.data.userId == request.auth.uid || 
-        resource.data.ownerId == request.auth.uid
-      );
-    }
-
-    function isWriteOwner() {
-      return isSignedIn() && (
-        request.resource.data.ownerUid == request.auth.uid || 
-        request.resource.data.userId == request.auth.uid || 
-        request.resource.data.ownerId == request.auth.uid
-      );
-    }
-
     // User Profile Rules
     match /users/{userId} {
-      allow read, write: if isOwner(userId);
+      allow read, write: if isSignedIn() && request.auth.uid == userId;
     }
 
-    // Root-Level Data Collections (Leads, Contacts, Notes, etc.)
+    // Leads Rules
     match /leads/{docId} {
-      allow read, delete: if isDocOwner();
-      allow create: if isWriteOwner();
-      allow update: if isDocOwner() && isWriteOwner();
+      allow read, delete: if isSignedIn() && resource.data.ownerUid == request.auth.uid;
+      allow create: if isSignedIn() && request.resource.data.ownerUid == request.auth.uid;
+      allow update: if isSignedIn() && resource.data.ownerUid == request.auth.uid && request.resource.data.ownerUid == request.auth.uid;
     }
 
+    // Contacts Rules
     match /contacts/{docId} {
-      allow read, delete: if isDocOwner();
-      allow create: if isWriteOwner();
-      allow update: if isDocOwner() && isWriteOwner();
+      allow read, delete: if isSignedIn() && resource.data.userId == request.auth.uid;
+      allow create: if isSignedIn() && request.resource.data.userId == request.auth.uid;
+      allow update: if isSignedIn() && resource.data.userId == request.auth.uid && request.resource.data.userId == request.auth.uid;
     }
 
+    // Notes Rules
     match /notes/{docId} {
-      allow read, delete: if isDocOwner();
-      allow create: if isWriteOwner();
-      allow update: if isDocOwner() && isWriteOwner();
+      allow read, delete: if isSignedIn() && resource.data.userId == request.auth.uid;
+      allow create: if isSignedIn() && request.resource.data.userId == request.auth.uid;
+      allow update: if isSignedIn() && resource.data.userId == request.auth.uid && request.resource.data.userId == request.auth.uid;
     }
 
+    // Calendar Events Rules
     match /calendarEvents/{docId} {
-      allow read, delete: if isDocOwner();
-      allow create: if isWriteOwner();
-      allow update: if isDocOwner() && isWriteOwner();
+      allow read, delete: if isSignedIn() && resource.data.ownerUid == request.auth.uid;
+      allow create: if isSignedIn() && request.resource.data.ownerUid == request.auth.uid;
+      allow update: if isSignedIn() && resource.data.ownerUid == request.auth.uid && request.resource.data.ownerUid == request.auth.uid;
     }
 
+    // Activities Rules
     match /activities/{docId} {
-      allow read, delete: if isDocOwner();
-      allow create: if isWriteOwner();
-      allow update: if isDocOwner() && isWriteOwner();
+      allow read, delete: if isSignedIn() && resource.data.ownerUid == request.auth.uid;
+      allow create: if isSignedIn() && request.resource.data.ownerUid == request.auth.uid;
+      allow update: if isSignedIn() && resource.data.ownerUid == request.auth.uid && request.resource.data.ownerUid == request.auth.uid;
     }
 
+    // Training Materials Rules
     match /training_materials/{docId} {
-      allow read, delete: if isDocOwner();
-      allow create: if isWriteOwner();
-      allow update: if isDocOwner() && isWriteOwner();
-    }
-
-    match /training_subjects/{docId} {
-      allow read, delete: if isDocOwner();
-      allow create: if isWriteOwner();
-      allow update: if isDocOwner() && isWriteOwner();
+      allow read, delete: if isSignedIn() && resource.data.userId == request.auth.uid;
+      allow create: if isSignedIn() && request.resource.data.userId == request.auth.uid;
+      allow update: if isSignedIn() && resource.data.userId == request.auth.uid && request.resource.data.userId == request.auth.uid;
     }
   }
 }

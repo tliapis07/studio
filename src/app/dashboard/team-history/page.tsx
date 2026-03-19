@@ -43,7 +43,13 @@ export default function TeamHistoryPage() {
 
   const historyQuery = useMemoFirebase(() => {
     if (!db || !user) return null;
-    return query(collection(db, 'activities'), orderBy('createdAt', 'desc'), limit(100));
+    // Security Rule Alignment: Must filter by ownerUid to pass permissions check on root collection
+    return query(
+      collection(db, 'activities'), 
+      where('ownerUid', '==', user.uid),
+      orderBy('createdAt', 'desc'), 
+      limit(100)
+    );
   }, [db, user]);
 
   const { data: activities, isLoading } = useCollection<any>(historyQuery);
@@ -58,7 +64,7 @@ export default function TeamHistoryPage() {
       
       try {
         const date = a.createdAt?.toDate ? a.createdAt.toDate() : new Date(a.createdAt);
-        if (!isValid(date)) return true; // Show malformed dates instead of crashing
+        if (!isValid(date)) return true;
         
         const daysAgo = parseInt(dateRange);
         return isWithinInterval(date, { 

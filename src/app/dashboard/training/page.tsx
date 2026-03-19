@@ -1,9 +1,8 @@
-
 'use client';
 
 import { useState, useCallback } from 'react';
 import { useCollection, useFirestore, useUser, useMemoFirebase } from '@/firebase';
-import { collection, query, serverTimestamp, addDoc, deleteDoc, doc, updateDoc } from 'firebase/firestore';
+import { collection, query, serverTimestamp, addDoc, deleteDoc, doc, updateDoc, where } from 'firebase/firestore';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -68,7 +67,8 @@ export default function TrainingPage() {
 
   const trainingQuery = useMemoFirebase(() => {
     if (!db || !user) return null;
-    return query(collection(db, 'training_materials'));
+    // Security Rule Alignment: Must filter by userId to pass permissions check on root collection
+    return query(collection(db, 'training_materials'), where('userId', '==', user.uid));
   }, [db, user]);
 
   const { data: materials, isLoading } = useCollection<TrainingMaterial>(trainingQuery);
