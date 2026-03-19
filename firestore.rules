@@ -4,11 +4,19 @@ service cloud.firestore {
 
     /**
      * SalesStream Security Rules
-     * Optimized for per-collection ownership validation.
+     * Optimized for per-collection ownership validation using ownerUid.
      */
 
     function isSignedIn() {
       return request.auth != null;
+    }
+
+    function isOwner() {
+      return isSignedIn() && resource.data.ownerUid == request.auth.uid;
+    }
+
+    function isCreatingAsOwner() {
+      return isSignedIn() && request.resource.data.ownerUid == request.auth.uid;
     }
 
     // User Profile Rules
@@ -16,46 +24,11 @@ service cloud.firestore {
       allow read, write: if isSignedIn() && request.auth.uid == userId;
     }
 
-    // Leads Rules
-    match /leads/{docId} {
-      allow read, delete: if isSignedIn() && resource.data.ownerUid == request.auth.uid;
-      allow create: if isSignedIn() && request.resource.data.ownerUid == request.auth.uid;
-      allow update: if isSignedIn() && resource.data.ownerUid == request.auth.uid && request.resource.data.ownerUid == request.auth.uid;
-    }
-
-    // Contacts Rules
-    match /contacts/{docId} {
-      allow read, delete: if isSignedIn() && resource.data.userId == request.auth.uid;
-      allow create: if isSignedIn() && request.resource.data.userId == request.auth.uid;
-      allow update: if isSignedIn() && resource.data.userId == request.auth.uid && request.resource.data.userId == request.auth.uid;
-    }
-
-    // Notes Rules
-    match /notes/{docId} {
-      allow read, delete: if isSignedIn() && resource.data.userId == request.auth.uid;
-      allow create: if isSignedIn() && request.resource.data.userId == request.auth.uid;
-      allow update: if isSignedIn() && resource.data.userId == request.auth.uid && request.resource.data.userId == request.auth.uid;
-    }
-
-    // Calendar Events Rules
-    match /calendarEvents/{docId} {
-      allow read, delete: if isSignedIn() && resource.data.ownerUid == request.auth.uid;
-      allow create: if isSignedIn() && request.resource.data.ownerUid == request.auth.uid;
-      allow update: if isSignedIn() && resource.data.ownerUid == request.auth.uid && request.resource.data.ownerUid == request.auth.uid;
-    }
-
-    // Activities Rules
-    match /activities/{docId} {
-      allow read, delete: if isSignedIn() && resource.data.ownerUid == request.auth.uid;
-      allow create: if isSignedIn() && request.resource.data.ownerUid == request.auth.uid;
-      allow update: if isSignedIn() && resource.data.ownerUid == request.auth.uid && request.resource.data.ownerUid == request.auth.uid;
-    }
-
-    // Training Materials Rules
-    match /training_materials/{docId} {
-      allow read, delete: if isSignedIn() && resource.data.userId == request.auth.uid;
-      allow create: if isSignedIn() && request.resource.data.userId == request.auth.uid;
-      allow update: if isSignedIn() && resource.data.userId == request.auth.uid && request.resource.data.userId == request.auth.uid;
+    // Global rule for all organizational data collections
+    match /{collectionName}/{docId} {
+      allow read, delete: if isOwner();
+      allow create: if isCreatingAsOwner();
+      allow update: if isOwner() && isCreatingAsOwner();
     }
   }
 }

@@ -73,8 +73,8 @@ export default function ContactsPage() {
 
   const contactsQueryStable = useMemoFirebase(() => {
     if (!db || !user) return null;
-    // Security Rule Alignment: Root collection read requires filtering by userId/ownerUid
-    return query(collection(db, 'contacts'), where('userId', '==', user.uid));
+    // Security Rule Alignment: Must filter by ownerUid to pass permissions check
+    return query(collection(db, 'contacts'), where('ownerUid', '==', user.uid));
   }, [db, user]);
 
   const { data: contacts, isLoading } = useCollection<Contact>(contactsQueryStable);
@@ -97,7 +97,7 @@ export default function ContactsPage() {
     const formData = new FormData(e.currentTarget);
     const selectedTags = Array.from(formData.getAll('tags')) as string[];
     const contactData = {
-      userId: user.uid,
+      ownerUid: user.uid,
       name: formData.get('name') as string,
       email: formData.get('email') as string,
       phone: formData.get('phone') as string,
@@ -316,7 +316,7 @@ export default function ContactsPage() {
                 onChange={(e) => setNewTagInput(e.target.value)}
                 onKeyDown={(e) => e.key === 'Enter' && addNewTag()}
               />
-              <Button onClick={addNewTag} size="icon" className="h-11 w-11 rounded-xl"><Plus className="h-5 w-5" /></Button>
+              <Button addNewTag size="icon" className="h-11 w-11 rounded-xl"><Plus className="h-5 w-5" /></Button>
             </div>
             <div className="space-y-2">
               {availableTags.map(tag => (

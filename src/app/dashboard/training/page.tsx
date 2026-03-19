@@ -67,8 +67,8 @@ export default function TrainingPage() {
 
   const trainingQuery = useMemoFirebase(() => {
     if (!db || !user) return null;
-    // Security Rule Alignment: Must filter by userId to pass permissions check on root collection
-    return query(collection(db, 'training_materials'), where('userId', '==', user.uid));
+    // Security Rule Alignment: Must filter by ownerUid to pass permissions check
+    return query(collection(db, 'training_materials'), where('ownerUid', '==', user.uid));
   }, [db, user]);
 
   const { data: materials, isLoading } = useCollection<TrainingMaterial>(trainingQuery);
@@ -112,7 +112,7 @@ export default function TrainingPage() {
     const type = formData.get('type') as string;
 
     const baseMaterial = {
-      userId: user.uid,
+      ownerUid: user.uid,
       subject: formData.get('subject') as string,
       content: formData.get('content') as string,
       updatedAt: serverTimestamp(),

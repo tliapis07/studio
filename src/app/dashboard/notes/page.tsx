@@ -32,8 +32,8 @@ export default function NotesPage() {
 
   const notesQueryStable = useMemoFirebase(() => {
     if (!db || !user) return null;
-    // Security Rule Alignment: Must filter by userId to pass permissions check
-    return query(collection(db, 'notes'), where('userId', '==', user.uid), orderBy('createdAt', 'desc'));
+    // Security Rule Alignment: Must filter by ownerUid to pass permissions check
+    return query(collection(db, 'notes'), where('ownerUid', '==', user.uid), orderBy('createdAt', 'desc'));
   }, [db, user]);
 
   const { data: notes, isLoading } = useCollection<UserNote>(notesQueryStable);
@@ -55,7 +55,7 @@ export default function NotesPage() {
     const formData = new FormData(e.currentTarget);
     const selectedTags = Array.from(formData.getAll('tags')) as string[];
     const noteData = {
-      userId: user.uid,
+      ownerUid: user.uid,
       title: formData.get('title') as string,
       content: formData.get('content') as string,
       tags: selectedTags,
