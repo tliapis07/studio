@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">SalesStream</string>
+    <string name="title_activity_main">SalesStream</string>
+    <string name="package_name">com.timnyc.salesstream</string>
+    <string name="custom_url_scheme">com.timnyc.salesstream</string>
+</resources>

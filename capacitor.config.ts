@@ -3,7 +3,7 @@ import { CapacitorConfig } from '@capacitor/cli';
 const config: CapacitorConfig = {
   appId: 'com.timnyc.salesstream',
   appName: 'SalesStream',
-  webDir: 'C:/Users/Tim/Desktop/SalesStream/App Publishes',
+  webDir: 'out',
   server: {
     androidScheme: 'https'
   },

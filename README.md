@@ -18,7 +18,7 @@ We use **Capacitor** to wrap the static site into native binaries.
 **First-time Setup:**
 1. Add the Android platform:
    ```bash
-   npx cap add android
+   npm run cap:add
    ```
 2. (Optional) Add iOS:
    ```bash
@@ -26,7 +26,7 @@ We use **Capacitor** to wrap the static site into native binaries.
    ```
 
 **Routine Sync & Launch:**
-- **Sync changes:** `npx cap sync` (This pulls the `out/` directory into native platforms)
+- **Sync changes:** `npm run cap:sync` (This pulls the `out/` directory into native platforms)
 - **Open in IDE:** `npx cap open android` or `npx cap open ios`
 - **Build APK:** In Android Studio, go to `Build > Build Bundle(s) / APK(s) > Build APK(s)`.
 

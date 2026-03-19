@@ -7,7 +7,8 @@ import LeadDetailClient from './LeadDetailClient';
  * export compatibility, we use generateStaticParams and dynamicParams = false.
  */
 
-// Required for static export with dynamic routes
+// Required for static export with dynamic routes. 
+// Note: 'false' is required when output: 'export' is used.
 export const dynamicParams = false;
 
 export async function generateStaticParams() {
