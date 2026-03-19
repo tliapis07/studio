@@ -6,7 +6,6 @@ import { ThemeProvider } from '@/components/ThemeProvider';
 export const metadata: Metadata = {
   title: 'SalesStream | AI-Powered Team Velocity',
   description: 'The high-performance partner portal for organizational sales management.',
-  // Optimization: Removed manifest to prevent Workstation CORS errors and ERR_BLOCKED_BY_CLIENT
   appleWebApp: {
     capable: true,
     statusBarStyle: 'default',

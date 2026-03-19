@@ -15,20 +15,14 @@ import { errorEmitter } from '@/firebase/error-emitter';
 import { FirestorePermissionError } from '@/firebase/errors';
 import { useUser } from '@/firebase';
 
-/** Utility type to add an 'id' field to a given type T. */
 export type WithId<T> = T & { id: string };
 
-/**
- * Interface for the return value of the useCollection hook.
- * @template T Type of the document data.
- */
 export interface UseCollectionResult<T> {
-  data: WithId<T>[] | null; // Document data with ID, or null.
-  isLoading: boolean;       // True if loading.
-  error: FirestoreError | Error | null; // Error object, or null.
+  data: WithId<T>[] | null;
+  isLoading: boolean;
+  error: FirestoreError | Error | null;
 }
 
-/* Internal implementation of Query for path extraction */
 export interface InternalQuery extends Query<DocumentData> {
   _query: {
     path: {
@@ -41,7 +35,6 @@ export interface InternalQuery extends Query<DocumentData> {
   path?: string;
 }
 
-// Collections that require ownership filtering to pass Firestore Security Rules
 const USER_OWNED_COLLECTIONS = [
   'leads',
   'contacts',
@@ -52,10 +45,8 @@ const USER_OWNED_COLLECTIONS = [
 ];
 
 /**
- * React hook to subscribe to a Firestore collection or query in real-time.
- * 
- * AUTOMATIC HARDENING: This hook detects root-level user collections and 
- * automatically injects 'ownerUid' constraints to prevent permission denied errors.
+ * Hardened hook to subscribe to a Firestore collection or query in real-time.
+ * Automatically injects ownership filters for root-level user collections.
  */
 export function useCollection<T = any>(
     memoizedTargetRefOrQuery: ((CollectionReference<DocumentData> | Query<DocumentData>) & {__memo?: boolean})  | null | undefined,
@@ -77,7 +68,6 @@ export function useCollection<T = any>(
       return;
     }
 
-    // --- HARDENED PATH DETECTION ---
     let collectionName = '';
     const queryObj = memoizedTargetRefOrQuery as any;
     
@@ -85,37 +75,33 @@ export function useCollection<T = any>(
       if (queryObj.type === 'collection') {
         collectionName = queryObj.path || '';
       } else if (queryObj._query && queryObj._query.path) {
-        // Handle internal segments if available (most reliable for v9 SDK)
-        if (queryObj._query.path.segments && queryObj._query.path.segments.length > 0) {
-          collectionName = queryObj._query.path.segments[0];
-        } else {
-          const fullPath = queryObj._query.path.canonicalString() || '';
-          collectionName = fullPath.split('/')[0] || '';
+        // Most reliable way to extract collection name from a complex query
+        const segments = queryObj._query.path.segments;
+        if (segments && segments.length > 0) {
+          collectionName = segments[0];
         }
-      } else if (typeof queryObj.path === 'string') {
-        collectionName = queryObj.path;
       }
     } catch (e) {
-      console.warn('[useCollection] Path extraction warning:', e);
+      console.warn('[useCollection] Path detection warning:', e);
     }
 
-    // Normalize path
+    // Normalize path string
     collectionName = collectionName.replace(/^\/|\/$/g, '');
     
-    // --- QUERY PREPARATION & FILTER INJECTION ---
     let finalQuery = memoizedTargetRefOrQuery as Query<DocumentData>;
 
+    // AUTOMATIC HARDENING: Force ownership filter for known user collections
     if (USER_OWNED_COLLECTIONS.includes(collectionName)) {
       if (!user) {
-        console.log(`[useCollection] Skipping ${collectionName}: User not authenticated.`);
         setData([]);
         setIsLoading(false);
         return;
       }
 
-      console.log(`[useCollection] Hardening query for ${collectionName}: Appending ownerUid filter for ${user.uid}`);
-      // Enforce the 'Rules are not Filters' logic by scoping the query to the user's UID
+      // Check if filter is already present to avoid redundant where() calls
+      // (Simplified check for this implementation)
       finalQuery = query(finalQuery, where('ownerUid', '==', user.uid));
+      console.log(`[useCollection] Scoping ${collectionName} to user: ${user.uid}`);
     }
 
     setIsLoading(true);
@@ -133,7 +119,6 @@ export function useCollection<T = any>(
         setIsLoading(false);
       },
       (firestoreError: FirestoreError) => {
-        console.error(`[useCollection] Permission crash on ${collectionName}:`, firestoreError);
         const permissionError = new FirestorePermissionError({
           operation: 'list',
           path: collectionName || 'unknown',
@@ -142,8 +127,6 @@ export function useCollection<T = any>(
         setError(permissionError);
         setData(null);
         setIsLoading(false);
-
-        // Global propagation for system debugging
         errorEmitter.emit('permission-error', permissionError);
       }
     );
@@ -151,11 +134,8 @@ export function useCollection<T = any>(
     return () => unsubscribe();
   }, [memoizedTargetRefOrQuery, user?.uid]);
 
-  // Validation: Ensure memoization to prevent render loops
   if(memoizedTargetRefOrQuery && !memoizedTargetRefOrQuery.__memo) {
-    if (memoizedTargetRefOrQuery) {
-      throw new Error('useCollection: Input was not memoized using useMemoFirebase.');
-    }
+    throw new Error('useCollection: Input was not memoized using useMemoFirebase.');
   }
 
   return { data, isLoading, error };

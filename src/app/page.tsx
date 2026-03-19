@@ -10,15 +10,6 @@ import { useAuth, useUser } from '@/firebase';
 import { signInWithPopup, GoogleAuthProvider, signInAnonymously, browserLocalPersistence, setPersistence } from 'firebase/auth';
 import { toast } from '@/hooks/use-toast';
 
-/**
- * @fileOverview Optimized Login Page
- * 
- * Implements high-performance authentication with robust error handling for:
- * - Workstation-specific popup blocks
- * - User-cancelled sign-in attempts
- * - Stale session persistence
- */
-
 export default function LoginPage() {
   const [isLoading, setIsLoading] = useState(false);
   const [mounted, setMounted] = useState(false);
@@ -30,7 +21,6 @@ export default function LoginPage() {
     setMounted(true);
   }, []);
 
-  // Auto-redirect if already logged in
   useEffect(() => {
     if (mounted && !isUserLoading && user) {
       router.replace('/dashboard');
@@ -42,11 +32,9 @@ export default function LoginPage() {
     setIsLoading(true);
     
     try {
-      // Ensure persistence is set for workstation environments
       await setPersistence(auth, browserLocalPersistence);
       
       const provider = new GoogleAuthProvider();
-      // Optimization: Force select_account to refresh permissions and prevent stale token errors
       provider.setCustomParameters({ prompt: 'select_account' });
       
       const result = await signInWithPopup(auth, provider);
@@ -56,13 +44,10 @@ export default function LoginPage() {
       }
     } catch (err: any) {
       setIsLoading(false);
-      console.error("Auth Error:", err.code, err.message);
-
+      
+      // Handle known cancellation gracefully without logging as a red error
       if (err.code === 'auth/popup-closed-by-user') {
-        toast({ 
-          title: "Sign-in Cancelled", 
-          description: "Sign-in was cancelled. Try again?" 
-        });
+        toast({ title: "Sign-in Cancelled", description: "The window was closed before completion." });
         return;
       }
 
@@ -70,11 +55,12 @@ export default function LoginPage() {
         toast({ 
           variant: "destructive",
           title: "Popup Blocked", 
-          description: "Popup blocked by browser. Allow popups for this site and retry." 
+          description: "Allow popups for this site and retry." 
         });
         return;
       }
 
+      console.warn("Auth Notification:", err.code, err.message);
       toast({ 
         variant: "destructive", 
         title: "Authentication Failed", 
@@ -92,7 +78,6 @@ export default function LoginPage() {
       router.push('/dashboard');
     } catch (err: any) {
       setIsLoading(false);
-      console.error("Anonymous Sign-in Error:", err);
       toast({
         variant: "destructive",
         title: "Demo Access Failed",
@@ -108,7 +93,7 @@ export default function LoginPage() {
       <div className="min-h-screen flex items-center justify-center bg-background dark">
         <div className="flex flex-col items-center gap-4">
           <Loader2 className="h-10 w-10 animate-spin text-primary" />
-          <p className="text-xs font-black uppercase tracking-widest text-muted-foreground animate-pulse">Establishing Secure Session...</p>
+          <p className="text-xs font-black uppercase tracking-widest text-muted-foreground animate-pulse">Establishing Session...</p>
         </div>
       </div>
     );
