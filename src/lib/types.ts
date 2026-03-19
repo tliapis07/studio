@@ -10,11 +10,20 @@ export interface TeamMember {
   quota: number;
 }
 
-export interface TeamSettings {
+export interface UserProfile {
   id: string;
-  totalTeamQuota: number;
-  monthlyTarget: number;
-  updatedAt: any;
+  theme: 'light' | 'dark' | 'system';
+  profilePicURL?: string;
+  status?: string;
+  statusUpdatedAt?: any;
+  timeZone: string;
+  notificationSoundsEnabled: boolean;
+  defaultLeadStatus: LeadStatus;
+  compactModeEnabled: boolean;
+  autoArchiveClosedLeadsAfterDays?: number;
+  language: string;
+  currency: string;
+  tabLayouts: Record<string, TabPreferences>;
 }
 
 export interface Lead {
@@ -53,14 +62,6 @@ export interface Contact {
   updatedAt: any;
 }
 
-export interface WhatsAppLog {
-  id: string;
-  relatedId: string; // leadId or contactId
-  message: string;
-  status: 'sent' | 'failed';
-  createdAt: any;
-}
-
 export interface Activity {
   id: string;
   leadId?: string;
@@ -83,16 +84,9 @@ export interface CalendarEvent {
   startAt: any;
   endAt?: any;
   allDay: boolean;
-  eventType: string; // references event type name or ID
+  eventType: string;
   status: 'scheduled' | 'completed' | 'cancelled';
   createdAt: any;
-}
-
-export interface EventType {
-  id: string;
-  name: string;
-  color: string;
-  userId: string;
 }
 
 export interface TrainingMaterial {
@@ -117,19 +111,8 @@ export interface UserNote {
 }
 
 export interface TabPreferences {
-  [tabName: string]: {
-    visibleSections: string[];
-    density: 'compact' | 'normal';
-    sortBy?: string;
-    hideArchived?: boolean;
-  }
-}
-
-export interface UserPreferences {
-  notifications: {
-    enabled: boolean;
-    followups: boolean;
-    team: boolean;
-  };
-  tabSettings: TabPreferences;
+  visibleSections: string[];
+  density: 'compact' | 'normal';
+  sortBy?: string;
+  hideArchived?: boolean;
 }

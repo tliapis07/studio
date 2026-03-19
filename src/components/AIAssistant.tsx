@@ -99,6 +99,7 @@ export default function AIAssistant({ lead, activities, floating = false, isOpen
           reasoning: result.reasoning 
         }]);
       } else {
+        // Mock general organizational help
         setTimeout(() => {
           setMessages(prev => [...prev, { 
             role: 'assistant', 
@@ -207,9 +208,9 @@ export default function AIAssistant({ lead, activities, floating = false, isOpen
           >
             {isListening ? <MicOff className="h-4 w-4" /> : <Mic className="h-4 w-4" />}
           </Button>
-          <Input 
+          <input 
             placeholder={isListening ? "Listening..." : "Dictate command..."}
-            className="text-xs h-10 rounded-xl bg-muted/30 border-2 border-transparent focus:border-primary/20"
+            className="flex-1 text-xs h-10 px-3 rounded-xl bg-muted/30 border-2 border-transparent focus:border-primary/20 focus:outline-none transition-all"
             value={input}
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={(e) => e.key === 'Enter' && handleAction('chat')}
