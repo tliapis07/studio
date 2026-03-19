@@ -1,37 +1,47 @@
-
 'use client';
 
 import { useState, useMemo } from 'react';
 import { useCollection, useFirestore, useUser, useMemoFirebase, addDocumentNonBlocking } from '@/firebase';
 import { collection, query, serverTimestamp } from 'firebase/firestore';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { Calendar } from '@/components/ui/calendar';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { 
   Plus, 
   Clock, 
   Calendar as CalendarIcon,
   Users,
-  AlertCircle,
   ChevronLeft,
-  ChevronRight
+  ChevronRight,
+  MoreHorizontal
 } from 'lucide-react';
-import { Lead, CalendarEvent, TeamMember } from '@/lib/types';
-import { format, isSameDay, addDays, isWithinInterval, startOfMonth, endOfMonth, eachDayOfInterval, isSameMonth } from 'date-fns';
+import { CalendarEvent, TeamMember } from '@/lib/types';
 import { 
-  Tooltip as UITooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
+  format, 
+  isSameDay, 
+  startOfMonth, 
+  endOfMonth, 
+  eachDayOfInterval, 
+  startOfWeek, 
+  endOfWeek, 
+  addMonths, 
+  subMonths,
+  addWeeks,
+  subWeeks,
+  addDays,
+  subDays,
+  isSameMonth,
+  startOfDay,
+  endOfDay
+} from 'date-fns';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { toast } from '@/hooks/use-toast';
+import { cn } from '@/lib/utils';
 
 const MOCK_TEAM: TeamMember[] = [
   { id: 'user1', name: 'Alex Morgan', role: 'Sales Exec', email: 'alex@stream.io', avatar: 'https://picsum.photos/seed/av1/100/100', quota: 150000 },
@@ -39,11 +49,13 @@ const MOCK_TEAM: TeamMember[] = [
   { id: 'user3', name: 'Sarah Chen', role: 'Sales Exec', email: 'sarah@stream.io', avatar: 'https://picsum.photos/seed/av3/100/100', quota: 200000 },
 ];
 
+type ViewMode = 'month' | 'week' | 'day';
+
 export default function CalendarPage() {
   const { user } = useUser();
   const db = useFirestore();
-  const [selectedDate, setSelectedDate] = useState<Date | undefined>(new Date());
-  const [currentMonth, setCurrentMonth] = useState<Date>(new Date());
+  const [currentDate, setCurrentDate] = useState<Date>(new Date());
+  const [viewMode, setViewMode] = useState<ViewMode>('month');
   const [teamFilter, setTeamFilter] = useState('all');
   const [isNewEventOpen, setIsNewEventOpen] = useState(false);
 
@@ -54,11 +66,31 @@ export default function CalendarPage() {
 
   const { data: events } = useCollection<CalendarEvent>(eventsQuery);
 
-  const monthDays = useMemo(() => {
-    const start = startOfMonth(currentMonth);
-    const end = endOfMonth(currentMonth);
-    return eachDayOfInterval({ start, end });
-  }, [currentMonth]);
+  const calendarDays = useMemo(() => {
+    if (viewMode === 'month') {
+      const monthStart = startOfMonth(currentDate);
+      const monthEnd = endOfMonth(monthStart);
+      const calendarStart = startOfWeek(monthStart);
+      const calendarEnd = endOfWeek(monthEnd);
+      return eachDayOfInterval({ start: calendarStart, end: calendarEnd });
+    } else if (viewMode === 'week') {
+      const weekStart = startOfWeek(currentDate);
+      const weekEnd = endOfWeek(currentDate);
+      return eachDayOfInterval({ start: weekStart, end: weekEnd });
+    } else {
+      return [startOfDay(currentDate)];
+    }
+  }, [currentDate, viewMode]);
+
+  const handleNavigate = (direction: 'next' | 'prev') => {
+    if (viewMode === 'month') {
+      setCurrentDate(direction === 'next' ? addMonths(currentDate, 1) : subMonths(currentDate, 1));
+    } else if (viewMode === 'week') {
+      setCurrentDate(direction === 'next' ? addWeeks(currentDate, 1) : subWeeks(currentDate, 1));
+    } else {
+      setCurrentDate(direction === 'next' ? addDays(currentDate, 1) : subDays(currentDate, 1));
+    }
+  };
 
   const handleAddEvent = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -82,14 +114,13 @@ export default function CalendarPage() {
     toast({ title: "Event Created", description: "Team event added to schedule." });
   };
 
-  const selectedDayEvents = useMemo(() => {
-    if (!selectedDate) return [];
+  const getEventsForDay = (day: Date) => {
     return events?.filter(e => {
       if (teamFilter !== 'all' && e.ownerUid !== teamFilter) return false;
       const start = e.startAt?.toDate ? e.startAt.toDate() : new Date(e.startAt);
-      return isSameDay(start, selectedDate);
+      return isSameDay(start, day);
     }) || [];
-  }, [selectedDate, events, teamFilter]);
+  };
 
   return (
     <div className="space-y-8 pb-24 md:pb-8 animate-in fade-in duration-500">
@@ -102,7 +133,7 @@ export default function CalendarPage() {
           <div className="flex items-center gap-2 bg-card/50 p-2 rounded-2xl border-2 border-border/50 shadow-sm">
             <Users className="h-5 w-5 ml-2 text-primary" />
             <Select value={teamFilter} onValueChange={setTeamFilter}>
-              <SelectTrigger className="w-[220px] h-10 border-none bg-transparent font-bold">
+              <SelectTrigger className="w-[200px] h-10 border-none bg-transparent font-bold">
                 <SelectValue placeholder="All Team Events" />
               </SelectTrigger>
               <SelectContent className="rounded-2xl border-2 shadow-xl">
@@ -118,48 +149,84 @@ export default function CalendarPage() {
       </div>
 
       <div className="grid grid-cols-1 xl:grid-cols-4 gap-8">
-        <div className="xl:col-span-3">
+        <div className="xl:col-span-3 space-y-6">
+          <div className="flex flex-col sm:flex-row items-center justify-between gap-4 bg-card/50 p-4 rounded-3xl border-2 border-border/50">
+            <div className="flex items-center gap-4">
+              <h2 className="text-xl font-black min-w-[180px]">
+                {format(currentDate, viewMode === 'day' ? 'MMMM d, yyyy' : 'MMMM yyyy')}
+              </h2>
+              <div className="flex gap-1">
+                <Button variant="ghost" size="icon" onClick={() => handleNavigate('prev')}><ChevronLeft className="h-5 w-5" /></Button>
+                <Button variant="ghost" size="icon" onClick={() => handleNavigate('next')}><ChevronRight className="h-5 w-5" /></Button>
+              </div>
+              <Button variant="outline" size="sm" onClick={() => setCurrentDate(new Date())} className="text-[10px] font-black uppercase tracking-widest rounded-xl">Today</Button>
+            </div>
+            <Tabs value={viewMode} onValueChange={(v) => setViewMode(v as ViewMode)} className="w-fit">
+              <TabsList className="bg-muted/50 p-1 h-10 rounded-xl">
+                <TabsTrigger value="month" className="text-[10px] font-black uppercase px-4 rounded-lg">Month</TabsTrigger>
+                <TabsTrigger value="week" className="text-[10px] font-black uppercase px-4 rounded-lg">Week</TabsTrigger>
+                <TabsTrigger value="day" className="text-[10px] font-black uppercase px-4 rounded-lg">Day</TabsTrigger>
+              </TabsList>
+            </Tabs>
+          </div>
+
           <Card className="bg-card/50 border-2 border-border/50 rounded-3xl overflow-hidden shadow-2xl">
-            <CardHeader className="flex flex-row items-center justify-between border-b-2 border-border/50 bg-primary/5 p-8">
-              <div className="flex items-center gap-5">
-                <div className="h-12 w-12 rounded-2xl bg-primary flex items-center justify-center shadow-lg shadow-primary/20">
-                  <CalendarIcon className="h-6 w-6 text-white" />
+            <div className={cn(
+              "grid gap-px bg-border/50",
+              viewMode === 'month' ? "grid-cols-7" : viewMode === 'week' ? "grid-cols-7" : "grid-cols-1"
+            )}>
+              {viewMode !== 'day' && ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map(day => (
+                <div key={day} className="bg-muted/30 p-4 text-center text-[10px] font-black uppercase tracking-widest text-muted-foreground">
+                  {day}
                 </div>
-                <div>
-                  <CardTitle className="text-2xl font-black font-headline">
-                    {format(currentMonth, 'MMMM yyyy')}
-                  </CardTitle>
-                </div>
-              </div>
-              <div className="flex gap-2">
-                <Button variant="outline" size="icon" onClick={() => setCurrentMonth(addDays(currentMonth, -30))}><ChevronLeft className="h-4 w-4" /></Button>
-                <Button variant="outline" size="icon" onClick={() => setCurrentMonth(addDays(currentMonth, 30))}><ChevronRight className="h-4 w-4" /></Button>
-              </div>
-            </CardHeader>
-            <CardContent className="p-4 sm:p-8">
-               <Calendar
-                mode="single"
-                selected={selectedDate}
-                onSelect={setSelectedDate}
-                month={currentMonth}
-                onMonthChange={setCurrentMonth}
-                className="w-full"
-                classNames={{
-                  months: "w-full",
-                  month: "w-full space-y-6",
-                  caption: "hidden",
-                  table: "w-full border-collapse",
-                  head_row: "flex w-full",
-                  head_cell: "text-muted-foreground w-[14.28%] font-black text-xs uppercase tracking-[0.2em] pb-8 text-center",
-                  row: "flex w-full",
-                  cell: "h-20 sm:h-32 w-[14.28%] text-center p-1 relative transition-all group",
-                  day: "h-full w-full p-2 font-bold text-sm sm:text-base rounded-2xl transition-all border-2 border-transparent hover:bg-muted/50 hover:border-primary/20 flex flex-col items-start justify-start gap-1 overflow-hidden",
-                  day_selected: "bg-primary/10 border-primary text-primary shadow-inner",
-                  day_today: "border-accent/40 bg-accent/5 font-black text-accent ring-2 ring-accent/10",
-                  day_outside: "opacity-30 pointer-events-none grayscale",
-                }}
-              />
-            </CardContent>
+              ))}
+              
+              {calendarDays.map((day, idx) => {
+                const dayEvents = getEventsForDay(day);
+                const isToday = isSameDay(day, new Date());
+                const isCurrentMonth = isSameMonth(day, currentDate);
+
+                return (
+                  <div 
+                    key={idx} 
+                    className={cn(
+                      "bg-card min-h-[140px] p-2 transition-all hover:bg-muted/5 group relative",
+                      !isCurrentMonth && viewMode === 'month' && "bg-muted/10 opacity-40",
+                      isToday && "ring-2 ring-primary ring-inset z-10"
+                    )}
+                  >
+                    <div className="flex justify-between items-start mb-2 px-1">
+                      <span className={cn(
+                        "text-sm font-black",
+                        isToday ? "bg-primary text-white h-7 w-7 flex items-center justify-center rounded-lg shadow-lg" : "text-muted-foreground"
+                      )}>
+                        {format(day, 'd')}
+                      </span>
+                    </div>
+                    <div className="space-y-1">
+                      {dayEvents.slice(0, 3).map((event) => (
+                        <div 
+                          key={event.id}
+                          className={cn(
+                            "px-2 py-1 rounded-lg text-[10px] font-bold truncate cursor-pointer transition-transform hover:scale-[1.02]",
+                            event.eventType === 'follow-up' ? 'bg-primary/10 text-primary border border-primary/20' :
+                            event.eventType === 'meeting' ? 'bg-emerald-500/10 text-emerald-500 border border-emerald-500/20' :
+                            'bg-accent/10 text-accent border border-accent/20'
+                          )}
+                        >
+                          {format(event.startAt?.toDate ? event.startAt.toDate() : new Date(event.startAt), 'h:mm a')} {event.title}
+                        </div>
+                      ))}
+                      {dayEvents.length > 3 && (
+                        <div className="text-[9px] text-muted-foreground font-black uppercase tracking-widest px-2 pt-1 flex items-center gap-1">
+                          <Plus className="h-3 w-3" /> {dayEvents.length - 3} more
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
           </Card>
         </div>
 
@@ -173,8 +240,8 @@ export default function CalendarPage() {
             <CardContent className="p-0">
               <ScrollArea className="h-[600px] p-8">
                 <div className="space-y-8">
-                  {selectedDayEvents.length > 0 ? (
-                    selectedDayEvents.map((item, i) => (
+                  {getEventsForDay(currentDate).length > 0 ? (
+                    getEventsForDay(currentDate).map((item, i) => (
                       <div key={item.id} className="relative pl-8 border-l-2 border-primary/20 pb-2 group">
                         <div className="absolute -left-[9px] top-0 h-4 w-4 rounded-full bg-background border-2 border-primary shadow-sm" />
                         <div className="flex flex-col gap-1.5">
@@ -213,7 +280,7 @@ export default function CalendarPage() {
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label htmlFor="date">Date</Label>
-                <Input id="date" name="date" type="date" required />
+                <Input id="date" name="date" type="date" required defaultValue={format(currentDate, 'yyyy-MM-dd')} />
               </div>
               <div className="space-y-2">
                 <Label htmlFor="time">Time</Label>

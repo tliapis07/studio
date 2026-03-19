@@ -1,4 +1,3 @@
-
 export type LeadStatus = 'new' | 'contacted' | 'qualified' | 'proposal' | 'negotiated' | 'won' | 'lost';
 
 export interface TeamMember {
@@ -47,6 +46,7 @@ export interface Contact {
   secondaryPhone?: string;
   email?: string;
   notes?: string;
+  linkedLeadId?: string;
   createdAt: any;
   updatedAt: any;
 }

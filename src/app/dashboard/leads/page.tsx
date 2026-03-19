@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, useMemo, useRef } from 'react';
@@ -92,7 +91,6 @@ export default function LeadsPage() {
   const [repFilter, setRepFilter] = useState<string>('all');
   const [selectedLeads, setSelectedLeads] = useState<string[]>([]);
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
-  const [viewingLead, setViewingLead] = useState<Lead | null>(null);
   const [isImporting, setIsImporting] = useState(false);
 
   const leadsQuery = useMemoFirebase(() => {
@@ -114,15 +112,20 @@ export default function LeadsPage() {
     });
   }, [leads, search, statusFilter, repFilter]);
 
-  const handleAddLead = (e: React.FormEvent<HTMLFormElement>) => {
+  const handleAddLead = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    if (!db) return;
+    if (!db || !user) return;
 
     const formData = new FormData(e.currentTarget);
+    const phone = formData.get('phone') as string;
+    const email = formData.get('email') as string;
+    const name = formData.get('name') as string;
+
     const newLead = {
-      ownerUid: formData.get('assignTo') as string || user?.uid || 'user1',
-      name: formData.get('name') as string,
-      email: formData.get('email') as string,
+      ownerUid: formData.get('assignTo') as string || user.uid,
+      name,
+      email,
+      phone,
       company: formData.get('company') as string,
       status: 'new' as LeadStatus,
       dealValue: Number(formData.get('dealValue')) || 0,
@@ -135,9 +138,31 @@ export default function LeadsPage() {
       customFields: {}
     };
 
-    addDocumentNonBlocking(collection(db, 'leads'), newLead);
-    setIsAddModalOpen(false);
-    toast({ title: "Lead Added", description: `${newLead.name} assigned to the team.` });
+    try {
+      // 1. Create the lead
+      const leadRef = await addDocumentNonBlocking(collection(db, 'leads'), newLead);
+      
+      // 2. Auto-create contact if phone or email exists
+      if (phone || email) {
+        addDocumentNonBlocking(collection(db, 'contacts'), {
+          userId: user.uid,
+          name,
+          phone: phone || '',
+          email: email || '',
+          notes: `Auto-created from lead ${name}`,
+          linkedLeadId: leadRef.id,
+          createdAt: serverTimestamp(),
+          updatedAt: serverTimestamp(),
+        });
+        toast({ title: "Lead Added + Contact Created", description: `${name} synchronized to directory.` });
+      } else {
+        toast({ title: "Lead Added", description: `${name} assigned to the team.` });
+      }
+
+      setIsAddModalOpen(false);
+    } catch (error) {
+      toast({ variant: "destructive", title: "Action Failed", description: "Could not save record." });
+    }
   };
 
   const handleCsvImport = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -241,7 +266,7 @@ export default function LeadsPage() {
             <DialogContent className="sm:max-w-[500px] bg-card/90 backdrop-blur-xl border-border/50">
               <DialogHeader>
                 <DialogTitle>Create New Team Lead</DialogTitle>
-                <DialogDescription>Enter a new prospect and assign it to a team member.</DialogDescription>
+                <DialogDescription>Enter a new prospect. A contact will be auto-created if phone/email is provided.</DialogDescription>
               </DialogHeader>
               <form onSubmit={handleAddLead} className="space-y-4 pt-4">
                 <div className="grid grid-cols-2 gap-4">
@@ -254,9 +279,15 @@ export default function LeadsPage() {
                     <Input id="company" name="company" placeholder="Acme Inc" />
                   </div>
                 </div>
-                <div className="space-y-2">
-                  <Label htmlFor="email">Email Address</Label>
-                  <Input id="email" name="email" type="email" placeholder="email@example.com" />
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="email">Email Address</Label>
+                    <Input id="email" name="email" type="email" placeholder="email@example.com" />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="phone">Phone Number</Label>
+                    <Input id="phone" name="phone" placeholder="+1234567890" />
+                  </div>
                 </div>
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
@@ -265,7 +296,7 @@ export default function LeadsPage() {
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="assignTo">Assign To Rep</Label>
-                    <Select name="assignTo" defaultValue="user1">
+                    <Select name="assignTo" defaultValue={user?.uid || 'user1'}>
                       <SelectTrigger>
                         <SelectValue placeholder="Select Rep" />
                       </SelectTrigger>
@@ -346,8 +377,8 @@ export default function LeadsPage() {
                   </TableCell>
                 </TableRow>
               ) : filteredLeads.length > 0 ? filteredLeads.map((lead) => (
-                <TableRow key={lead.id} className="hover:bg-muted/10 group cursor-pointer" onClick={() => setViewingLead(lead)}>
-                  <TableCell className="px-4 text-center" onClick={(e) => e.stopPropagation()}>
+                <TableRow key={lead.id} className="hover:bg-muted/10 group cursor-pointer">
+                  <TableCell className="px-4 text-center">
                     <Checkbox 
                       checked={selectedLeads.includes(lead.id)}
                       onCheckedChange={() => setSelectedLeads(prev => prev.includes(lead.id) ? prev.filter(i => i !== lead.id) : [...prev, lead.id])}
@@ -379,7 +410,7 @@ export default function LeadsPage() {
                   <TableCell className="hidden xl:table-cell text-[10px] text-muted-foreground font-bold uppercase tracking-widest">
                     {lead.source}
                   </TableCell>
-                  <TableCell className="text-right" onClick={(e) => e.stopPropagation()}>
+                  <TableCell className="text-right">
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
                         <Button variant="ghost" size="icon" className="h-8 w-8">
@@ -388,7 +419,7 @@ export default function LeadsPage() {
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end" className="w-48">
                         <DropdownMenuLabel className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Lead Options</DropdownMenuLabel>
-                        <DropdownMenuItem onClick={() => setViewingLead(lead)}>View Profile</DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => window.location.href = `/dashboard/leads/${lead.id}`}>View Profile</DropdownMenuItem>
                         <DropdownMenuItem>Assign New Owner</DropdownMenuItem>
                         <DropdownMenuSeparator />
                         <DropdownMenuItem className="text-rose-500">Archive Record</DropdownMenuItem>
