@@ -19,7 +19,9 @@ import {
   Loader2,
   Mic,
   CheckCircle2,
-  ChevronRight
+  ChevronRight,
+  ListTodo,
+  CheckSquare
 } from 'lucide-react';
 import { 
   AreaChart,
@@ -39,11 +41,19 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { format } from 'date-fns';
+import { Checkbox } from '@/components/ui/checkbox';
 
 const MOCK_TEAM = [
   { id: 'user1', name: 'Alex Morgan', role: 'Sales Exec', avatar: 'https://picsum.photos/seed/av1/100/100' },
   { id: 'user2', name: 'Jordan Lee', role: 'Sales Exec', avatar: 'https://picsum.photos/seed/av2/100/100' },
   { id: 'user3', name: 'Sarah Chen', role: 'Sales Exec', avatar: 'https://picsum.photos/seed/av3/100/100' },
+];
+
+const ONBOARDING_TASKS = [
+  { id: 'lead', label: 'Add your first partner lead', description: 'Populate your pipeline with initial prospects.' },
+  { id: 'script', label: 'Generate a call script', description: 'Use AI to draft high-conversion opening lines.' },
+  { id: 'status', label: 'Update lead status', description: 'Move a lead through the visual pipeline.' },
+  { id: 'contact', label: 'Sync directory contact', description: 'Store a phone number for organization-wide access.' },
 ];
 
 export default function Dashboard() {
@@ -56,8 +66,13 @@ export default function Dashboard() {
   const [strategicInput, setStrategicInput] = useState('');
   const [strategicOutput, setStrategicOutput] = useState('');
   const [isGenerating, setIsGenerating] = useState(false);
+  const [completedTasks, setCompletedTasks] = useState<string[]>([]);
 
-  useEffect(() => { setMounted(true); }, []);
+  useEffect(() => { 
+    setMounted(true); 
+    const saved = localStorage.getItem(`onboarding_${user?.uid}`);
+    if (saved) setCompletedTasks(JSON.parse(saved));
+  }, [user?.uid]);
 
   const leadsQuery = useMemoFirebase(() => {
     if (!db || !user) return null;
@@ -82,6 +97,14 @@ export default function Dashboard() {
       revenue: filtered.filter(l => l.status === 'won').reduce((acc, l) => acc + (l.dealValue || 0), 0)
     };
   }, [leads, repFilter]);
+
+  const handleToggleTask = (taskId: string) => {
+    const updated = completedTasks.includes(taskId) 
+      ? completedTasks.filter(id => id !== taskId)
+      : [...completedTasks, taskId];
+    setCompletedTasks(updated);
+    localStorage.setItem(`onboarding_${user?.uid}`, JSON.stringify(updated));
+  };
 
   const handleGenerateStrategicContent = () => {
     if (!strategicInput.trim()) return;
@@ -139,72 +162,108 @@ export default function Dashboard() {
         </div>
       </div>
 
-      <div className="grid gap-6 grid-cols-2 lg:grid-cols-4">
-        {statCards.map((stat, i) => (
-          <Card key={i} className="bg-card/40 border-2 border-border/50 rounded-3xl overflow-hidden shadow-lg hover:shadow-2xl transition-all cursor-pointer" onClick={() => router.push('/dashboard/analytics')}>
-            <CardHeader className="flex flex-row items-center justify-between p-6 pb-2">
-              <CardTitle className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground">{stat.label}</CardTitle>
-              <div className={`p-2 rounded-xl bg-muted/20 ${stat.color}`}><stat.icon className="h-4 w-4" /></div>
+      <div className="grid gap-8 md:grid-cols-12">
+        <div className="md:col-span-8 space-y-8">
+          <div className="grid gap-6 grid-cols-2 lg:grid-cols-4">
+            {statCards.map((stat, i) => (
+              <Card key={i} className="bg-card/40 border-2 border-border/50 rounded-3xl overflow-hidden shadow-lg hover:shadow-2xl transition-all cursor-pointer" onClick={() => router.push('/dashboard/analytics')}>
+                <CardHeader className="flex flex-row items-center justify-between p-6 pb-2">
+                  <CardTitle className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground">{stat.label}</CardTitle>
+                  <div className={`p-2 rounded-xl bg-muted/20 ${stat.color}`}><stat.icon className="h-4 w-4" /></div>
+                </CardHeader>
+                <CardContent className="p-6 pt-0">
+                  <div className="text-3xl font-black">{stat.value}</div>
+                  <p className={`text-[10px] mt-2 font-black ${stat.up ? 'text-emerald-500' : 'text-rose-500'}`}>{stat.up ? '↑' : '↓'} {stat.change}</p>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+
+          <Card className="bg-card/30 border-2 border-border/50 rounded-3xl shadow-xl overflow-hidden flex flex-col">
+            <CardHeader className="flex flex-row items-center justify-between p-8">
+              <div><CardTitle className="text-xl font-black">Pipeline Velocity</CardTitle><CardDescription className="text-xs">Real-time organizational inbound trends.</CardDescription></div>
+              <Select value={repFilter} onValueChange={setRepFilter}>
+                <SelectTrigger className="w-[160px] h-10 text-[10px] font-black uppercase bg-background border-2 rounded-xl"><SelectValue /></SelectTrigger>
+                <SelectContent className="rounded-xl">
+                  <SelectItem value="all">All Team Force</SelectItem>
+                  {MOCK_TEAM.map(m => <SelectItem key={m.id} value={m.id}>{m.name}</SelectItem>)}
+                </SelectContent>
+              </Select>
             </CardHeader>
-            <CardContent className="p-6 pt-0">
-              <div className="text-3xl font-black">{stat.value}</div>
-              <p className={`text-[10px] mt-2 font-black ${stat.up ? 'text-emerald-500' : 'text-rose-500'}`}>{stat.up ? '↑' : '↓'} {stat.change}</p>
+            <CardContent className="h-[300px] p-8 pt-0">
+              <ResponsiveContainer width="100%" height="100%">
+                <AreaChart data={[{name:'M',l:4},{name:'T',l:7},{name:'W',l:5},{name:'T',l:12},{name:'F',l:9}]}>
+                  <defs><linearGradient id="colorL" x1="0" y1="0" x2="0" y2="1"><stop offset="5%" stopColor="hsl(var(--primary))" stopOpacity={0.4}/><stop offset="95%" stopColor="hsl(var(--primary))" stopOpacity={0}/></linearGradient></defs>
+                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="hsl(var(--border))" opacity={0.5} />
+                  <XAxis dataKey="name" fontSize={10} fontWeight="bold" />
+                  <YAxis fontSize={10} fontWeight="bold" />
+                  <Tooltip contentStyle={{ backgroundColor: 'hsl(var(--card))', borderRadius: '12px', border: '2px solid hsl(var(--border))' }} />
+                  <Area type="monotone" dataKey="l" stroke="hsl(var(--primary))" strokeWidth={3} fillOpacity={1} fill="url(#colorL)" />
+                </AreaChart>
+              </ResponsiveContainer>
             </CardContent>
           </Card>
-        ))}
-      </div>
+        </div>
 
-      <div className="grid gap-8 md:grid-cols-12">
-        <Card className="md:col-span-8 bg-card/30 border-2 border-border/50 rounded-3xl shadow-xl overflow-hidden flex flex-col">
-          <CardHeader className="flex flex-row items-center justify-between p-8">
-            <div><CardTitle className="text-xl font-black">Pipeline Velocity</CardTitle><CardDescription className="text-xs">Real-time organizational inbound trends.</CardDescription></div>
-            <Select value={repFilter} onValueChange={setRepFilter}>
-              <SelectTrigger className="w-[160px] h-10 text-[10px] font-black uppercase bg-background border-2 rounded-xl"><SelectValue /></SelectTrigger>
-              <SelectContent className="rounded-xl">
-                <SelectItem value="all">All Team Force</SelectItem>
-                {MOCK_TEAM.map(m => <SelectItem key={m.id} value={m.id}>{m.name}</SelectItem>)}
-              </SelectContent>
-            </Select>
-          </CardHeader>
-          <CardContent className="h-[300px] p-8 pt-0">
-            <ResponsiveContainer width="100%" height="100%">
-              <AreaChart data={[{name:'M',l:4},{name:'T',l:7},{name:'W',l:5},{name:'T',l:12},{name:'F',l:9}]}>
-                <defs><linearGradient id="colorL" x1="0" y1="0" x2="0" y2="1"><stop offset="5%" stopColor="hsl(var(--primary))" stopOpacity={0.4}/><stop offset="95%" stopColor="hsl(var(--primary))" stopOpacity={0}/></linearGradient></defs>
-                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="hsl(var(--border))" opacity={0.5} />
-                <XAxis dataKey="name" fontSize={10} fontWeight="bold" />
-                <YAxis fontSize={10} fontWeight="bold" />
-                <Tooltip contentStyle={{ backgroundColor: 'hsl(var(--card))', borderRadius: '12px', border: '2px solid hsl(var(--border))' }} />
-                <Area type="monotone" dataKey="l" stroke="hsl(var(--primary))" strokeWidth={3} fillOpacity={1} fill="url(#colorL)" />
-              </AreaChart>
-            </ResponsiveContainer>
-          </CardContent>
-        </Card>
-        
-        <Card className="md:col-span-4 bg-card/30 border-2 border-border/50 rounded-3xl shadow-xl overflow-hidden">
-          <CardHeader className="p-8 pb-4 border-b-2 bg-muted/10">
-            <CardTitle className="text-[10px] font-black uppercase tracking-widest text-primary flex items-center gap-2">
-              <History className="h-4 w-4" /> Live Activity Feed
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="p-0">
-            {recentActivities && recentActivities.length > 0 ? (
-              <div className="divide-y-2 divide-border/20">
-                {recentActivities.map((act) => (
-                  <div key={act.id} className="p-5 flex gap-4 items-start hover:bg-muted/10 cursor-pointer" onClick={() => act.leadId && router.push(`/dashboard/leads/${act.leadId}`)}>
-                    <Avatar className="h-8 w-8 border-2 border-primary/20"><AvatarFallback className="text-[10px] font-black">{act.ownerName?.[0]}</AvatarFallback></Avatar>
-                    <div className="space-y-1 flex-1 min-w-0">
-                      <p className="text-[11px] font-black truncate">{act.ownerName} <span className="text-muted-foreground font-medium">logged {act.type.replace('_', ' ')}</span></p>
-                      <p className="text-[10px] text-muted-foreground line-clamp-1 italic">{act.content}</p>
-                    </div>
-                    <ChevronRight className="h-4 w-4 text-muted-foreground/30 mt-1" />
+        <div className="md:col-span-4 space-y-8">
+          <Card className="bg-primary/5 border-2 border-primary/20 rounded-3xl shadow-xl overflow-hidden">
+            <CardHeader className="p-6 pb-2 border-b-2 border-primary/10">
+              <CardTitle className="text-[10px] font-black uppercase tracking-widest text-primary flex items-center gap-2">
+                <CheckSquare className="h-4 w-4" /> Partner Onboarding
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="p-6 space-y-4">
+              {ONBOARDING_TASKS.map((task) => (
+                <div key={task.id} className="flex items-start gap-3 group">
+                  <Checkbox 
+                    checked={completedTasks.includes(task.id)} 
+                    onCheckedChange={() => handleToggleTask(task.id)}
+                    className="mt-1 border-primary/30 data-[state=checked]:bg-primary"
+                  />
+                  <div className="space-y-0.5">
+                    <p className={`text-xs font-black leading-none ${completedTasks.includes(task.id) ? 'line-through opacity-40' : ''}`}>{task.label}</p>
+                    <p className="text-[10px] text-muted-foreground leading-tight">{task.description}</p>
                   </div>
-                ))}
+                </div>
+              ))}
+              <div className="pt-2 border-t-2 border-primary/10 mt-4">
+                <div className="flex justify-between items-center mb-2">
+                  <span className="text-[10px] font-black uppercase text-muted-foreground">Mastery Progress</span>
+                  <span className="text-[10px] font-black text-primary">{Math.round((completedTasks.length / ONBOARDING_TASKS.length) * 100)}%</span>
+                </div>
+                <div className="w-full h-1.5 bg-primary/10 rounded-full overflow-hidden">
+                  <div className="h-full bg-primary transition-all duration-500" style={{ width: `${(completedTasks.length / ONBOARDING_TASKS.length) * 100}%` }} />
+                </div>
               </div>
-            ) : (
-              <div className="p-20 text-center text-muted-foreground italic text-[10px] uppercase font-bold tracking-widest">No Recent Team Actions</div>
-            )}
-          </CardContent>
-        </Card>
+            </CardContent>
+          </Card>
+
+          <Card className="bg-card/30 border-2 border-border/50 rounded-3xl shadow-xl overflow-hidden">
+            <CardHeader className="p-8 pb-4 border-b-2 bg-muted/10">
+              <CardTitle className="text-[10px] font-black uppercase tracking-widest text-primary flex items-center gap-2">
+                <History className="h-4 w-4" /> Live Activity Feed
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="p-0">
+              {recentActivities && recentActivities.length > 0 ? (
+                <div className="divide-y-2 divide-border/20">
+                  {recentActivities.map((act) => (
+                    <div key={act.id} className="p-5 flex gap-4 items-start hover:bg-muted/10 cursor-pointer" onClick={() => act.leadId && router.push(`/dashboard/leads/${act.leadId}`)}>
+                      <Avatar className="h-8 w-8 border-2 border-primary/20"><AvatarFallback className="text-[10px] font-black">{act.ownerName?.[0]}</AvatarFallback></Avatar>
+                      <div className="space-y-1 flex-1 min-w-0">
+                        <p className="text-[11px] font-black truncate">{act.ownerName} <span className="text-muted-foreground font-medium">logged {act.type.replace('_', ' ')}</span></p>
+                        <p className="text-[10px] text-muted-foreground line-clamp-1 italic">{act.content}</p>
+                      </div>
+                      <ChevronRight className="h-4 w-4 text-muted-foreground/30 mt-1" />
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="p-20 text-center text-muted-foreground italic text-[10px] uppercase font-bold tracking-widest">No Recent Team Actions</div>
+              )}
+            </CardContent>
+          </Card>
+        </div>
       </div>
 
       <div className="grid gap-8 md:grid-cols-3">

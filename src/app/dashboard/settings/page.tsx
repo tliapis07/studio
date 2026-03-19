@@ -27,15 +27,30 @@ import {
   Loader2,
   CheckCircle2,
   Wifi,
-  WifiOff
+  WifiOff,
+  Trash2,
+  AlertTriangle
 } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
-import { useUser, useFirestore, useDoc } from '@/firebase';
-import { doc, setDoc, serverTimestamp } from 'firebase/firestore';
+import { useUser, useFirestore, useDoc, useAuth } from '@/firebase';
+import { doc, setDoc, serverTimestamp, deleteDoc } from 'firebase/firestore';
 import { getStorage, ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useTheme } from '@/components/ThemeProvider';
 import { UserProfile } from '@/lib/types';
+import { 
+  AlertDialog, 
+  AlertDialogAction, 
+  AlertDialogCancel, 
+  AlertDialogContent, 
+  AlertDialogDescription, 
+  AlertDialogFooter, 
+  AlertDialogHeader, 
+  AlertDialogTitle,
+  AlertDialogTrigger
+} from '@/components/ui/alert-dialog';
+import { deleteUser } from 'firebase/auth';
+import { useRouter } from 'next/navigation';
 
 const TIMEZONES = [
   "UTC", "America/New_York", "America/Chicago", "America/Denver", "America/Los_Angeles", 
@@ -47,11 +62,14 @@ const STATUS_OPTIONS = ["Available", "Busy", "In a meeting", "Do not disturb", "
 
 export default function SettingsPage() {
   const { user } = useUser();
+  const auth = useAuth();
   const db = useFirestore();
+  const router = useRouter();
   const { theme, setTheme } = useTheme();
   const [activeTab, setActiveTab] = useState('profile');
   const [isUploading, setIsUploading] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   const profileRef = user ? doc(db, 'users', user.uid) : null;
   const { data: profile, isLoading: profileLoading } = useDoc<UserProfile>(profileRef as any);
@@ -94,6 +112,27 @@ export default function SettingsPage() {
     }
   };
 
+  const handleDeleteAccount = async () => {
+    if (!user) return;
+    setIsDeleting(true);
+    try {
+      // Clean up Firestore profile first
+      await deleteDoc(doc(db, 'users', user.uid));
+      // Delete Auth user
+      await deleteUser(user);
+      toast({ title: "Account Terminated", description: "All partner data has been wiped from the system." });
+      router.replace('/');
+    } catch (error: any) {
+      if (error.code === 'auth/requires-recent-login') {
+        toast({ variant: "destructive", title: "Security Halt", description: "This action requires a recent sign-in. Please log out and log back in to verify." });
+      } else {
+        toast({ variant: "destructive", title: "Deletion Failed", description: error.message });
+      }
+    } finally {
+      setIsDeleting(false);
+    }
+  };
+
   return (
     <div className="max-w-5xl mx-auto space-y-8 pb-24 md:pb-8 animate-in fade-in duration-500">
       <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
@@ -110,7 +149,6 @@ export default function SettingsPage() {
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-8">
         <TabsList className="bg-card/30 p-1.5 border-2 border-border/50 w-full md:w-fit justify-start h-14 rounded-2xl">
           <TabsTrigger value="profile" className="gap-2 px-8 h-11 font-black text-xs uppercase tracking-widest rounded-xl"><User className="h-4 w-4" /> Identity</TabsTrigger>
-          <TabsTrigger value="team" className="gap-2 px-8 h-11 font-black text-xs uppercase tracking-widest rounded-xl"><Users className="h-4 w-4" /> Team</TabsTrigger>
           <TabsTrigger value="data" className="gap-2 px-8 h-11 font-black text-xs uppercase tracking-widest rounded-xl"><Database className="h-4 w-4" /> UI & Sync</TabsTrigger>
           <TabsTrigger value="system" className="gap-2 px-8 h-11 font-black text-xs uppercase tracking-widest rounded-xl"><Sparkles className="h-4 w-4" /> Advanced</TabsTrigger>
         </TabsList>
@@ -265,6 +303,44 @@ export default function SettingsPage() {
               </CardContent>
             </Card>
           </div>
+        </TabsContent>
+
+        <TabsContent value="system" className="space-y-8 animate-in slide-in-from-top-4 duration-300">
+           <Card className="border-2 border-rose-500/20 bg-rose-500/5 rounded-3xl shadow-xl">
+              <CardHeader className="p-8 border-b-2 border-rose-500/10">
+                <CardTitle className="text-xl font-black text-rose-500 flex items-center gap-3">
+                  <AlertTriangle className="h-6 w-6" /> Danger Zone
+                </CardTitle>
+                <CardDescription>Irreversible organizational management actions.</CardDescription>
+              </CardHeader>
+              <CardContent className="p-8">
+                <div className="flex items-center justify-between p-6 rounded-2xl bg-background border-2 border-rose-500/20">
+                  <div className="space-y-1">
+                    <p className="text-sm font-black">Terminate Partner Account</p>
+                    <p className="text-[10px] text-muted-foreground font-bold uppercase tracking-widest">Permanently delete your profile and all organizational access.</p>
+                  </div>
+                  <AlertDialog>
+                    <AlertDialogTrigger asChild>
+                      <Button variant="destructive" className="rounded-xl font-black uppercase text-[10px] tracking-widest gap-2">
+                        <Trash2 className="h-4 w-4" /> Delete Account
+                      </Button>
+                    </AlertDialogTrigger>
+                    <AlertDialogContent className="rounded-3xl border-2">
+                      <AlertDialogHeader>
+                        <AlertDialogTitle className="text-2xl font-black">Final Confirmation</AlertDialogTitle>
+                        <AlertDialogDescription className="text-sm leading-relaxed">
+                          This action is <span className="text-rose-500 font-bold">PERMANENT</span>. All your leads, scripts, and organizational configurations will be lost. You cannot undo this.
+                        </AlertDialogDescription>
+                      </AlertDialogHeader>
+                      <AlertDialogFooter>
+                        <AlertDialogCancel className="rounded-xl font-black uppercase text-[10px]">Cancel</AlertDialogCancel>
+                        <AlertDialogAction onClick={handleDeleteAccount} className="bg-rose-500 hover:bg-rose-600 rounded-xl font-black uppercase text-[10px]">Confirm Deletion</AlertDialogAction>
+                      </AlertDialogFooter>
+                    </AlertDialogContent>
+                  </AlertDialog>
+                </div>
+              </CardContent>
+           </Card>
         </TabsContent>
       </Tabs>
     </div>

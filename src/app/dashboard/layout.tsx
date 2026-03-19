@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import dynamic from 'next/dynamic';
 import { SidebarProvider, Sidebar, SidebarContent, SidebarHeader, SidebarTrigger, SidebarInset, SidebarRail } from '@/components/ui/sidebar';
 import { NavMain } from '@/components/nav-main';
-import { TrendingUp, Settings, LogOut, History, Bell, Sparkles, X, Contact as ContactIcon, PanelLeftClose, Loader2 } from 'lucide-react';
+import { TrendingUp, Settings, LogOut, History, Bell, Sparkles, X, Contact as ContactIcon, PanelLeftClose, Loader2, AlertTriangle } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Toaster } from '@/components/ui/toaster';
 import { Button } from '@/components/ui/button';
@@ -21,6 +21,16 @@ import {
   DropdownMenuTrigger 
 } from '@/components/ui/dropdown-menu';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
+import { 
+  AlertDialog, 
+  AlertDialogAction, 
+  AlertDialogCancel, 
+  AlertDialogContent, 
+  AlertDialogDescription, 
+  AlertDialogFooter, 
+  AlertDialogHeader, 
+  AlertDialogTitle 
+} from '@/components/ui/alert-dialog';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import OfflineIndicator from '@/components/OfflineIndicator';
 
@@ -36,9 +46,12 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const [isAiOpen, setIsAiOpen] = useState(false);
   const [isHistoryOpen, setIsHistoryOpen] = useState(false);
   const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
+  const [isLogoutConfirmOpen, setIsLogoutConfirmOpen] = useState(false);
 
   useEffect(() => {
     if (!isUserLoading && !user) {
+      router.replace('/');
+    } else if (user && !user.emailVerified && !user.isAnonymous && user.email) {
       router.replace('/');
     }
   }, [user, isUserLoading, router]);
@@ -127,13 +140,13 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                   </Avatar>
                 </Button>
               </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-56 mt-2 rounded-2xl border-2">
+              <DropdownMenuContent align="end" className="w-56 mt-2 rounded-2xl border-2 shadow-2xl">
                 <DropdownMenuLabel className="text-[10px] font-black uppercase tracking-widest opacity-50">Account Space</DropdownMenuLabel>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem asChild className="rounded-lg">
                   <Link href="/dashboard/settings" className="cursor-pointer font-bold"><Settings className="h-4 w-4 mr-2" /> Settings</Link>
                 </DropdownMenuItem>
-                <DropdownMenuItem onClick={handleSignOut} className="text-rose-500 cursor-pointer font-bold rounded-lg">
+                <DropdownMenuItem onClick={() => setIsLogoutConfirmOpen(true)} className="text-rose-500 cursor-pointer font-bold rounded-lg">
                   <LogOut className="h-4 w-4 mr-2" /> Sign Out
                 </DropdownMenuItem>
               </DropdownMenuContent>
@@ -197,6 +210,21 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             </Link>
           ))}
         </nav>
+
+        <AlertDialog open={isLogoutConfirmOpen} onOpenChange={setIsLogoutConfirmOpen}>
+          <AlertDialogContent className="rounded-3xl border-2">
+            <AlertDialogHeader>
+              <AlertDialogTitle className="text-xl font-black">Secure Sign-Out?</AlertDialogTitle>
+              <AlertDialogDescription>
+                Are you sure you want to end your active partner session? Your organizational data will remain synced and secure.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel className="rounded-xl font-bold uppercase text-[10px]">Stay Logged In</AlertDialogCancel>
+              <AlertDialogAction onClick={handleSignOut} className="bg-rose-500 hover:bg-rose-600 rounded-xl font-bold uppercase text-[10px]">End Session</AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
       </SidebarInset>
       <Toaster />
     </SidebarProvider>
