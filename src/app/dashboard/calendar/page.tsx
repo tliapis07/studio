@@ -2,9 +2,9 @@
 'use client';
 
 import { useState, useMemo } from 'react';
-import { useCollection, useFirestore, useUser, useMemoFirebase, addDocumentNonBlocking } from '@/firebase';
-import { collection, query, serverTimestamp } from 'firebase/firestore';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { useCollection, useFirestore, useUser, useMemoFirebase, addDocumentNonBlocking, deleteDocumentNonBlocking } from '@/firebase';
+import { collection, query, serverTimestamp, doc, updateDoc } from 'firebase/firestore';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -16,9 +16,15 @@ import {
   Users,
   ChevronLeft,
   ChevronRight,
-  Settings2
+  Settings2,
+  Filter,
+  Trash2,
+  Edit2,
+  CheckCircle2,
+  Tag,
+  StickyNote
 } from 'lucide-react';
-import { CalendarEvent, TeamMember } from '@/lib/types';
+import { CalendarEvent, TeamMember, EventType } from '@/lib/types';
 import { 
   format, 
   isSameDay, 
@@ -39,6 +45,7 @@ import {
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
 import { toast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
 
@@ -46,6 +53,13 @@ const MOCK_TEAM: TeamMember[] = [
   { id: 'user1', name: 'Alex Morgan', role: 'Sales Exec', email: 'alex@stream.io', avatar: 'https://picsum.photos/seed/av1/100/100', quota: 150000 },
   { id: 'user2', name: 'Jordan Lee', role: 'Sales Exec', email: 'jordan@stream.io', avatar: 'https://picsum.photos/seed/av2/100/100', quota: 120000 },
   { id: 'user3', name: 'Sarah Chen', role: 'Sales Exec', email: 'sarah@stream.io', avatar: 'https://picsum.photos/seed/av3/100/100', quota: 200000 },
+];
+
+const DEFAULT_EVENT_TYPES = [
+  { id: 'meeting', name: 'Meeting', color: 'bg-emerald-500' },
+  { id: 'follow-up', name: 'Follow-up', color: 'bg-primary' },
+  { id: 'task', name: 'Task', color: 'bg-amber-500' },
+  { id: 'reminder', name: 'Reminder', color: 'bg-rose-500' },
 ];
 
 type ViewMode = 'month' | 'week' | 'day';
@@ -57,7 +71,10 @@ export default function CalendarPage() {
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
   const [viewMode, setViewMode] = useState<ViewMode>('month');
   const [teamFilter, setTeamFilter] = useState('all');
+  const [typeFilter, setTypeFilter] = useState('all');
   const [isNewEventOpen, setIsNewEventOpen] = useState(false);
+  const [isDaySummaryOpen, setIsDaySummaryOpen] = useState(false);
+  const [isTypeManageOpen, setIsTypeManageOpen] = useState(false);
 
   const eventsQuery = useMemoFirebase(() => {
     if (!db || !user) return null;
@@ -111,15 +128,24 @@ export default function CalendarPage() {
       createdAt: serverTimestamp(),
     });
     setIsNewEventOpen(false);
-    toast({ title: "Event Created", description: "Team event added to schedule." });
+    toast({ title: "Event Scheduled", description: "Strategic engagement added to calendar." });
   };
 
   const getEventsForDay = (day: Date) => {
     return events?.filter(e => {
       if (teamFilter !== 'all' && e.ownerUid !== teamFilter) return false;
+      if (typeFilter !== 'all' && e.eventType !== typeFilter) return false;
       const start = e.startAt?.toDate ? e.startAt.toDate() : new Date(e.startAt);
       return isSameDay(start, day);
     }) || [];
+  };
+
+  const handleDayClick = (day: Date) => {
+    if (isSameDay(day, selectedDate)) {
+      setIsDaySummaryOpen(true);
+    } else {
+      setSelectedDate(day);
+    }
   };
 
   return (
@@ -130,23 +156,35 @@ export default function CalendarPage() {
           <p className="text-muted-foreground font-medium">Synchronized team follow-ups and strategic engagements.</p>
         </div>
         <div className="flex flex-wrap items-center gap-4">
-          <Button variant="outline" size="icon" className="h-12 w-12 rounded-2xl border-2">
-            <Settings2 className="h-5 w-5" />
+          <Button variant="outline" size="icon" className="h-12 w-12 rounded-2xl border-2" onClick={() => setIsTypeManageOpen(true)}>
+            <Tag className="h-5 w-5" />
           </Button>
+          <div className="flex items-center gap-2 bg-card/50 p-2 rounded-2xl border-2 border-border/50 shadow-sm">
+            <Filter className="h-4 w-4 ml-2 text-primary" />
+            <Select value={typeFilter} onValueChange={setTypeFilter}>
+              <SelectTrigger className="w-[160px] h-10 border-none bg-transparent font-bold">
+                <SelectValue placeholder="Event Type" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Types</SelectItem>
+                {DEFAULT_EVENT_TYPES.map(t => <SelectItem key={t.id} value={t.id}>{t.name}</SelectItem>)}
+              </SelectContent>
+            </Select>
+          </div>
           <div className="flex items-center gap-2 bg-card/50 p-2 rounded-2xl border-2 border-border/50 shadow-sm">
             <Users className="h-5 w-5 ml-2 text-primary" />
             <Select value={teamFilter} onValueChange={setTeamFilter}>
-              <SelectTrigger className="w-[200px] h-10 border-none bg-transparent font-bold">
-                <SelectValue placeholder="All Team Events" />
+              <SelectTrigger className="w-[180px] h-10 border-none bg-transparent font-bold">
+                <SelectValue placeholder="All Team" />
               </SelectTrigger>
-              <SelectContent className="rounded-2xl border-2 shadow-xl">
+              <SelectContent>
                 <SelectItem value="all">All Team Events</SelectItem>
                 {MOCK_TEAM.map(m => <SelectItem key={m.id} value={m.id}>{m.name}</SelectItem>)}
               </SelectContent>
             </Select>
           </div>
           <Button onClick={() => setIsNewEventOpen(true)} className="gap-3 bg-primary shadow-xl shadow-primary/20 h-12 px-6 rounded-2xl font-black uppercase tracking-widest text-xs">
-            <Plus className="h-5 w-5" /> New Team Event
+            <Plus className="h-5 w-5" /> New Event
           </Button>
         </div>
       </div>
@@ -162,7 +200,7 @@ export default function CalendarPage() {
                 <Button variant="ghost" size="icon" onClick={() => handleNavigate('prev')}><ChevronLeft className="h-5 w-5" /></Button>
                 <Button variant="ghost" size="icon" onClick={() => handleNavigate('next')}><ChevronRight className="h-5 w-5" /></Button>
               </div>
-              <Button variant="outline" size="sm" onClick={() => { setCurrentDate(new Date()); setSelectedDate(new Date()); }} className="text-[10px] font-black uppercase tracking-widest rounded-xl h-10 border-2">Today</Button>
+              <Button variant="outline" size="sm" onClick={() => { setCurrentDate(new Date()); setSelectedDate(new Date()); }} className="text-[10px] font-black uppercase tracking-widest rounded-xl h-10 border-2">Jump to Today</Button>
             </div>
             <Tabs value={viewMode} onValueChange={(v) => setViewMode(v as ViewMode)} className="w-fit">
               <TabsList className="bg-muted/50 p-1 h-12 rounded-2xl">
@@ -193,12 +231,12 @@ export default function CalendarPage() {
                 return (
                   <div 
                     key={idx} 
-                    onClick={() => setSelectedDate(day)}
+                    onClick={() => handleDayClick(day)}
                     className={cn(
                       "bg-card min-h-[140px] p-2 transition-all group relative cursor-pointer",
                       !isCurrentMonth && viewMode === 'month' && "bg-muted/10 opacity-40",
                       isToday && "bg-primary/5 border-2 border-primary/20",
-                      isSelected && "ring-4 ring-primary ring-inset z-10 shadow-[0_0_20px_rgba(59,130,246,0.2)]"
+                      isSelected && "ring-4 ring-primary ring-inset z-10 shadow-[0_0_20px_rgba(59,130,246,0.3)] bg-primary/[0.02]"
                     )}
                   >
                     <div className="flex justify-between items-start mb-2 px-1">
@@ -240,7 +278,7 @@ export default function CalendarPage() {
            <Card className="bg-card/50 border-2 border-border/50 rounded-3xl overflow-hidden shadow-lg h-full">
             <CardHeader className="p-8 border-b-2 border-border/50 bg-muted/20">
               <CardTitle className="text-sm font-black uppercase tracking-[0.2em] text-muted-foreground flex items-center gap-3">
-                <Clock className="h-5 w-5 text-primary" /> {format(selectedDate, 'MMM d')} Agenda
+                <Clock className="h-5 w-5 text-primary" /> Agenda: {format(selectedDate, 'MMM d')}
               </CardTitle>
             </CardHeader>
             <CardContent className="p-0">
@@ -262,7 +300,7 @@ export default function CalendarPage() {
                   ) : (
                     <div className="text-center py-20">
                       <CalendarIcon className="h-16 w-16 mx-auto mb-6 opacity-10 text-primary" />
-                      <p className="text-xs text-muted-foreground font-black uppercase tracking-widest italic">Free Schedule</p>
+                      <p className="text-xs text-muted-foreground font-black uppercase tracking-widest italic">No events scheduled</p>
                     </div>
                   )}
                 </div>
@@ -271,6 +309,56 @@ export default function CalendarPage() {
           </Card>
         </div>
       </div>
+
+      <Dialog open={isDaySummaryOpen} onOpenChange={setIsDaySummaryOpen}>
+        <DialogContent className="sm:max-w-[700px] h-[80vh] rounded-3xl border-2 flex flex-col p-0">
+          <DialogHeader className="p-8 border-b border-border/50 bg-muted/20">
+            <DialogTitle className="text-2xl font-black flex items-center gap-3">
+              <StickyNote className="h-6 w-6 text-primary" /> Day Summary: {format(selectedDate, 'PPP')}
+            </DialogTitle>
+            <DialogDescription>Review and manage all organizational activity for this date.</DialogDescription>
+          </DialogHeader>
+          <div className="flex-1 overflow-hidden flex flex-col md:flex-row">
+            <div className="flex-1 p-8 overflow-y-auto space-y-8 border-r border-border/50">
+              <div className="space-y-4">
+                <h3 className="text-xs font-black uppercase tracking-widest text-muted-foreground">Scheduled Engagements</h3>
+                {getEventsForDay(selectedDate).map(event => (
+                  <div key={event.id} className="p-4 rounded-xl border-2 bg-card group hover:border-primary/30 transition-all">
+                    <div className="flex justify-between items-start">
+                      <div>
+                        <p className="text-[10px] font-black text-primary uppercase">{format(event.startAt?.toDate ? event.startAt.toDate() : new Date(event.startAt), 'h:mm a')}</p>
+                        <p className="text-sm font-black">{event.title}</p>
+                      </div>
+                      <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                        <Button variant="ghost" size="icon" className="h-8 w-8 text-primary"><Edit2 className="h-4 w-4" /></Button>
+                        <Button variant="ghost" size="icon" className="h-8 w-8 text-rose-500" onClick={() => deleteDocumentNonBlocking(doc(db, 'calendarEvents', event.id))}><Trash2 className="h-4 w-4" /></Button>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+                <Button onClick={() => setIsNewEventOpen(true)} variant="outline" className="w-full h-12 rounded-xl border-dashed border-2 gap-2 text-xs font-bold">
+                  <Plus className="h-4 w-4" /> Add Engagement
+                </Button>
+              </div>
+            </div>
+            <div className="w-full md:w-1/3 p-8 bg-muted/10 space-y-6">
+               <div className="space-y-3">
+                 <Label className="text-[10px] font-black uppercase tracking-widest">Internal Day Notes</Label>
+                 <Textarea placeholder="Add organizational context for this date..." className="min-h-[200px] rounded-xl text-xs" />
+               </div>
+               <div className="space-y-3">
+                 <Label className="text-[10px] font-black uppercase tracking-widest">Linked Contacts</Label>
+                 <div className="p-4 border-2 border-dashed rounded-xl text-center">
+                   <p className="text-[10px] text-muted-foreground italic uppercase">Search directory to link</p>
+                 </div>
+               </div>
+            </div>
+          </div>
+          <DialogFooter className="p-8 border-t border-border/50 bg-muted/20">
+            <Button onClick={() => setIsDaySummaryOpen(false)} className="w-full h-12 font-black uppercase tracking-widest rounded-xl">Close Summary</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       <Dialog open={isNewEventOpen} onOpenChange={setIsNewEventOpen}>
         <DialogContent className="sm:max-w-[425px] rounded-3xl border-2">
@@ -300,10 +388,7 @@ export default function CalendarPage() {
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent className="rounded-xl border-2 shadow-xl">
-                  <SelectItem value="meeting">Meeting</SelectItem>
-                  <SelectItem value="follow-up">Follow-up</SelectItem>
-                  <SelectItem value="task">Task</SelectItem>
-                  <SelectItem value="reminder">Reminder</SelectItem>
+                  {DEFAULT_EVENT_TYPES.map(t => <SelectItem key={t.id} value={t.id}>{t.name}</SelectItem>)}
                 </SelectContent>
               </Select>
             </div>
@@ -315,6 +400,31 @@ export default function CalendarPage() {
               <Button type="submit" className="w-full h-12 shadow-xl shadow-primary/20 font-black uppercase tracking-widest rounded-xl">Create Event</Button>
             </DialogFooter>
           </form>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={isTypeManageOpen} onOpenChange={setIsTypeManageOpen}>
+        <DialogContent className="sm:max-w-[400px] rounded-3xl border-2">
+          <DialogHeader>
+            <DialogTitle className="text-xl font-black">Manage Event Types</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            {DEFAULT_EVENT_TYPES.map(type => (
+              <div key={type.id} className="flex items-center justify-between p-3 rounded-xl bg-muted/30 border border-border/50 group">
+                <div className="flex items-center gap-3">
+                  <div className={cn("h-3 w-3 rounded-full", type.color)} />
+                  <span className="text-sm font-bold">{type.name}</span>
+                </div>
+                <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                  <Button variant="ghost" size="icon" className="h-8 w-8 text-primary"><Edit2 className="h-4 w-4" /></Button>
+                  <Button variant="ghost" size="icon" className="h-8 w-8 text-rose-500"><Trash2 className="h-4 w-4" /></Button>
+                </div>
+              </div>
+            ))}
+            <Button variant="outline" className="w-full h-11 border-dashed border-2 gap-2 font-bold rounded-xl mt-4">
+              <Plus className="h-4 w-4" /> Add New Type
+            </Button>
+          </div>
         </DialogContent>
       </Dialog>
     </div>

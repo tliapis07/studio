@@ -1,9 +1,10 @@
+
 'use client';
 
 import { useState, useEffect } from 'react';
-import { SidebarProvider, Sidebar, SidebarContent, SidebarHeader, SidebarTrigger, SidebarInset } from '@/components/ui/sidebar';
+import { SidebarProvider, Sidebar, SidebarContent, SidebarHeader, SidebarTrigger, SidebarInset, SidebarRail } from '@/components/ui/sidebar';
 import { NavMain } from '@/components/nav-main';
-import { TrendingUp, Settings, LogOut, History, Bell, Sparkles, X, Contact as ContactIcon } from 'lucide-react';
+import { TrendingUp, Settings, LogOut, History, Bell, Sparkles, X, Contact as ContactIcon, PanelLeftClose, PanelLeftOpen } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Toaster } from '@/components/ui/toaster';
 import { Button } from '@/components/ui/button';
@@ -22,7 +23,6 @@ import {
   DropdownMenuTrigger 
 } from '@/components/ui/dropdown-menu';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
-import { ScrollArea } from '@/components/ui/sheet'; // Fixed import if necessary, but ScrollArea is in ui/scroll-area
 import { ScrollArea as ScrollAreaUI } from '@/components/ui/scroll-area';
 import OfflineIndicator from '@/components/OfflineIndicator';
 
@@ -64,7 +64,14 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         </SidebarHeader>
         <SidebarContent>
           <NavMain />
+          <div className="mt-auto px-4 pb-4 space-y-2">
+             <SidebarTrigger className="w-full justify-start gap-3 h-10 px-3 hover:bg-muted/50 rounded-lg text-muted-foreground">
+                <PanelLeftClose className="h-4 w-4" />
+                <span className="text-xs font-bold uppercase tracking-widest group-data-[collapsible=icon]:hidden">Minimize</span>
+             </SidebarTrigger>
+          </div>
         </SidebarContent>
+        <SidebarRail />
       </Sidebar>
       <SidebarInset>
         <header className="flex h-16 shrink-0 items-center justify-between px-6 transition-[width,height] ease-linear group-has-[[data-collapsible=icon]]/sidebar-wrapper:h-12 border-b border-border/50 sticky top-0 bg-background/80 backdrop-blur-md z-30">

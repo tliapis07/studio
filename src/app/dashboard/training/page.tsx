@@ -3,7 +3,7 @@
 
 import { useState, useCallback } from 'react';
 import { useCollection, useFirestore, useUser, useMemoFirebase } from '@/firebase';
-import { collection, query, serverTimestamp, addDoc, deleteDoc, doc } from 'firebase/firestore';
+import { collection, query, serverTimestamp, addDoc, deleteDoc, doc, updateDoc } from 'firebase/firestore';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -29,15 +29,24 @@ import {
   Link as LinkIcon,
   Settings2,
   FileIcon,
-  X
+  X,
+  MoreVertical,
+  Edit2
 } from 'lucide-react';
 import { 
   Dialog, 
   DialogContent, 
   DialogHeader, 
   DialogTitle, 
-  DialogFooter
+  DialogFooter,
+  DialogDescription
 } from '@/components/ui/dialog';
+import { 
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger
+} from '@/components/ui/dropdown-menu';
 import { Badge } from '@/components/ui/badge';
 import { TrainingMaterial } from '@/lib/types';
 import { toast } from '@/hooks/use-toast';
@@ -50,6 +59,8 @@ export default function TrainingPage() {
   const [selectedSubject, setSelectedSubject] = useState('all');
   const [isAddOpen, setIsAddOpen] = useState(false);
   const [isNewSubjectOpen, setIsNewSubjectOpen] = useState(false);
+  const [editingMaterial, setEditingNote] = useState<TrainingMaterial | null>(null);
+  const [editingSubject, setEditingSubject] = useState<string | null>(null);
   const [uploadedFiles, setUploadedFiles] = useState<File[]>([]);
   const [uploadProgress, setUploadProgress] = useState<Record<string, number>>({});
 
@@ -72,7 +83,6 @@ export default function TrainingPage() {
   const onDrop = useCallback((acceptedFiles: File[]) => {
     setUploadedFiles(prev => [...prev, ...acceptedFiles]);
     acceptedFiles.forEach(file => {
-      // Simulation of upload progress
       let progress = 0;
       const interval = setInterval(() => {
         progress += 20;
@@ -105,31 +115,42 @@ export default function TrainingPage() {
       userId: user.uid,
       subject: formData.get('subject') as string,
       content: formData.get('content') as string,
-      createdAt: serverTimestamp(),
+      updatedAt: serverTimestamp(),
     };
 
-    if (type === 'pdf' && uploadedFiles.length > 0) {
-      for (const file of uploadedFiles) {
-        await addDoc(collection(db, 'training_materials'), {
-          ...baseMaterial,
-          title: file.name,
-          type: 'pdf',
-          fileUrl: `mock-storage-url/${file.name}`,
-        });
-      }
-    } else {
-      await addDoc(collection(db, 'training_materials'), {
+    if (editingMaterial) {
+      await updateDoc(doc(db, 'training_materials', editingMaterial.id), {
         ...baseMaterial,
         title: formData.get('title') as string,
-        type: 'link',
-        fileUrl: formData.get('url') as string || '',
       });
+      toast({ title: "Material Updated", description: "Changes saved to library." });
+    } else {
+      if (type === 'pdf' && uploadedFiles.length > 0) {
+        for (const file of uploadedFiles) {
+          await addDoc(collection(db, 'training_materials'), {
+            ...baseMaterial,
+            title: file.name,
+            type: 'pdf',
+            fileUrl: `mock-storage-url/${file.name}`,
+            createdAt: serverTimestamp(),
+          });
+        }
+      } else {
+        await addDoc(collection(db, 'training_materials'), {
+          ...baseMaterial,
+          title: formData.get('title') as string,
+          type: 'link',
+          fileUrl: formData.get('url') as string || '',
+          createdAt: serverTimestamp(),
+        });
+      }
+      toast({ title: "Resources Added", description: "Material published to organizational library." });
     }
 
     setIsAddOpen(false);
+    setEditingNote(null);
     setUploadedFiles([]);
     setUploadProgress({});
-    toast({ title: "Resources Added", description: "Material published to organizational library." });
   };
 
   const handleAddSubject = (e: React.FormEvent<HTMLFormElement>) => {
@@ -137,16 +158,27 @@ export default function TrainingPage() {
     const formData = new FormData(e.currentTarget);
     const name = formData.get('name') as string;
     if (name) {
-      setSubjects(prev => [...prev, name]);
+      if (editingSubject) {
+        setSubjects(prev => prev.map(s => s === editingSubject ? name : s));
+        toast({ title: "Subject Updated", description: `Renamed to '${name}'.` });
+      } else {
+        setSubjects(prev => [...prev, name]);
+        toast({ title: "Subject Created", description: `Added '${name}' to categories.` });
+      }
       setIsNewSubjectOpen(false);
-      toast({ title: "Subject Created", description: `Added '${name}' to categories.` });
+      setEditingSubject(null);
     }
   };
 
-  const handleDelete = async (id: string) => {
+  const handleDeleteMaterial = async (id: string) => {
     if (!db) return;
     await deleteDoc(doc(db, 'training_materials', id));
     toast({ title: "Resource Removed", description: "Deleted from library." });
+  };
+
+  const handleDeleteSubject = (subjectName: string) => {
+    setSubjects(prev => prev.filter(s => s !== subjectName));
+    toast({ title: "Subject Deleted", description: `'${subjectName}' removed from categories.` });
   };
 
   return (
@@ -160,7 +192,7 @@ export default function TrainingPage() {
           <Button variant="outline" size="icon" className="h-14 w-14 rounded-2xl border-2">
             <Settings2 className="h-6 w-6" />
           </Button>
-          <Button onClick={() => setIsAddOpen(true)} className="bg-primary shadow-xl shadow-primary/20 h-14 px-8 rounded-2xl font-black uppercase tracking-widest text-xs gap-3">
+          <Button onClick={() => { setEditingNote(null); setIsAddOpen(true); }} className="bg-primary shadow-xl shadow-primary/20 h-14 px-8 rounded-2xl font-black uppercase tracking-widest text-xs gap-3">
             <Upload className="h-6 w-6" /> Upload Material
           </Button>
         </div>
@@ -179,11 +211,22 @@ export default function TrainingPage() {
                 <BookOpen className="h-4 w-4" /> All Materials
               </button>
               {subjects.map(s => (
-                <button key={s} onClick={() => setSelectedSubject(s)} className={`flex items-center gap-3 px-6 py-4 text-xs font-black uppercase tracking-widest transition-all border-l-4 ${selectedSubject === s ? 'bg-primary/10 border-primary text-primary' : 'border-transparent hover:bg-muted/50'}`}>
-                  <Folder className="h-4 w-4" /> {s}
-                </button>
+                <div key={s} className="group relative flex items-center">
+                  <button onClick={() => setSelectedSubject(s)} className={`flex-1 flex items-center gap-3 px-6 py-4 text-xs font-black uppercase tracking-widest transition-all border-l-4 ${selectedSubject === s ? 'bg-primary/10 border-primary text-primary' : 'border-transparent hover:bg-muted/50'}`}>
+                    <Folder className="h-4 w-4" /> {s}
+                  </button>
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button variant="ghost" size="icon" className="absolute right-2 opacity-0 group-hover:opacity-100 h-8 w-8"><MoreVertical className="h-4 w-4" /></Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end">
+                      <DropdownMenuItem onClick={() => { setEditingSubject(s); setIsNewSubjectOpen(true); }}><Edit2 className="h-4 w-4 mr-2" /> Rename</DropdownMenuItem>
+                      <DropdownMenuItem className="text-rose-500" onClick={() => handleDeleteSubject(s)}><Trash2 className="h-4 w-4 mr-2" /> Delete</DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                </div>
               ))}
-              <Button variant="ghost" className="m-4 text-[10px] font-black uppercase tracking-widest h-10 border-2 border-dashed border-border/50 rounded-xl" onClick={() => setIsNewSubjectOpen(true)}>
+              <Button variant="ghost" className="m-4 text-[10px] font-black uppercase tracking-widest h-10 border-2 border-dashed border-border/50 rounded-xl" onClick={() => { setEditingSubject(null); setIsNewSubjectOpen(true); }}>
                 <Plus className="h-4 w-4 mr-2" /> Add Subject
               </Button>
             </div>
@@ -215,7 +258,15 @@ export default function TrainingPage() {
                            {m.title}
                         </CardTitle>
                       </div>
-                      <Button variant="ghost" size="icon" onClick={() => handleDelete(m.id)} className="h-8 w-8 text-rose-500 hover:bg-rose-500/10 opacity-0 group-hover:opacity-100 transition-opacity"><Trash2 className="h-4 w-4" /></Button>
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button variant="ghost" size="icon" className="h-8 w-8 opacity-0 group-hover:opacity-100 transition-opacity"><MoreVertical className="h-4 w-4" /></Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                          <DropdownMenuItem onClick={() => { setEditingNote(m); setIsAddOpen(true); }}><Edit2 className="h-4 w-4 mr-2" /> Edit</DropdownMenuItem>
+                          <DropdownMenuItem className="text-rose-500" onClick={() => handleDeleteMaterial(m.id)}><Trash2 className="h-4 w-4 mr-2" /> Delete</DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
                     </div>
                   </CardHeader>
                   <CardContent className="p-6 flex-1">
@@ -242,13 +293,13 @@ export default function TrainingPage() {
       <Dialog open={isAddOpen} onOpenChange={setIsAddOpen}>
         <DialogContent className="sm:max-w-[600px] rounded-3xl border-2">
           <DialogHeader>
-            <DialogTitle className="text-2xl font-black">Publish Training Resource</DialogTitle>
+            <DialogTitle className="text-2xl font-black">{editingMaterial ? 'Edit' : 'Publish'} Training Resource</DialogTitle>
           </DialogHeader>
           <form onSubmit={handleAddMaterial} className="space-y-6 pt-4">
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label className="text-xs font-black uppercase tracking-widest text-muted-foreground">Subject Area</Label>
-                <Select name="subject" required>
+                <Select name="subject" defaultValue={editingMaterial?.subject} required>
                   <SelectTrigger className="h-12 rounded-xl border-2"><SelectValue /></SelectTrigger>
                   <SelectContent className="rounded-xl border-2 shadow-xl">
                     {subjects.map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}
@@ -257,7 +308,7 @@ export default function TrainingPage() {
               </div>
               <div className="space-y-2">
                 <Label className="text-xs font-black uppercase tracking-widest text-muted-foreground">Resource Type</Label>
-                <Select name="type" defaultValue="pdf">
+                <Select name="type" defaultValue={editingMaterial?.type || "pdf"}>
                   <SelectTrigger className="h-12 rounded-xl border-2"><SelectValue /></SelectTrigger>
                   <SelectContent className="rounded-xl border-2 shadow-xl">
                     <SelectItem value="pdf">File Upload (PDF/Doc/Img)</SelectItem>
@@ -268,23 +319,29 @@ export default function TrainingPage() {
             </div>
 
             <div className="space-y-2">
-               <Label className="text-xs font-black uppercase tracking-widest text-muted-foreground">Description</Label>
-               <Textarea name="content" placeholder="Briefly explain what this resource covers..." required className="h-24 rounded-xl border-2" />
+               <Label className="text-xs font-black uppercase tracking-widest text-muted-foreground">Title</Label>
+               <Input name="title" defaultValue={editingMaterial?.title} required className="h-12 rounded-xl border-2" />
             </div>
 
-            {/* Drag & Drop Zone */}
-            <div {...getRootProps()} className={`border-2 border-dashed rounded-2xl p-8 text-center transition-all cursor-pointer ${isDragActive ? 'bg-primary/10 border-primary' : 'bg-muted/10 border-border/50 hover:bg-muted/20'}`}>
-              <input {...getInputProps()} />
-              <Upload className="h-10 w-10 mx-auto mb-4 text-primary opacity-60" />
-              {isDragActive ? (
-                <p className="text-sm font-black text-primary">Drop files to prepare upload...</p>
-              ) : (
-                <div className="space-y-1">
-                  <p className="text-sm font-black">Drag files here or click to select</p>
-                  <p className="text-[10px] text-muted-foreground uppercase font-black">PDF, Word, or Images up to 20MB</p>
-                </div>
-              )}
+            <div className="space-y-2">
+               <Label className="text-xs font-black uppercase tracking-widest text-muted-foreground">Description</Label>
+               <Textarea name="content" defaultValue={editingMaterial?.content} placeholder="Briefly explain what this resource covers..." required className="h-24 rounded-xl border-2" />
             </div>
+
+            {!editingMaterial && (
+              <div {...getRootProps()} className={`border-2 border-dashed rounded-2xl p-8 text-center transition-all cursor-pointer ${isDragActive ? 'bg-primary/10 border-primary' : 'bg-muted/10 border-border/50 hover:bg-muted/20'}`}>
+                <input {...getInputProps()} />
+                <Upload className="h-10 w-10 mx-auto mb-4 text-primary opacity-60" />
+                {isDragActive ? (
+                  <p className="text-sm font-black text-primary">Drop files to prepare upload...</p>
+                ) : (
+                  <div className="space-y-1">
+                    <p className="text-sm font-black">Drag files here or click to select</p>
+                    <p className="text-[10px] text-muted-foreground uppercase font-black">PDF, Word, or Images up to 20MB</p>
+                  </div>
+                )}
+              </div>
+            )}
 
             {uploadedFiles.length > 0 && (
               <div className="space-y-3 bg-muted/30 p-4 rounded-2xl border-2 border-border/50">
@@ -308,7 +365,7 @@ export default function TrainingPage() {
 
             <DialogFooter>
               <Button type="submit" className="w-full h-12 shadow-xl shadow-primary/20 font-black uppercase tracking-widest rounded-xl">
-                Publish to organizational Library
+                {editingMaterial ? 'Update' : 'Publish'} Material
               </Button>
             </DialogFooter>
           </form>
@@ -318,15 +375,15 @@ export default function TrainingPage() {
       <Dialog open={isNewSubjectOpen} onOpenChange={setIsNewSubjectOpen}>
         <DialogContent className="sm:max-w-[400px] rounded-3xl border-2">
           <DialogHeader>
-            <DialogTitle className="text-xl font-black">Create New Subject Area</DialogTitle>
+            <DialogTitle className="text-xl font-black">{editingSubject ? 'Rename' : 'Create New'} Subject Area</DialogTitle>
           </DialogHeader>
           <form onSubmit={handleAddSubject} className="space-y-4 pt-4">
             <div className="space-y-2">
               <Label className="text-xs font-black uppercase tracking-widest text-muted-foreground">Subject Name</Label>
-              <Input name="name" required placeholder="e.g. Advanced Negotiation" className="h-12 rounded-xl" />
+              <Input name="name" defaultValue={editingSubject || ''} required placeholder="e.g. Advanced Negotiation" className="h-12 rounded-xl" />
             </div>
             <DialogFooter>
-              <Button type="submit" className="w-full h-11 font-black uppercase tracking-widest rounded-xl">Create Subject</Button>
+              <Button type="submit" className="w-full h-11 font-black uppercase tracking-widest rounded-xl">Save Subject</Button>
             </DialogFooter>
           </form>
         </DialogContent>

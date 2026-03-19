@@ -48,6 +48,7 @@ export interface Contact {
   email?: string;
   notes?: string;
   linkedLeadId?: string;
+  tags: string[];
   createdAt: any;
   updatedAt: any;
 }
@@ -62,10 +63,10 @@ export interface WhatsAppLog {
 
 export interface Activity {
   id: string;
-  leadId: string;
+  leadId?: string;
   ownerUid: string;
   ownerName?: string;
-  type: 'note' | 'call' | 'status_change' | 'tag_added' | 'event_created' | 'whatsapp_sent';
+  type: 'note' | 'call' | 'status_change' | 'tag_added' | 'event_created' | 'whatsapp_sent' | 'lead_added';
   content: string;
   createdAt: any;
   oldStatus?: string;
@@ -82,9 +83,16 @@ export interface CalendarEvent {
   startAt: any;
   endAt?: any;
   allDay: boolean;
-  eventType: 'follow-up' | 'meeting' | 'task' | 'reminder';
+  eventType: string; // references event type name or ID
   status: 'scheduled' | 'completed' | 'cancelled';
   createdAt: any;
+}
+
+export interface EventType {
+  id: string;
+  name: string;
+  color: string;
+  userId: string;
 }
 
 export interface TrainingMaterial {

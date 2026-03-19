@@ -3,7 +3,7 @@
 
 import { useState, useMemo } from 'react';
 import { useCollection, useFirestore, useUser, useMemoFirebase } from '@/firebase';
-import { collection, query } from 'firebase/firestore';
+import { collection, query, doc, deleteDoc, addDoc, serverTimestamp } from 'firebase/firestore';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { 
@@ -29,15 +29,31 @@ import {
   Sparkles,
   Info,
   Calendar,
+  Globe,
+  Plus,
+  Trash2,
+  Edit2,
+  Users
 } from 'lucide-react';
 import { Lead } from '@/lib/types';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import {
   Tooltip as UITooltip,
   TooltipProvider,
   TooltipTrigger,
   TooltipContent,
 } from "@/components/ui/tooltip";
+import { 
+  Dialog, 
+  DialogContent, 
+  DialogHeader, 
+  DialogTitle, 
+  DialogFooter,
+  DialogDescription
+} from '@/components/ui/dialog';
+import { toast } from '@/hooks/use-toast';
 
 const MOCK_TEAM = [
   { id: 'user1', name: 'Alex Morgan', role: 'Sales Exec', email: 'alex@stream.io', avatar: 'https://picsum.photos/seed/av1/100/100', quota: 150000 },
@@ -49,6 +65,8 @@ export default function TeamAnalyticsPage() {
   const [activeTab, setActiveTab] = useState('Overview');
   const db = useFirestore();
   const { user } = useUser();
+  const [isAddSourceOpen, setIsAddSourceOpen] = useState(false);
+  const [newSource, setNewSource] = useState('');
 
   const leadsQuery = useMemoFirebase(() => {
     if (!db || !user) return null;
@@ -86,7 +104,7 @@ export default function TeamAnalyticsPage() {
 
   const sourceData = useMemo(() => {
     if (!leads) return [];
-    const sources = ['Website', 'Referral', 'Cold Call', 'Social', 'Other'];
+    const sources = ['Website', 'Referral', 'Cold Call', 'LinkedIn', 'Social'];
     return sources.map(s => ({
       name: s,
       value: leads.filter(l => l.source === s).length || Math.floor(Math.random() * 10) + 1
@@ -96,11 +114,18 @@ export default function TeamAnalyticsPage() {
   const tabInfo: Record<string, { desc: string; icon: any }> = {
     'Overview': { desc: 'Team performance overview and revenue targets.', icon: Target },
     'Pipeline': { desc: 'Step-by-step conversion rates and stage velocity across the team.', icon: Zap },
-    'Sources': { desc: 'Lead acquisition performance by channel for all reps.', icon: Calendar },
+    'Sources': { desc: 'Lead acquisition performance by channel for all reps.', icon: Globe },
     'Forecasting': { desc: 'Predictive revenue trends weighted by pipeline stage win rates.', icon: Sparkles },
   };
 
   const DynamicIcon = tabInfo[activeTab].icon;
+
+  const handleAddSource = () => {
+    if (!newSource.trim()) return;
+    toast({ title: "Custom Source Added", description: `'${newSource}' is now available for tracking.` });
+    setNewSource('');
+    setIsAddSourceOpen(false);
+  };
 
   return (
     <div className="space-y-8 pb-20 md:pb-8">
@@ -112,7 +137,7 @@ export default function TeamAnalyticsPage() {
         <Button 
           size="lg" 
           className="bg-primary shadow-xl shadow-primary/20 h-12 font-black px-8 rounded-xl text-xs uppercase tracking-widest"
-          onClick={() => toast({ title: "Report Exported", description: "The organizational diagnostics are ready for download." })}
+          onClick={() => toast({ title: "Diagnostics Exported", description: "The organizational report is ready for download." })}
         >
           Export Partner Report
         </Button>
@@ -120,7 +145,7 @@ export default function TeamAnalyticsPage() {
 
       <div className="grid gap-6 grid-cols-1 sm:grid-cols-2 lg:grid-cols-5">
         {[
-          { label: 'Team Win Rate', value: '32%', change: '+4%', icon: Target, info: 'Percentage of leads successfully closed as WON across the entire team.' },
+          { label: 'Team Win Rate', value: '32%', change: '+4%', icon: Target, info: 'Percentage of leads closed as WON across the entire team.' },
           { label: 'Avg Deal Size', value: '$5.2k', change: '+8%', icon: DollarSign, iconColor: 'text-primary', info: 'Mean monetary value of won deals.' },
           { label: 'Sales Cycle', value: '42d', change: '-5d', icon: Clock, info: 'Average time from Lead Creation to Close WON.' },
           { label: 'Sales Velocity', value: '1.2x', change: '+15%', icon: Zap, info: 'Rate at which the team generates revenue.' },
@@ -155,7 +180,7 @@ export default function TeamAnalyticsPage() {
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-6">
-          <TabsList className="bg-card/30 border-2 border-border/50 p-1.5 h-14 rounded-2xl analytics-tabs-list">
+          <TabsList className="bg-card/30 border-2 border-border/50 p-1.5 h-14 rounded-2xl">
             {Object.keys(tabInfo).map((tab) => (
               <TabsTrigger key={tab} value={tab} className="px-8 gap-3 text-xs font-black uppercase tracking-widest h-11 data-[state=active]:bg-primary data-[state=active]:text-white rounded-xl transition-all">
                 {tab}
@@ -212,7 +237,7 @@ export default function TeamAnalyticsPage() {
                   </p>
                   <div className="bg-background/80 p-5 rounded-2xl border-2 border-primary/10 shadow-inner">
                     <p className="text-[12px] italic leading-relaxed text-muted-foreground font-medium">
-                      "Partner, the current proposal conversion is 25% below baseline. Consider reviewing team proposal templates and pricing flexibility for next week's reviews."
+                      "Partner, the current proposal conversion is 25% below baseline. Consider reviewing team proposal templates and pricing flexibility."
                     </p>
                   </div>
                   <Button 
@@ -220,7 +245,7 @@ export default function TeamAnalyticsPage() {
                     className="w-full text-[11px] uppercase font-black tracking-widest h-11 border-2 border-primary/20 hover:bg-primary hover:text-white transition-all rounded-xl shadow-sm"
                     onClick={() => toast({ title: "Analyzing Bottleneck", description: "Gemini is performing a deep-dive on stage transitions." })}
                   >
-                    Analyze Bottleneck
+                    Analyze Stage Velocity
                   </Button>
                 </CardContent>
               </Card>
@@ -253,7 +278,7 @@ export default function TeamAnalyticsPage() {
         </TabsContent>
 
         <TabsContent value="Pipeline" className="m-0 animate-in fade-in slide-in-from-top-4 duration-500">
-           <Card className="bg-card/50 border-2 border-border/50 rounded-2xl shadow-xl overflow-hidden">
+           <Card className="bg-card/50 border-2 border-border/50 rounded-3xl shadow-xl overflow-hidden">
               <CardHeader className="p-8">
                 <CardTitle className="text-xl font-black">Team Conversion Funnel</CardTitle>
                 <CardDescription className="text-sm font-medium">Collective movement efficiency across pipeline stages for the entire organization.</CardDescription>
@@ -280,39 +305,69 @@ export default function TeamAnalyticsPage() {
            </Card>
         </TabsContent>
 
-        <TabsContent value="Sources" className="m-0 animate-in fade-in slide-in-from-top-4 duration-500">
-           <Card className="bg-card/50 border-2 border-border/50 rounded-2xl shadow-xl overflow-hidden">
-              <CardHeader className="p-8">
-                <CardTitle className="text-xl font-black">Lead Source Distribution</CardTitle>
-                <CardDescription className="text-sm font-medium">Analyzing where your highest value team prospects are coming from.</CardDescription>
-              </CardHeader>
-              <CardContent className="h-[450px] p-8 pt-0">
-                <ResponsiveContainer width="100%" height="100%">
-                  <PieChart>
-                    <Pie
-                      data={sourceData}
-                      cx="50%"
-                      cy="50%"
-                      innerRadius={80}
-                      outerRadius={150}
-                      paddingAngle={5}
-                      dataKey="value"
-                    >
-                      {sourceData.map((entry, index) => (
-                        <Cell key={`cell-${index}`} fill={`hsl(var(--primary), ${1 - index * 0.15})`} />
-                      ))}
-                    </Pie>
-                    <Tooltip 
-                      contentStyle={{ backgroundColor: 'hsl(var(--popover))', borderRadius: '16px', border: '2px solid hsl(var(--border))' }}
-                    />
-                  </PieChart>
-                </ResponsiveContainer>
-              </CardContent>
-           </Card>
+        <TabsContent value="Sources" className="m-0 animate-in fade-in slide-in-from-top-4 duration-500 space-y-6">
+           <div className="flex justify-between items-center bg-card/30 p-4 rounded-2xl border-2">
+              <div>
+                <h3 className="text-lg font-black">Data Origin Diagnostics</h3>
+                <p className="text-xs text-muted-foreground">Analyze where your highest value team prospects are coming from.</p>
+              </div>
+              <Button onClick={() => setIsAddSourceOpen(true)} className="gap-2 rounded-xl h-10 font-bold text-xs uppercase tracking-widest bg-primary">
+                <Plus className="h-4 w-4" /> Manage Custom Sources
+              </Button>
+           </div>
+
+           <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+             <Card className="lg:col-span-2 bg-card/50 border-2 border-border/50 rounded-3xl shadow-xl overflow-hidden">
+                <CardContent className="h-[450px] p-8">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <PieChart>
+                      <Pie
+                        data={sourceData}
+                        cx="50%"
+                        cy="50%"
+                        innerRadius={80}
+                        outerRadius={150}
+                        paddingAngle={5}
+                        dataKey="value"
+                      >
+                        {sourceData.map((entry, index) => (
+                          <Cell key={`cell-${index}`} fill={`hsl(var(--primary), ${1 - index * 0.15})`} />
+                        ))}
+                      </Pie>
+                      <Tooltip 
+                        contentStyle={{ backgroundColor: 'hsl(var(--popover))', borderRadius: '16px', border: '2px solid hsl(var(--border))' }}
+                      />
+                    </PieChart>
+                  </ResponsiveContainer>
+                </CardContent>
+             </Card>
+
+             <Card className="bg-card/50 border-2 border-border/50 rounded-3xl p-8 space-y-6">
+                <h3 className="text-sm font-black uppercase tracking-widest text-primary border-b-2 pb-4">Rep-Source Performance</h3>
+                <div className="space-y-4">
+                  {MOCK_TEAM.map(rep => (
+                    <div key={rep.id} className="space-y-2">
+                      <div className="flex justify-between items-center">
+                        <span className="text-xs font-bold">{rep.name}</span>
+                        <span className="text-[10px] uppercase font-black text-muted-foreground">Top: Referral</span>
+                      </div>
+                      <div className="w-full h-2 bg-muted rounded-full overflow-hidden">
+                        <div className="h-full bg-primary rounded-full" style={{ width: `${Math.random() * 60 + 40}%` }} />
+                      </div>
+                    </div>
+                  ))}
+                </div>
+                <div className="pt-4 mt-auto border-t-2 border-border/50">
+                   <p className="text-[10px] text-muted-foreground italic leading-relaxed">
+                     "Partner, LinkedIn leads assigned to Sarah have a 45% higher win rate than Website leads. Consider rebalancing source assignments."
+                   </p>
+                </div>
+             </Card>
+           </div>
         </TabsContent>
 
         <TabsContent value="Forecasting" className="m-0 animate-in fade-in slide-in-from-top-4 duration-500">
-           <Card className="bg-card/50 border-2 border-border/50 rounded-2xl shadow-xl overflow-hidden">
+           <Card className="bg-card/50 border-2 border-border/50 rounded-3xl shadow-xl overflow-hidden">
               <CardHeader className="p-8">
                 <CardTitle className="text-xl font-black">Revenue Forecast (90 Days)</CardTitle>
                 <CardDescription className="text-sm font-medium">Weighted probability forecast based on current organizational pipeline.</CardDescription>
@@ -338,6 +393,38 @@ export default function TeamAnalyticsPage() {
            </Card>
         </TabsContent>
       </Tabs>
+
+      <Dialog open={isAddSourceOpen} onOpenChange={setIsAddSourceOpen}>
+        <DialogContent className="sm:max-w-[400px] rounded-3xl border-2">
+          <DialogHeader>
+            <DialogTitle className="text-xl font-black">Manage Tracking Sources</DialogTitle>
+            <DialogDescription>Define organizational origins for lead attribution.</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 pt-4">
+            <div className="flex gap-2">
+              <Input 
+                placeholder="New Source Name..." 
+                className="h-11 rounded-xl"
+                value={newSource}
+                onChange={(e) => setNewSource(e.target.value)}
+                onKeyDown={(e) => e.key === 'Enter' && handleAddSource()}
+              />
+              <Button onClick={handleAddSource} size="icon" className="h-11 w-11 rounded-xl"><Plus className="h-5 w-5" /></Button>
+            </div>
+            <div className="space-y-2">
+              {['Website', 'Referral', 'LinkedIn', 'Cold Call'].map(s => (
+                <div key={s} className="flex items-center justify-between p-3 rounded-xl bg-muted/30 border border-border/50 group">
+                  <span className="text-xs font-bold uppercase tracking-widest">{s}</span>
+                  <div className="flex gap-1 opacity-0 group-hover:opacity-100">
+                    <Button variant="ghost" size="icon" className="h-8 w-8 text-primary"><Edit2 className="h-4 w-4" /></Button>
+                    <Button variant="ghost" size="icon" className="h-8 w-8 text-rose-500"><Trash2 className="h-4 w-4" /></Button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
