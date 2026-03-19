@@ -61,40 +61,40 @@ export function useCollection<T = any>(
       return;
     }
 
-    // 1. ROBUST PATH DETECTION
+    // 1. RELIABLE PATH DETECTION
     let collectionName = '';
     if (memoizedTargetRefOrQuery.type === 'collection') {
       collectionName = (memoizedTargetRefOrQuery as CollectionReference).path;
     } else {
-      // Cast to any to access internal _query path segments
+      // Cast to any to access internal _query path segments reliably
       const internal = memoizedTargetRefOrQuery as any;
       if (internal._query?.path?.segments) {
         collectionName = internal._query.path.segments[0];
       }
     }
     
-    console.log('[useCollection] Detected collection:', collectionName);
+    console.log(`[useCollection] Querying ${collectionName} — user: ${user?.uid || 'none'}`);
 
     let finalQuery = memoizedTargetRefOrQuery as Query<DocumentData>;
 
-    // 2. SECURITY FILTER INJECTION
+    // 2. SECURITY FILTER INJECTION (BEFORE onSnapshot)
     if (USER_OWNED_COLLECTIONS.includes(collectionName)) {
       if (!user) {
-        console.warn('[useCollection] Unauthorized access attempt blocked for:', collectionName);
+        console.warn(`[useCollection] Blocked unauthenticated access to ${collectionName}`);
         setData([]);
         setIsLoading(false);
         return;
       }
       
-      // Inject ownership filter before establishing listener
+      // Inject ownership filter to satisfy "Rules are not Filters" requirement
       finalQuery = query(finalQuery, where('ownerUid', '==', user.uid));
-      console.log('[useCollection] Injected ownerUid filter for:', collectionName, user.uid);
+      console.log(`[useCollection] ADDED FILTER: ownerUid == ${user.uid} for ${collectionName}`);
     }
 
     setIsLoading(true);
     setError(null);
 
-    // 3. SNAPHOT LISTENER
+    // 3. SNAPSHOT LISTENER
     const unsubscribe = onSnapshot(
       finalQuery,
       (snapshot: QuerySnapshot<DocumentData>) => {
@@ -107,7 +107,8 @@ export function useCollection<T = any>(
         setIsLoading(false);
       },
       (firestoreError: FirestoreError) => {
-        console.error(`[useCollection] Permission Denied: /${collectionName}. Check rules vs ownerUid query.`);
+        // This should now rarely happen if filter injection works correctly.
+        console.error(`[useCollection] Firestore error on ${collectionName}:`, firestoreError.message);
         
         const contextualError = new FirestorePermissionError({
           operation: 'list',
