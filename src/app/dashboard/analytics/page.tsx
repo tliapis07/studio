@@ -1,7 +1,7 @@
 
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { useCollection, useFirestore, useUser, useMemoFirebase } from '@/firebase';
 import { collection, query, doc, deleteDoc, addDoc, serverTimestamp } from 'firebase/firestore';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
@@ -67,6 +67,14 @@ export default function TeamAnalyticsPage() {
   const { user } = useUser();
   const [isAddSourceOpen, setIsAddSourceOpen] = useState(false);
   const [newSource, setNewSource] = useState('');
+  const [hydrated, setHydrated] = useState(false);
+  const [randomRatios, setRandomValues] = useState<number[]>([]);
+
+  useEffect(() => {
+    setHydrated(true);
+    // Generate random values only on client to avoid hydration mismatch
+    setRandomValues(MOCK_TEAM.map(() => Math.random() * 60 + 40));
+  }, []);
 
   const leadsQuery = useMemoFirebase(() => {
     if (!db || !user) return null;
@@ -80,7 +88,7 @@ export default function TeamAnalyticsPage() {
     return MOCK_TEAM.map(member => {
       const memberLeads = leads.filter(l => l.ownerUid === member.id);
       const won = memberLeads.filter(l => l.status === 'won');
-      const revenue = won.reduce((acc, l) => acc + l.dealValue, 0);
+      const revenue = won.reduce((acc, l) => acc + (l.dealValue || 0), 0);
       const winRate = memberLeads.length ? Math.round((won.length / memberLeads.length) * 100) : 0;
       return {
         name: member.name,
@@ -105,11 +113,11 @@ export default function TeamAnalyticsPage() {
   const sourceData = useMemo(() => {
     if (!leads) return [];
     const sources = ['Website', 'Referral', 'Cold Call', 'LinkedIn', 'Social'];
-    return sources.map(s => ({
+    return sources.map((s, idx) => ({
       name: s,
-      value: leads.filter(l => l.source === s).length || Math.floor(Math.random() * 10) + 1
+      value: leads.filter(l => l.source === s).length || (hydrated ? Math.floor(Math.random() * 10) + 1 : 5)
     }));
-  }, [leads]);
+  }, [leads, hydrated]);
 
   const tabInfo: Record<string, { desc: string; icon: any }> = {
     'Overview': { desc: 'Team performance overview and revenue targets.', icon: Target },
@@ -345,14 +353,14 @@ export default function TeamAnalyticsPage() {
              <Card className="bg-card/50 border-2 border-border/50 rounded-3xl p-8 space-y-6">
                 <h3 className="text-sm font-black uppercase tracking-widest text-primary border-b-2 pb-4">Rep-Source Performance</h3>
                 <div className="space-y-4">
-                  {MOCK_TEAM.map(rep => (
+                  {MOCK_TEAM.map((rep, idx) => (
                     <div key={rep.id} className="space-y-2">
                       <div className="flex justify-between items-center">
                         <span className="text-xs font-bold">{rep.name}</span>
                         <span className="text-[10px] uppercase font-black text-muted-foreground">Top: Referral</span>
                       </div>
                       <div className="w-full h-2 bg-muted rounded-full overflow-hidden">
-                        <div className="h-full bg-primary rounded-full" style={{ width: `${Math.random() * 60 + 40}%` }} />
+                        <div className="h-full bg-primary rounded-full" style={{ width: hydrated ? `${randomRatios[idx]}%` : '50%' }} />
                       </div>
                     </div>
                   ))}

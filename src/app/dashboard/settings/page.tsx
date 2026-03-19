@@ -174,7 +174,7 @@ export default function SettingsPage() {
                       <Select name="timeZone" defaultValue={profile?.timeZone || 'UTC'}>
                         <SelectTrigger className="h-12 rounded-xl border-2"><SelectValue /></SelectTrigger>
                         <SelectContent className="rounded-xl border-2 shadow-xl">
-                          {TIMEZONES.map(tz => <SelectItem key={opt} value={tz}>{tz}</SelectItem>)}
+                          {TIMEZONES.map(tz => <SelectItem key={tz} value={tz}>{tz}</SelectItem>)}
                         </SelectContent>
                       </Select>
                     </div>

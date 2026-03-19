@@ -1,7 +1,7 @@
 
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { useCollection, useFirestore, useUser, useMemoFirebase, addDocumentNonBlocking, deleteDocumentNonBlocking } from '@/firebase';
 import { collection, query, serverTimestamp, doc, updateDoc } from 'firebase/firestore';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
@@ -67,14 +67,21 @@ type ViewMode = 'month' | 'week' | 'day';
 export default function CalendarPage() {
   const { user } = useUser();
   const db = useFirestore();
-  const [currentDate, setCurrentDate] = useState<Date>(new Date());
-  const [selectedDate, setSelectedDate] = useState<Date>(new Date());
+  const [currentDate, setCurrentDate] = useState<Date>(new Date(2024, 0, 1)); // Stable initial for hydration
+  const [selectedDate, setSelectedDate] = useState<Date>(new Date(2024, 0, 1)); // Stable initial for hydration
   const [viewMode, setViewMode] = useState<ViewMode>('month');
   const [teamFilter, setTeamFilter] = useState('all');
   const [typeFilter, setTypeFilter] = useState('all');
   const [isNewEventOpen, setIsNewEventOpen] = useState(false);
   const [isDaySummaryOpen, setIsDaySummaryOpen] = useState(false);
   const [isTypeManageOpen, setIsTypeManageOpen] = useState(false);
+  const [isHydrated, setIsHydrated] = useState(false);
+
+  useEffect(() => {
+    setIsHydrated(true);
+    setCurrentDate(new Date());
+    setSelectedDate(new Date());
+  }, []);
 
   const eventsQuery = useMemoFirebase(() => {
     if (!db || !user) return null;
@@ -147,6 +154,8 @@ export default function CalendarPage() {
       setSelectedDate(day);
     }
   };
+
+  if (!isHydrated) return null;
 
   return (
     <div className="space-y-8 pb-24 md:pb-8 animate-in fade-in duration-500">
