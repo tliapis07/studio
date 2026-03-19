@@ -1,7 +1,6 @@
 'use client';
 
 import { useState, useMemo, useRef } from 'react';
-import { useRouter } from 'next/navigation';
 import { 
   useCollection, 
   useFirestore, 
@@ -64,6 +63,7 @@ import {
 } from 'lucide-react';
 import { Lead, LeadStatus, TeamMember } from '@/lib/types';
 import { toast } from '@/hooks/use-toast';
+import { useSafeNavigation } from '@/hooks/use-safe-navigation';
 import Papa from 'papaparse';
 
 const STATUS_OPTIONS: { label: string; value: LeadStatus; color: string }[] = [
@@ -93,7 +93,7 @@ const LEAD_FIELDS = [
 ];
 
 export default function LeadsPage() {
-  const router = useRouter();
+  const { safePush } = useSafeNavigation();
   const { user } = useUser();
   const db = useFirestore();
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -111,7 +111,6 @@ export default function LeadsPage() {
 
   const leadsQuery = useMemoFirebase(() => {
     if (!db || !user) return null;
-    // Scoping to ownerUid is essential for security rules
     return query(collection(db, 'leads'), where('ownerUid', '==', user.uid));
   }, [db, user?.uid]);
 
@@ -367,7 +366,11 @@ export default function LeadsPage() {
                   </TableCell>
                 </TableRow>
               ) : filteredLeads.length > 0 ? filteredLeads.map((lead) => (
-                <TableRow key={lead.id} className="hover:bg-muted/10 group cursor-pointer" onClick={() => router.push(`/dashboard/leads/${lead.id}/`)}>
+                <TableRow 
+                  key={lead.id} 
+                  className="hover:bg-muted/10 group cursor-pointer" 
+                  onClick={() => safePush(`/dashboard/leads/${lead.id}/`)}
+                >
                   <TableCell className="px-4 text-center" onClick={(e) => e.stopPropagation()}>
                     <Checkbox 
                       checked={selectedLeads.includes(lead.id)}
@@ -409,7 +412,7 @@ export default function LeadsPage() {
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end" className="w-48">
                         <DropdownMenuLabel className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Record Options</DropdownMenuLabel>
-                        <DropdownMenuItem onClick={() => router.push(`/dashboard/leads/${lead.id}/`)}>View Profile</DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => safePush(`/dashboard/leads/${lead.id}/`)}>View Profile</DropdownMenuItem>
                         <DropdownMenuSeparator />
                         <DropdownMenuItem className="text-rose-500">Archive Record</DropdownMenuItem>
                       </DropdownMenuContent>

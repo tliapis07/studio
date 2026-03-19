@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import Link, { LinkProps } from 'next/link';
 import { useRouter } from 'next/navigation';
 import { cn } from '@/lib/utils';
@@ -25,19 +25,13 @@ export function SafeLink({
 }: SafeLinkProps) {
   const router = useRouter();
   const [isNavigating, setIsNavigating] = useState(false);
+  const timeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
-    let timeoutId: NodeJS.Timeout;
-
-    if (isNavigating) {
-      timeoutId = setTimeout(() => {
-        console.warn('[SafeLink] Navigation timeout. Forcing hard reload to:', href);
-        window.location.href = href.toString();
-      }, fallbackTimeout);
-    }
-
-    return () => clearTimeout(timeoutId);
-  }, [isNavigating, href, fallbackTimeout]);
+    return () => {
+      if (timeoutRef.current) clearTimeout(timeoutRef.current);
+    };
+  }, []);
 
   const handleClick = (e: React.MouseEvent<HTMLAnchorElement>) => {
     // Only intercept standard left clicks without modifiers
@@ -51,15 +45,21 @@ export function SafeLink({
 
     setIsNavigating(true);
     
-    // Note: We don't preventDefault here to let Next.js try standard client navigation first.
-    // If it succeeds, this component unmounts and the effect clears.
-    // If it hangs, our effect fires the hard redirect.
+    // Watchdog timer: If this component is still mounted after timeout, 
+    // it means the SPA navigation likely stalled.
+    timeoutRef.current = setTimeout(() => {
+      console.warn('[SafeLink] Navigation watchdog fired. Falling back to hard reload:', href);
+      window.location.href = href.toString();
+    }, fallbackTimeout);
+
+    // Let Next.js attempt client navigation. 
+    // If it succeeds, the new page mounts and this component unmounts, clearing the timer.
   };
 
   return (
     <Link 
       href={href} 
-      className={cn(className, isNavigating && "opacity-70 cursor-wait")} 
+      className={cn(className, isNavigating && "opacity-70 cursor-wait pointer-events-none")} 
       onClick={handleClick}
       {...props}
     >

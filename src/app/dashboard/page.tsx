@@ -3,7 +3,6 @@
 import { useMemo, useState, useEffect } from 'react';
 import { useCollection, useFirestore, useUser, useMemoFirebase, addDocumentNonBlocking } from '@/firebase';
 import { collection, query, where, serverTimestamp } from 'firebase/firestore';
-import { useRouter } from 'next/navigation';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { 
   Users, 
@@ -42,6 +41,7 @@ import { Label } from '@/components/ui/label';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { format, isValid } from 'date-fns';
 import { Checkbox } from '@/components/ui/checkbox';
+import { useSafeNavigation } from '@/hooks/use-safe-navigation';
 
 const MOCK_TEAM = [
   { id: 'user1', name: 'Alex Morgan', role: 'Sales Exec', avatar: 'https://picsum.photos/seed/av1/100/100' },
@@ -57,7 +57,7 @@ const ONBOARDING_TASKS = [
 ];
 
 export default function Dashboard() {
-  const router = useRouter();
+  const { safePush } = useSafeNavigation();
   const { user, isUserLoading } = useUser();
   const db = useFirestore();
   const [repFilter, setRepFilter] = useState('all');
@@ -70,8 +70,10 @@ export default function Dashboard() {
 
   useEffect(() => { 
     setMounted(true); 
-    const saved = localStorage.getItem(`onboarding_${user?.uid}`);
-    if (saved) setCompletedTasks(JSON.parse(saved));
+    if (user?.uid) {
+      const saved = localStorage.getItem(`onboarding_${user.uid}`);
+      if (saved) setCompletedTasks(JSON.parse(saved));
+    }
   }, [user?.uid]);
 
   const leadsQuery = useMemoFirebase(() => {
@@ -81,7 +83,6 @@ export default function Dashboard() {
 
   const activitiesRawQuery = useMemoFirebase(() => {
     if (!db || !user) return null;
-    // Removed orderBy to avoid index requirement
     return query(collection(db, 'activities'), where('ownerUid', '==', user.uid));
   }, [db, user?.uid]);
 
@@ -134,7 +135,7 @@ export default function Dashboard() {
   const handleSaveToNotes = async () => {
     if (!db || !user || !strategicOutput) return;
     try {
-      await addDocumentNonBlocking(collection(db, 'notes'), {
+      addDocumentNonBlocking(collection(db, 'notes'), {
         ownerUid: user.uid,
         title: `Draft: ${activeStrategicAction?.toUpperCase()} - ${strategicInput.substring(0, 20)}`,
         content: strategicOutput,
@@ -176,7 +177,7 @@ export default function Dashboard() {
         <div className="md:col-span-8 space-y-8">
           <div className="grid gap-6 grid-cols-2 lg:grid-cols-4">
             {statCards.map((stat, i) => (
-              <Card key={i} className="bg-card/40 border-2 border-border/50 rounded-3xl overflow-hidden shadow-lg hover:shadow-2xl transition-all cursor-pointer" onClick={() => router.push('/dashboard/analytics')}>
+              <Card key={i} className="bg-card/40 border-2 border-border/50 rounded-3xl overflow-hidden shadow-lg hover:shadow-2xl transition-all cursor-pointer" onClick={() => safePush('/dashboard/analytics')}>
                 <CardHeader className="flex flex-row items-center justify-between p-6 pb-2">
                   <CardTitle className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground">{stat.label}</CardTitle>
                   <div className={`p-2 rounded-xl bg-muted/20 ${stat.color}`}><stat.icon className="h-4 w-4" /></div>
@@ -258,7 +259,7 @@ export default function Dashboard() {
               {sortedActivities.length > 0 ? (
                 <div className="divide-y-2 divide-border/20">
                   {sortedActivities.map((act) => (
-                    <div key={act.id} className="p-5 flex gap-4 items-start hover:bg-muted/10 cursor-pointer" onClick={() => act.leadId && router.push(`/dashboard/leads/${act.leadId}`)}>
+                    <div key={act.id} className="p-5 flex gap-4 items-start hover:bg-muted/10 cursor-pointer" onClick={() => act.leadId && safePush(`/dashboard/leads/${act.leadId}`)}>
                       <Avatar className="h-8 w-8 border-2 border-primary/20"><AvatarFallback className="text-[10px] font-black">{act.ownerName?.[0]}</AvatarFallback></Avatar>
                       <div className="space-y-1 flex-1 min-w-0">
                         <p className="text-[11px] font-black truncate">{act.ownerName} <span className="text-muted-foreground font-medium">logged {act.type.replace('_', ' ')}</span></p>
@@ -286,7 +287,12 @@ export default function Dashboard() {
               { id: 'objection', label: 'Objection Pro', icon: Zap, color: 'text-amber-500' },
               { id: 'lead', label: 'Quick Lead', icon: Users, color: 'text-indigo-500', route: '/dashboard/leads' },
             ].map((btn) => (
-              <Button key={btn.id} variant="outline" className="h-24 flex flex-col gap-2 rounded-2xl border-2 hover:bg-primary/5 transition-all shadow-sm" onClick={() => btn.route ? router.push(btn.route) : setActiveStrategicAction(btn.id)}>
+              <Button 
+                key={btn.id} 
+                variant="outline" 
+                className="h-24 flex flex-col gap-2 rounded-2xl border-2 hover:bg-primary/5 transition-all shadow-sm" 
+                onClick={() => btn.route ? safePush(btn.route) : setActiveStrategicAction(btn.id)}
+              >
                 <btn.icon className={`h-6 w-6 ${btn.color}`} />
                 <span className="text-[9px] font-black uppercase tracking-widest">{btn.label}</span>
               </Button>
@@ -297,7 +303,7 @@ export default function Dashboard() {
         <Card className="bg-primary/5 border-2 border-primary/20 rounded-3xl p-8 flex flex-col justify-center text-center space-y-4">
           <h3 className="text-[10px] font-black uppercase tracking-widest text-primary">Live AI Insight</h3>
           <p className="text-xs text-muted-foreground leading-relaxed italic">"Partner, your team conversion from 'Qualified' to 'Proposal' is 18% higher than industry baseline. Excellent velocity."</p>
-          <Button variant="link" className="text-primary font-black uppercase text-[10px] p-0" onClick={() => router.push('/dashboard/analytics')}>View Full Diagnostics</Button>
+          <Button variant="link" className="text-primary font-black uppercase text-[10px] p-0" onClick={() => safePush('/dashboard/analytics')}>View Full Diagnostics</Button>
         </Card>
       </div>
 
