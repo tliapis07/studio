@@ -1,15 +1,16 @@
 
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
-import { Sparkles, Bot, User, X, Loader2, Mic, Send } from 'lucide-react';
+import { Sparkles, Bot, User, X, Loader2, Mic, Send, MicOff } from 'lucide-react';
 import { Lead, Activity } from '@/lib/types';
 import { summarizeLeadActivity } from '@/ai/flows/summarize-lead-activity';
 import { suggestLeadNextAction } from '@/ai/flows/suggest-lead-next-action';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Input } from '@/components/ui/input';
+import { toast } from '@/hooks/use-toast';
 
 interface AIAssistantProps {
   lead?: Lead;
@@ -22,7 +23,55 @@ interface AIAssistantProps {
 export default function AIAssistant({ lead, activities, floating = false, isOpenExternal, onCloseExternal }: AIAssistantProps) {
   const [messages, setMessages] = useState<{ role: 'user' | 'assistant'; content: string; reasoning?: string }[]>([]);
   const [isLoading, setIsLoading] = useState(false);
+  const [isListening, setIsListening] = useState(false);
   const [input, setInput] = useState('');
+  const recognitionRef = useRef<any>(null);
+
+  useEffect(() => {
+    if (typeof window !== 'undefined' && ('SpeechRecognition' in window || 'webkitSpeechRecognition' in window)) {
+      const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+      recognitionRef.current = new SpeechRecognition();
+      recognitionRef.current.continuous = true;
+      recognitionRef.current.interimResults = true;
+
+      recognitionRef.current.onresult = (event: any) => {
+        let interimTranscript = '';
+        for (let i = event.resultIndex; i < event.results.length; ++i) {
+          if (event.results[i].isFinal) {
+            setInput(prev => prev + event.results[i][0].transcript);
+          } else {
+            interimTranscript += event.results[i][0].transcript;
+          }
+        }
+      };
+
+      recognitionRef.current.onend = () => {
+        setIsListening(false);
+      };
+
+      recognitionRef.current.onerror = (event: any) => {
+        console.error('Speech recognition error', event.error);
+        setIsListening(false);
+        toast({ variant: 'destructive', title: 'Dictation Error', description: 'Could not access microphone.' });
+      };
+    }
+  }, []);
+
+  const toggleListening = () => {
+    if (!recognitionRef.current) {
+      toast({ title: 'Unsupported', description: 'Dictation not supported in this browser.' });
+      return;
+    }
+
+    if (isListening) {
+      recognitionRef.current.stop();
+      setIsListening(false);
+    } else {
+      recognitionRef.current.start();
+      setIsListening(true);
+      toast({ title: 'Listening', description: 'Speak your command now...' });
+    }
+  };
 
   const handleAction = async (type: 'summarize' | 'suggest' | 'chat') => {
     if (type === 'chat' && !input.trim()) return;
@@ -36,6 +85,7 @@ export default function AIAssistant({ lead, activities, floating = false, isOpen
     
     setMessages(prev => [...prev, { role: 'user', content: userPrompt }]);
     if (type === 'chat') setInput('');
+    if (isListening) recognitionRef.current?.stop();
 
     try {
       if (type === 'summarize' && lead && activities) {
@@ -49,7 +99,6 @@ export default function AIAssistant({ lead, activities, floating = false, isOpen
           reasoning: result.reasoning 
         }]);
       } else {
-        // Generic Chat logic
         setTimeout(() => {
           setMessages(prev => [...prev, { 
             role: 'assistant', 
@@ -71,7 +120,7 @@ export default function AIAssistant({ lead, activities, floating = false, isOpen
       <CardHeader className="border-b border-border/50 bg-primary/5 p-4">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <div className="h-8 w-8 rounded-lg bg-primary flex items-center justify-center">
+            <div className="h-8 w-8 rounded-lg bg-primary flex items-center justify-center shadow-lg shadow-primary/20">
               <Sparkles className="h-5 w-5 text-white" />
             </div>
             <div>
@@ -79,7 +128,7 @@ export default function AIAssistant({ lead, activities, floating = false, isOpen
               <CardDescription className="text-[10px] uppercase font-bold tracking-widest">SalesStream AI</CardDescription>
             </div>
           </div>
-          <Button variant="ghost" size="icon" className="h-8 w-8" onClick={onCloseExternal}>
+          <Button variant="ghost" size="icon" className="h-8 w-8 rounded-xl" onClick={onCloseExternal}>
             <X className="h-4 w-4" />
           </Button>
         </div>
@@ -145,20 +194,28 @@ export default function AIAssistant({ lead, activities, floating = false, isOpen
       <CardFooter className="p-4 border-t border-border/50 bg-background/50 flex flex-col gap-3">
         {lead && (
           <div className="flex gap-2 w-full">
-            <Button variant="outline" size="sm" className="flex-1 text-[9px] font-bold uppercase tracking-widest h-8" onClick={() => handleAction('summarize')}>Summarize</Button>
-            <Button variant="outline" size="sm" className="flex-1 text-[9px] font-bold uppercase tracking-widest h-8" onClick={() => handleAction('suggest')}>Next Step</Button>
+            <Button variant="outline" size="sm" className="flex-1 text-[9px] font-bold uppercase tracking-widest h-8 rounded-xl" onClick={() => handleAction('summarize')}>Summarize</Button>
+            <Button variant="outline" size="sm" className="flex-1 text-[9px] font-bold uppercase tracking-widest h-8 rounded-xl" onClick={() => handleAction('suggest')}>Next Step</Button>
           </div>
         )}
         <div className="flex gap-2 w-full">
+          <Button 
+            variant="ghost" 
+            size="icon" 
+            className={`h-10 w-10 shrink-0 rounded-xl transition-all ${isListening ? 'bg-rose-500 text-white animate-pulse' : 'text-primary'}`} 
+            onClick={toggleListening}
+          >
+            {isListening ? <MicOff className="h-4 w-4" /> : <Mic className="h-4 w-4" />}
+          </Button>
           <Input 
-            placeholder="Dictate command..." 
-            className="text-xs h-10"
+            placeholder={isListening ? "Listening..." : "Dictate command..."}
+            className="text-xs h-10 rounded-xl bg-muted/30 border-2 border-transparent focus:border-primary/20"
             value={input}
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={(e) => e.key === 'Enter' && handleAction('chat')}
             disabled={isLoading}
           />
-          <Button size="icon" className="h-10 w-10 shrink-0" onClick={() => handleAction('chat')} disabled={isLoading || !input.trim()}>
+          <Button size="icon" className="h-10 w-10 shrink-0 rounded-xl bg-primary shadow-lg shadow-primary/20" onClick={() => handleAction('chat')} disabled={isLoading || !input.trim()}>
             {isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
           </Button>
         </div>

@@ -1,3 +1,4 @@
+
 'use client';
 
 import Link from 'next/link';
@@ -11,7 +12,8 @@ import {
   Layers,
   GraduationCap,
   History,
-  Contact as ContactIcon
+  Contact as ContactIcon,
+  StickyNote
 } from 'lucide-react';
 import { 
   SidebarGroup, 
@@ -26,6 +28,7 @@ const items = [
   { title: 'Pipeline', url: '/dashboard/pipeline', icon: Layers },
   { title: 'Leads', url: '/dashboard/leads', icon: Users },
   { title: 'Contacts', url: '/dashboard/contacts', icon: ContactIcon },
+  { title: 'Notes', url: '/dashboard/notes', icon: StickyNote },
   { title: 'Analytics', url: '/dashboard/analytics', icon: BarChart3 },
   { title: 'Calendar', url: '/dashboard/calendar', icon: CalendarIcon },
   { title: 'Team History', url: '/dashboard/team-history', icon: History },

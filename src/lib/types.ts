@@ -1,3 +1,4 @@
+
 export type LeadStatus = 'new' | 'contacted' | 'qualified' | 'proposal' | 'negotiated' | 'won' | 'lost';
 
 export interface TeamMember {
@@ -92,7 +93,35 @@ export interface TrainingMaterial {
   title: string;
   subject: string;
   content: string;
-  type?: 'pdf' | 'link' | 'video';
+  type?: 'pdf' | 'link' | 'video' | 'doc' | 'image';
   fileUrl?: string;
   createdAt: any;
+}
+
+export interface UserNote {
+  id: string;
+  userId: string;
+  title: string;
+  content: string;
+  tags: string[];
+  createdAt: any;
+  updatedAt: any;
+}
+
+export interface TabPreferences {
+  [tabName: string]: {
+    visibleSections: string[];
+    density: 'compact' | 'normal';
+    sortBy?: string;
+    hideArchived?: boolean;
+  }
+}
+
+export interface UserPreferences {
+  notifications: {
+    enabled: boolean;
+    followups: boolean;
+    team: boolean;
+  };
+  tabSettings: TabPreferences;
 }
