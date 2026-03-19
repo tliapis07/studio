@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { TrendingUp, Loader2, ShieldCheck, Users } from 'lucide-react';
+import { TrendingUp, Loader2, ShieldCheck, Users, AlertCircle } from 'lucide-react';
 import Image from 'next/image';
 import { useAuth, useUser } from '@/firebase';
 import { signInWithPopup, GoogleAuthProvider, signInAnonymously } from 'firebase/auth';
@@ -24,7 +24,6 @@ export default function LoginPage() {
   // Auto-redirect if already logged in
   useEffect(() => {
     if (mounted && !isUserLoading && user) {
-      console.log("User already authenticated, redirecting to dashboard...");
       router.replace('/dashboard');
     }
   }, [user, isUserLoading, router, mounted]);
@@ -36,21 +35,22 @@ export default function LoginPage() {
     provider.setCustomParameters({ prompt: 'select_account' });
     
     try {
-      const result = await signInWithPopup(auth, provider);
-      if (result.user) {
-        toast({
-          title: "Access Granted",
-          description: `Welcome back, ${result.user.displayName || 'Partner'}.`,
-        });
-        // The useEffect above will handle the redirect once onAuthStateChanged fires
-      }
+      await signInWithPopup(auth, provider);
     } catch (err: any) {
       console.error("Google Sign-in Error:", err);
       let message = "Could not establish a secure session.";
-      if (err.code === 'auth/popup-closed-by-user') {
-        message = "Sign-in popup was closed.";
+      
+      if (err.code === 'auth/operation-not-allowed') {
+        message = "Google Sign-in is not enabled. Please enable it in the Firebase Console under Authentication > Sign-in method.";
+      } else if (err.code === 'auth/popup-closed-by-user') {
+        message = "Sign-in popup was closed before completion.";
       }
-      toast({ variant: "destructive", title: "Authentication Failed", description: message });
+      
+      toast({ 
+        variant: "destructive", 
+        title: "Authentication Failed", 
+        description: message 
+      });
     } finally {
       setIsLoading(false);
     }
@@ -61,17 +61,18 @@ export default function LoginPage() {
     setIsLoading(true);
     try {
       await signInAnonymously(auth);
-      toast({
-        title: "Guest Access",
-        description: "Welcome! Browsing as an organizational guest.",
-      });
-      // The useEffect above will handle the redirect
     } catch (err: any) {
       console.error("Anonymous Sign-in Error:", err);
+      let message = "Anonymous access is disabled or blocked.";
+      
+      if (err.code === 'auth/operation-not-allowed') {
+        message = "Anonymous Sign-in is not enabled. Please enable it in the Firebase Console under Authentication > Sign-in method.";
+      }
+
       toast({
         variant: "destructive",
         title: "Demo Access Failed",
-        description: "Anonymous access is disabled or blocked.",
+        description: message,
       });
     } finally {
       setIsLoading(false);
@@ -80,11 +81,13 @@ export default function LoginPage() {
 
   if (!mounted) return null;
 
-  // Show loading spinner if checking auth state
   if (isUserLoading && !user) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background dark">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        <div className="flex flex-col items-center gap-4">
+          <Loader2 className="h-10 w-10 animate-spin text-primary" />
+          <p className="text-xs font-black uppercase tracking-widest text-muted-foreground animate-pulse">Verifying Credentials...</p>
+        </div>
       </div>
     );
   }

@@ -1,4 +1,5 @@
 import type {NextConfig} from 'next';
+import path from 'path';
 
 const nextConfig: NextConfig = {
   output: 'export', // Required for Capacitor and Tauri
@@ -25,6 +26,11 @@ const nextConfig: NextConfig = {
         pathname: '/**',
       },
     ],
+  },
+  experimental: {
+    turbo: {
+      root: path.resolve(__dirname),
+    },
   },
   typescript: {
     ignoreBuildErrors: true,
