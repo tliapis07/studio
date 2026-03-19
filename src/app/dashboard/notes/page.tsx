@@ -9,13 +9,14 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogTrigger } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
-import { Search, Plus, StickyNote, Trash2, Edit2, Tag, Filter, Settings2 } from 'lucide-react';
+import { Search, Plus, StickyNote, Trash2, Edit2, Tag, Filter, Settings2, Sparkles, Loader2, X } from 'lucide-react';
 import { UserNote } from '@/lib/types';
 import { toast } from '@/hooks/use-toast';
+import { summarizeNote } from '@/ai/flows/summarize-note';
 
-const NOTE_TAGS = ["Ideas", "Scripts", "Objections", "Strategy", "Client Feedback"];
+const DEFAULT_TAGS = ["Ideas", "Scripts", "Objections", "Strategy", "Client Feedback"];
 
 export default function NotesPage() {
   const { user } = useUser();
@@ -23,7 +24,12 @@ export default function NotesPage() {
   const [search, setSearch] = useState('');
   const [selectedTag, setSelectedTag] = useState('all');
   const [isAddOpen, setIsAddOpen] = useState(false);
+  const [isSummarizing, setIsSummarizing] = useState(false);
   const [editingNote, setEditingNote] = useState<UserNote | null>(null);
+  
+  // Custom Tag States
+  const [newTagInput, setNewTagInput] = useState('');
+  const [availableTags, setAvailableTags] = useState(DEFAULT_TAGS);
 
   const notesQuery = useMemoFirebase(() => {
     if (!db || !user) return null;
@@ -76,6 +82,42 @@ export default function NotesPage() {
     toast({ title: "Note Deleted", description: "Removed from library." });
   };
 
+  const handleSummarize = async () => {
+    if (!editingNote || !editingNote.content) return;
+    
+    setIsSummarizing(true);
+    try {
+      const summary = await summarizeNote({ 
+        title: editingNote.title, 
+        content: editingNote.content 
+      });
+      toast({ 
+        title: "AI Summary Generated", 
+        description: summary,
+        className: "bg-primary text-white font-medium"
+      });
+    } catch (error) {
+      toast({ 
+        variant: "destructive", 
+        title: "AI Error", 
+        description: "Could not generate summary." 
+      });
+    } finally {
+      setIsSummarizing(false);
+    }
+  };
+
+  const addNewTag = () => {
+    if (!newTagInput.trim()) return;
+    if (availableTags.includes(newTagInput)) {
+      toast({ title: "Duplicate Tag", description: "This tag already exists." });
+      return;
+    }
+    setAvailableTags(prev => [...prev, newTagInput.trim()]);
+    setNewTagInput('');
+    toast({ title: "Tag Added", description: `'${newTagInput}' is now available for your notes.` });
+  };
+
   return (
     <div className="space-y-8 pb-20 md:pb-8 animate-in fade-in duration-500">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
@@ -112,7 +154,7 @@ export default function NotesPage() {
           >
             All
           </Button>
-          {NOTE_TAGS.map(tag => (
+          {availableTags.map(tag => (
             <Button 
               key={tag}
               variant={selectedTag === tag ? 'default' : 'outline'} 
@@ -165,47 +207,94 @@ export default function NotesPage() {
         </div>
       )}
 
+      {/* Professional Note Editor Workspace */}
       <Dialog open={isAddOpen} onOpenChange={setIsAddOpen}>
-        <DialogContent className="sm:max-w-[600px] rounded-3xl border-2">
-          <DialogHeader>
-            <DialogTitle className="text-2xl font-black">{editingNote ? 'Edit Note' : 'Create New Note'}</DialogTitle>
+        <DialogContent className="sm:max-w-[800px] h-[90vh] rounded-3xl border-2 flex flex-col overflow-hidden p-0">
+          <DialogHeader className="p-8 pb-4 border-b border-border/50 bg-muted/20">
+            <div className="flex items-center justify-between">
+              <div>
+                <DialogTitle className="text-2xl font-black flex items-center gap-3">
+                  {editingNote ? <Edit2 className="h-6 w-6 text-primary" /> : <Plus className="h-6 w-6 text-primary" />}
+                  {editingNote ? 'Note Workspace' : 'Create New Note'}
+                </DialogTitle>
+                <DialogDescription className="font-medium text-xs uppercase tracking-widest text-muted-foreground mt-1">
+                  Sales Stream Editorial Suite
+                </DialogDescription>
+              </div>
+              {editingNote && (
+                <Button 
+                  onClick={handleSummarize} 
+                  disabled={isSummarizing || !editingNote.content}
+                  className="bg-primary shadow-lg shadow-primary/20 h-10 px-6 rounded-xl font-black uppercase tracking-widest text-[10px] gap-2"
+                >
+                  {isSummarizing ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
+                  AI Summarize
+                </Button>
+              )}
+            </div>
           </DialogHeader>
-          <form onSubmit={handleSaveNote} className="space-y-6 pt-4">
-            <div className="space-y-2">
-              <Label className="text-xs font-black uppercase tracking-widest text-muted-foreground">Title</Label>
-              <Input name="title" defaultValue={editingNote?.title} placeholder="e.g. Closing Script: High Value Leads" required className="h-12 rounded-xl" />
-            </div>
-            <div className="space-y-2">
-              <Label className="text-xs font-black uppercase tracking-widest text-muted-foreground">Content</Label>
-              <Textarea 
-                name="content" 
-                defaultValue={editingNote?.content} 
-                placeholder="Write your note here..." 
-                required 
-                className="min-h-[200px] rounded-xl leading-relaxed" 
-              />
-            </div>
-            <div className="space-y-3">
-              <Label className="text-xs font-black uppercase tracking-widest text-muted-foreground">Tags</Label>
-              <div className="flex flex-wrap gap-2">
-                {NOTE_TAGS.map(tag => (
-                  <label key={tag} className="flex items-center gap-2 bg-muted/50 px-4 py-2 rounded-xl border-2 border-transparent cursor-pointer hover:bg-primary/10 transition-colors has-[:checked]:bg-primary/20 has-[:checked]:border-primary/30">
-                    <input 
-                      type="checkbox" 
-                      name="tags" 
-                      value={tag} 
-                      defaultChecked={editingNote?.tags.includes(tag)}
-                      className="hidden" 
+          
+          <form onSubmit={handleSaveNote} className="flex-1 flex flex-col min-h-0 overflow-hidden">
+            <div className="flex-1 overflow-y-auto p-8 space-y-8">
+              <div className="space-y-3">
+                <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Document Title</Label>
+                <Input 
+                  name="title" 
+                  defaultValue={editingNote?.title} 
+                  placeholder="e.g. Closing Script: High Value Leads" 
+                  required 
+                  className="h-14 rounded-xl text-lg font-bold bg-background border-2 border-border/50 focus:border-primary/50 transition-all" 
+                />
+              </div>
+
+              <div className="space-y-3 flex-1">
+                <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Editor Content</Label>
+                <Textarea 
+                  name="content" 
+                  defaultValue={editingNote?.content} 
+                  placeholder="Draft your strategy, scripts, or objections here..." 
+                  required 
+                  className="min-h-[400px] rounded-xl leading-relaxed bg-background border-2 border-border/50 focus:border-primary/50 text-base resize-none p-6" 
+                />
+              </div>
+
+              <div className="space-y-6">
+                <div className="flex items-center justify-between">
+                  <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Organizational Tags</Label>
+                  <div className="flex gap-2">
+                    <Input 
+                      placeholder="Add custom tag..." 
+                      className="h-8 w-40 text-[10px] rounded-lg"
+                      value={newTagInput}
+                      onChange={(e) => setNewTagInput(e.target.value)}
+                      onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), addNewTag())}
                     />
-                    <Tag className="h-3 w-3" />
-                    <span className="text-[10px] font-black uppercase tracking-widest">{tag}</span>
-                  </label>
-                ))}
+                    <Button type="button" size="icon" className="h-8 w-8 rounded-lg" onClick={addNewTag}>
+                      <Plus className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </div>
+                <div className="flex flex-wrap gap-2 p-4 bg-muted/10 rounded-2xl border-2 border-border/30 shadow-inner">
+                  {availableTags.map(tag => (
+                    <label key={tag} className="flex items-center gap-2 bg-background/50 px-4 py-2 rounded-xl border-2 border-border/50 cursor-pointer hover:bg-primary/5 transition-all has-[:checked]:bg-primary/10 has-[:checked]:border-primary/50 group">
+                      <input 
+                        type="checkbox" 
+                        name="tags" 
+                        value={tag} 
+                        defaultChecked={editingNote?.tags.includes(tag)}
+                        className="hidden" 
+                      />
+                      <Tag className="h-3 w-3 text-muted-foreground group-has-[:checked]:text-primary" />
+                      <span className="text-[10px] font-black uppercase tracking-widest">{tag}</span>
+                    </label>
+                  ))}
+                </div>
               </div>
             </div>
-            <DialogFooter>
-              <Button type="submit" className="w-full h-12 shadow-xl shadow-primary/20 font-black uppercase tracking-widest">
-                {editingNote ? 'Update Note' : 'Save Note'}
+
+            <DialogFooter className="p-8 border-t border-border/50 bg-muted/20">
+              <Button type="submit" className="w-full h-14 shadow-xl shadow-primary/20 font-black uppercase tracking-widest text-sm rounded-2xl">
+                {editingNote ? 'Commit Changes' : 'Publish Note'}
               </Button>
             </DialogFooter>
           </form>
