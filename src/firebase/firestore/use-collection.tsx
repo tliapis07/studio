@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -28,7 +29,7 @@ export interface UseCollectionResult<T> {
   error: FirestoreError | Error | null; // Error object, or null.
 }
 
-/* Internal implementation of Query:
+/* Internal implementation of Query for path extraction:
   https://github.com/firebase/firebase-js-sdk/blob/c5f08a9bc5da0d2b0207802c972d53724ccef055/packages/firestore/src/lite-api/reference.ts#L143
 */
 export interface InternalQuery extends Query<DocumentData> {
@@ -38,7 +39,7 @@ export interface InternalQuery extends Query<DocumentData> {
       toString(): string;
     }
   };
-  type: 'collection' | 'query';
+  type: 'collection' | 'query' | string;
 }
 
 // Known collections that require ownerUid filtering to pass security rules
@@ -79,38 +80,52 @@ export function useCollection<T = any>(
       return;
     }
 
-    // Determine the path to check if it's a protected collection
+    // Step 1: Reliable collection detection
+    let collectionName = '';
     const queryObj = memoizedTargetRefOrQuery as any;
-    let path = '';
     
-    // Safely extract the canonical path from the reference or query
-    if (queryObj.type === 'collection') {
-      path = queryObj.path || (queryObj as any)._query?.path?.canonicalString() || '';
-    } else if (queryObj._query && queryObj._query.path) {
-      path = queryObj._query.path.canonicalString();
+    try {
+      if (queryObj.type === 'collection') {
+        collectionName = queryObj.path || '';
+      } else if (queryObj._query && queryObj._query.path) {
+        // Extract the root collection name from the full path
+        const fullPath = queryObj._query.path.canonicalString() || '';
+        collectionName = fullPath.split('/')[0] || '';
+      } else if (typeof queryObj.path === 'string') {
+        collectionName = queryObj.path;
+      }
+    } catch (e) {
+      console.warn('useCollection: Failed to extract path for query', e);
     }
 
-    // Normalize path: remove leading/trailing slashes
-    const normalizedPath = path.replace(/^\/|\/$/g, '');
-    let finalQuery = memoizedTargetRefOrQuery as Query<DocumentData>;
+    // Normalize: remove leading/trailing slashes
+    collectionName = collectionName.replace(/^\/|\/$/g, '');
+
+    console.log('[useCollection] Target path:', collectionName);
+
+    // Step 2: Prepare the final query
+    let q = memoizedTargetRefOrQuery as Query<DocumentData>;
 
     // If it's a root-level user-owned collection, we MUST have a user and a filter
-    if (USER_OWNED_COLLECTIONS.includes(normalizedPath)) {
+    if (USER_OWNED_COLLECTIONS.includes(collectionName)) {
       if (!user) {
+        console.log(`[useCollection] ${collectionName} requires auth. User not logged in.`);
         setData([]);
         setIsLoading(false);
         return;
       }
 
-      // Automatically append ownership filter to satisfy "Rules are not Filters" requirement
-      finalQuery = query(finalQuery, where('ownerUid', '==', user.uid));
+      console.log(`[useCollection] Injecting ownerUid filter for: ${collectionName} (User: ${user.uid})`);
+      // Automatically append ownership filter to satisfy "Rules are not Filters" requirement.
+      // Standardizing on 'ownerUid' as per firestore.rules
+      q = query(q, where('ownerUid', '==', user.uid));
     }
 
     setIsLoading(true);
     setError(null);
 
     const unsubscribe = onSnapshot(
-      finalQuery,
+      q,
       (snapshot: QuerySnapshot<DocumentData>) => {
         const results: ResultItemType[] = [];
         for (const doc of snapshot.docs) {
@@ -121,9 +136,10 @@ export function useCollection<T = any>(
         setIsLoading(false);
       },
       (firestoreError: FirestoreError) => {
+        console.error(`[useCollection] Permission Error for ${collectionName}:`, firestoreError);
         const permissionError = new FirestorePermissionError({
           operation: 'list',
-          path: normalizedPath || 'unknown',
+          path: collectionName || 'unknown',
         });
 
         setError(permissionError);
@@ -141,7 +157,7 @@ export function useCollection<T = any>(
   // Validation: In development, ensure we are using memoized references to avoid infinite loops
   if(memoizedTargetRefOrQuery && !memoizedTargetRefOrQuery.__memo) {
     throw new Error('useCollection: Input query/ref was not memoized using useMemoFirebase. Path: ' + 
-      (memoizedTargetRefOrQuery.type === 'collection' ? (memoizedTargetRefOrQuery as any).path : 'dynamic query'));
+      ((memoizedTargetRefOrQuery as any).type === 'collection' ? (memoizedTargetRefOrQuery as any).path : 'dynamic query'));
   }
 
   return { data, isLoading, error };
