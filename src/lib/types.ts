@@ -1,3 +1,4 @@
+
 export type LeadStatus = 'new' | 'contacted' | 'qualified' | 'proposal' | 'negotiated' | 'won' | 'lost';
 
 export interface TeamMember {
@@ -91,5 +92,7 @@ export interface TrainingMaterial {
   title: string;
   subject: string;
   content: string;
+  type?: 'pdf' | 'link' | 'video';
+  fileUrl?: string;
   createdAt: any;
 }

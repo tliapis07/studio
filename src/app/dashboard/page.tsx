@@ -1,15 +1,15 @@
+
 'use client';
 
 import { useMemo, useState, useEffect } from 'react';
-import { useCollection, useFirestore, useUser, useMemoFirebase, useDoc } from '@/firebase';
-import { collection, query, orderBy, limit, doc, where } from 'firebase/firestore';
+import { useCollection, useFirestore, useUser, useMemoFirebase } from '@/firebase';
+import { collection, query, orderBy, limit, where } from 'firebase/firestore';
 import { useRouter } from 'next/navigation';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { 
   Users, 
   Target, 
   Award, 
-  TrendingUp, 
   ArrowUpRight, 
   ArrowDownRight,
   Clock,
@@ -18,13 +18,10 @@ import {
   Zap,
   History,
   FileText,
-  MessageSquare,
-  FileSignature,
-  Mail,
-  ShieldAlert,
-  StickyNote,
   Bell,
-  Calendar as CalendarIcon
+  Calendar as CalendarIcon,
+  MessageCircle,
+  Phone
 } from 'lucide-react';
 import { 
   AreaChart,
@@ -35,14 +32,11 @@ import {
   Tooltip, 
   ResponsiveContainer,
 } from 'recharts';
-import { Lead, Activity, TeamSettings, CalendarEvent } from '@/lib/types';
-import { format, startOfWeek, endOfWeek, eachDayOfInterval, isSameDay, isAfter, isBefore, addDays } from 'date-fns';
+import { Lead } from '@/lib/types';
+import { format, startOfWeek, endOfWeek, eachDayOfInterval, isSameDay, isBefore } from 'date-fns';
 import { Button } from '@/components/ui/button';
-import { Progress } from '@/components/ui/progress';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { toast } from '@/hooks/use-toast';
-import AIAssistant from '@/components/AIAssistant';
 
 const MOCK_TEAM = [
   { id: 'user1', name: 'Alex Morgan', role: 'Sales Exec', email: 'alex@stream.io', avatar: 'https://picsum.photos/seed/av1/100/100', quota: 150000 },
@@ -55,7 +49,6 @@ export default function Dashboard() {
   const { user, isUserLoading } = useUser();
   const db = useFirestore();
   const [repFilter, setRepFilter] = useState('all');
-  const [isAiOpen, setIsAiOpen] = useState(false);
 
   const leadsQuery = useMemoFirebase(() => {
     if (!db || !user) return null;
@@ -64,7 +57,13 @@ export default function Dashboard() {
 
   const followUpsQuery = useMemoFirebase(() => {
     if (!db || !user) return null;
-    return query(collection(db, 'leads'), where('nextFollowUpAt', '!=', null), orderBy('nextFollowUpAt', 'asc'), limit(5));
+    // Query leads with upcoming follow-ups
+    return query(
+      collection(db, 'leads'), 
+      where('nextFollowUpAt', '!=', null), 
+      orderBy('nextFollowUpAt', 'asc'), 
+      limit(5)
+    );
   }, [db, user]);
 
   const { data: leads, isLoading: leadsLoading } = useCollection<Lead>(leadsQuery);
@@ -236,9 +235,11 @@ export default function Dashboard() {
                            </p>
                          </div>
                        </div>
-                       <Button variant="ghost" size="sm" onClick={() => router.push(`/dashboard/leads/${lead.id}`)} className="h-8 w-8 rounded-lg">
-                         <Zap className="h-4 w-4" />
-                       </Button>
+                       <div className="flex gap-2">
+                         <Button variant="ghost" size="icon" onClick={() => router.push(`/dashboard/leads/${lead.id}`)} className="h-8 w-8 rounded-lg">
+                           <Zap className="h-4 w-4" />
+                         </Button>
+                       </div>
                     </div>
                    );
                  }) : (
@@ -253,16 +254,23 @@ export default function Dashboard() {
 
           <Card className="bg-card/40 border-2 border-border/50 rounded-3xl shadow-2xl p-6">
             <h3 className="text-xs font-black uppercase tracking-[0.2em] text-primary mb-4 flex items-center gap-2">
-              <Sparkles className="h-4 w-4" /> Partner AI
+              <Sparkles className="h-4 w-4" /> Partner Toolkit
             </h3>
-            <p className="text-sm font-bold leading-relaxed text-foreground/80">
-              "Partner, 3 automated follow-ups are marked as <span className="text-rose-500 font-black">OVERDUE</span>. Recommend immediate rep check-in for Acme Corp."
-            </p>
+            <div className="grid grid-cols-2 gap-3">
+              <Button variant="outline" className="h-20 flex flex-col gap-2 rounded-2xl border-2 hover:bg-primary/5 group" onClick={() => router.push('/dashboard/leads')}>
+                <Users className="h-5 w-5 text-primary group-hover:scale-110 transition-transform" />
+                <span className="text-[9px] font-black uppercase tracking-widest">Add Lead</span>
+              </Button>
+              <Button variant="outline" className="h-20 flex flex-col gap-2 rounded-2xl border-2 hover:bg-emerald-500/5 group" onClick={() => router.push('/dashboard/contacts')}>
+                <MessageCircle className="h-5 w-5 text-emerald-500 group-hover:scale-110 transition-transform" />
+                <span className="text-[9px] font-black uppercase tracking-widest">WhatsApp</span>
+              </Button>
+            </div>
             <Button 
-              className="w-full mt-6 h-11 rounded-xl font-black uppercase tracking-widest text-[10px] bg-primary shadow-xl shadow-primary/20"
-              onClick={() => setIsAiOpen(true)}
+              className="w-full mt-4 h-11 rounded-xl font-black uppercase tracking-widest text-[10px] bg-primary shadow-xl shadow-primary/20"
+              onClick={() => toast({ title: "AI Assistant", description: "Opening Gemini Sales Strategist..." })}
             >
-              Ask Partner AI
+              Ask Gemini AI
             </Button>
           </Card>
         </div>
