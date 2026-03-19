@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { SidebarProvider, Sidebar, SidebarContent, SidebarHeader, SidebarTrigger, SidebarInset } from '@/components/ui/sidebar';
 import { NavMain } from '@/components/nav-main';
-import { TrendingUp, Settings, LogOut, History, Bell, Sparkles, X } from 'lucide-react';
+import { TrendingUp, Settings, LogOut, History, Bell, Sparkles, X, Contact as ContactIcon } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Toaster } from '@/components/ui/toaster';
 import { Button } from '@/components/ui/button';
