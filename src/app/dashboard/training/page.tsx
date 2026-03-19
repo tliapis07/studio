@@ -10,6 +10,13 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { 
+  Select, 
+  SelectContent, 
+  SelectItem, 
+  SelectTrigger, 
+  SelectValue 
+} from '@/components/ui/select';
+import { 
   Plus, 
   Search, 
   GraduationCap, 
@@ -49,7 +56,6 @@ export default function TrainingPage() {
   const [isAddOpen, setIsAddOpen] = useState(false);
   const [isNewSubjectOpen, setIsNewSubjectOpen] = useState(false);
 
-  // Mock subjects for now - in real app would pull from 'training_subjects'
   const [subjects, setSubjects] = useState(["Cold Calling", "Closing Techniques", "Product Knowledge", "Objection Handling", "CRM Training"]);
 
   const trainingQuery = useMemoFirebase(() => {
@@ -61,7 +67,7 @@ export default function TrainingPage() {
 
   const filteredMaterials = (materials || []).filter(m => {
     const matchesSearch = m.title.toLowerCase().includes(search.toLowerCase()) || 
-                          m.content.toLowerCase().includes(search.toLowerCase());
+                          (m.content && m.content.toLowerCase().includes(search.toLowerCase()));
     const matchesSubject = selectedSubject === 'all' || m.subject === selectedSubject;
     return matchesSearch && matchesSubject;
   });
@@ -105,7 +111,7 @@ export default function TrainingPage() {
     <div className="space-y-8 pb-20 md:pb-8 animate-in fade-in duration-500">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
         <div>
-          <h1 className="text-4xl font-black font-headline tracking-tight">Training Hub</h1>
+          <h1 className="text-4xl font-black font-headline tracking-tight text-foreground">Training Hub</h1>
           <p className="text-muted-foreground font-medium">Organizational resources for top-tier performance.</p>
         </div>
         <div className="flex gap-3">
