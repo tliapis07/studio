@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useMemo, useRef } from 'react';
+import { useRouter } from 'next/navigation';
 import { 
   useCollection, 
   useFirestore, 
@@ -96,6 +97,7 @@ const LEAD_FIELDS = [
 ];
 
 export default function LeadsPage() {
+  const router = useRouter();
   const { user } = useUser();
   const db = useFirestore();
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -113,7 +115,6 @@ export default function LeadsPage() {
 
   const leadsQuery = useMemoFirebase(() => {
     if (!db || !user) return null;
-    // Security Rule Alignment: Must filter by ownerUid to pass permissions check
     return query(collection(db, 'leads'), where('ownerUid', '==', user.uid));
   }, [db, user]);
 
@@ -141,7 +142,7 @@ export default function LeadsPage() {
     const name = formData.get('name') as string;
 
     const newLead = {
-      ownerUid: formData.get('assignTo') as string || user.uid,
+      ownerUid: user.uid,
       name,
       email,
       phone,
@@ -161,7 +162,7 @@ export default function LeadsPage() {
       addDocumentNonBlocking(collection(db, 'leads'), newLead).then((leadRef) => {
         if (phone || email) {
           addDocumentNonBlocking(collection(db, 'contacts'), {
-            userId: user.uid,
+            ownerUid: user.uid,
             name,
             phone: phone || '',
             email: email || '',
@@ -238,7 +239,7 @@ export default function LeadsPage() {
       addDocumentNonBlocking(collection(db, 'leads'), newLeadData).then((leadRef) => {
         if (phone || email) {
           addDocumentNonBlocking(collection(db, 'contacts'), {
-            userId: user.uid,
+            ownerUid: user.uid,
             name,
             phone,
             email,
@@ -372,7 +373,7 @@ export default function LeadsPage() {
                   </TableCell>
                 </TableRow>
               ) : filteredLeads.length > 0 ? filteredLeads.map((lead) => (
-                <TableRow key={lead.id} className="hover:bg-muted/10 group cursor-pointer" onClick={() => window.location.href = `/dashboard/leads/${lead.id}`}>
+                <TableRow key={lead.id} className="hover:bg-muted/10 group cursor-pointer" onClick={() => router.push(`/dashboard/leads/${lead.id}`)}>
                   <TableCell className="px-4 text-center" onClick={(e) => e.stopPropagation()}>
                     <Checkbox 
                       checked={selectedLeads.includes(lead.id)}
@@ -414,7 +415,7 @@ export default function LeadsPage() {
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end" className="w-48">
                         <DropdownMenuLabel className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Record Options</DropdownMenuLabel>
-                        <DropdownMenuItem onClick={() => window.location.href = `/dashboard/leads/${lead.id}`}>View Profile</DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => router.push(`/dashboard/leads/${lead.id}`)}>View Profile</DropdownMenuItem>
                         <DropdownMenuItem>Adjust Valuation</DropdownMenuItem>
                         <DropdownMenuSeparator />
                         <DropdownMenuItem className="text-rose-500">Archive Record</DropdownMenuItem>

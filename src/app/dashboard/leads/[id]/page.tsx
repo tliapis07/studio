@@ -8,6 +8,8 @@ import LeadDetailClient from './LeadDetailClient';
  */
 
 // Required for static export with dynamic routes.
+// dynamicParams: false means only paths returned by generateStaticParams will exist.
+// For Capacitor, we return an empty array and handle routing on the client.
 export const dynamicParams = false;
 
 export async function generateStaticParams() {

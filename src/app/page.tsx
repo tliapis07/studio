@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { TrendingUp, Loader2, ShieldCheck, Users, AlertCircle } from 'lucide-react';
+import { TrendingUp, Loader2, ShieldCheck, Users, AlertCircle, ArrowRight } from 'lucide-react';
 import Image from 'next/image';
 import { useAuth, useUser } from '@/firebase';
 import { signInWithPopup, GoogleAuthProvider, signInAnonymously } from 'firebase/auth';
@@ -36,14 +36,18 @@ export default function LoginPage() {
     
     try {
       await signInWithPopup(auth, provider);
+      // Redirect will be handled by the useEffect
     } catch (err: any) {
+      if (err.code === 'auth/popup-closed-by-user') {
+        setIsLoading(false);
+        return; // User cancelled, no need for a scary error toast
+      }
+      
       console.error("Google Sign-in Error:", err);
       let message = "Could not establish a secure session.";
       
       if (err.code === 'auth/operation-not-allowed') {
-        message = "Google Sign-in is not enabled. Please enable it in the Firebase Console under Authentication > Sign-in method.";
-      } else if (err.code === 'auth/popup-closed-by-user') {
-        message = "Sign-in popup was closed before completion.";
+        message = "Google Sign-in is not enabled in Firebase Console.";
       }
       
       toast({ 
@@ -51,7 +55,6 @@ export default function LoginPage() {
         title: "Authentication Failed", 
         description: message 
       });
-    } finally {
       setIsLoading(false);
     }
   };
@@ -63,18 +66,11 @@ export default function LoginPage() {
       await signInAnonymously(auth);
     } catch (err: any) {
       console.error("Anonymous Sign-in Error:", err);
-      let message = "Anonymous access is disabled or blocked.";
-      
-      if (err.code === 'auth/operation-not-allowed') {
-        message = "Anonymous Sign-in is not enabled. Please enable it in the Firebase Console under Authentication > Sign-in method.";
-      }
-
       toast({
         variant: "destructive",
         title: "Demo Access Failed",
-        description: message,
+        description: "Anonymous sign-in is disabled or blocked.",
       });
-    } finally {
       setIsLoading(false);
     }
   };
@@ -86,8 +82,19 @@ export default function LoginPage() {
       <div className="min-h-screen flex items-center justify-center bg-background dark">
         <div className="flex flex-col items-center gap-4">
           <Loader2 className="h-10 w-10 animate-spin text-primary" />
-          <p className="text-xs font-black uppercase tracking-widest text-muted-foreground animate-pulse">Verifying Credentials...</p>
+          <p className="text-xs font-black uppercase tracking-widest text-muted-foreground animate-pulse">Establishing Secure Session...</p>
         </div>
+      </div>
+    );
+  }
+
+  // If user is already logged in, show a "Continue" button as fallback if redirect is slow
+  if (user) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background dark">
+        <Button onClick={() => router.push('/dashboard')} className="gap-2 h-14 px-8 rounded-2xl font-black uppercase tracking-widest">
+          Enter Dashboard <ArrowRight className="h-5 w-5" />
+        </Button>
       </div>
     );
   }
