@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo, useEffect } from 'react';
+import { useMemo, useState, useEffect } from 'react';
 import { useCollection, useFirestore, useUser, useMemoFirebase } from '@/firebase';
 import { collection, query, where } from 'firebase/firestore';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
@@ -29,8 +29,6 @@ import {
   Info,
   Globe,
   Plus,
-  Trash2,
-  Edit2,
   Loader2
 } from 'lucide-react';
 import { Lead } from '@/lib/types';
@@ -47,7 +45,6 @@ import {
   DialogContent, 
   DialogHeader, 
   DialogTitle, 
-  DialogFooter,
   DialogDescription
 } from '@/components/ui/dialog';
 import { toast } from '@/hooks/use-toast';
@@ -74,26 +71,27 @@ export default function TeamAnalyticsPage() {
 
   const leadsQueryStable = useMemoFirebase(() => {
     if (!db || !user) return null;
+    // Security Rule Alignment: Must filter by ownerUid to pass permissions check on root collection
     return query(collection(db, 'leads'), where('ownerUid', '==', user.uid));
   }, [db, user]);
 
   const { data: leads, isLoading } = useCollection<Lead>(leadsQueryStable);
 
   const teamMetrics = useMemo(() => {
-    if (!leads) return [];
-    return MOCK_TEAM.map(member => {
-      const memberLeads = leads.filter(l => l.ownerUid === member.id);
-      const won = memberLeads.filter(l => l.status === 'won');
-      const revenue = won.reduce((acc, l) => acc + (l.dealValue || 0), 0);
-      const winRate = memberLeads.length ? Math.round((won.length / memberLeads.length) * 100) : 0;
-      return {
-        name: member.name,
-        revenue,
-        winRate: `${winRate}%`,
-        quota: Math.round((revenue / (member.quota || 100000)) * 100),
-      };
-    });
-  }, [leads]);
+    if (!leads || !user) return [];
+    // Only calculate metrics for the current user's data to comply with security rules
+    const userLeads = leads.filter(l => l.ownerUid === user.uid);
+    const won = userLeads.filter(l => l.status === 'won');
+    const revenue = won.reduce((acc, l) => acc + (l.dealValue || 0), 0);
+    const winRate = userLeads.length ? Math.round((won.length / userLeads.length) * 100) : 0;
+    
+    return [{
+      name: user.displayName || 'You',
+      revenue,
+      winRate: `${winRate}%`,
+      quota: Math.round((revenue / 150000) * 100),
+    }];
+  }, [leads, user]);
 
   const funnelData = useMemo(() => {
     if (!leads) return [];
