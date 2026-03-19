@@ -8,53 +8,52 @@ import {
   FirestoreError,
   QuerySnapshot,
   CollectionReference,
-  query,
-  where,
 } from 'firebase/firestore';
 import { errorEmitter } from '@/firebase/error-emitter';
 import { FirestorePermissionError } from '@/firebase/errors';
-import { useUser } from '@/firebase';
 
+/** Utility type to add an 'id' field to a given type T. */
 export type WithId<T> = T & { id: string };
 
+/**
+ * Interface for the return value of the useCollection hook.
+ * @template T Type of the document data.
+ */
 export interface UseCollectionResult<T> {
-  data: WithId<T>[] | null;
-  isLoading: boolean;
-  error: FirestoreError | Error | null;
+  data: WithId<T>[] | null; // Document data with ID, or null.
+  isLoading: boolean;       // True if loading.
+  error: FirestoreError | Error | null; // Error object, or null.
 }
 
+/* Internal implementation of Query:
+  https://github.com/firebase/firebase-js-sdk/blob/c5f08a9bc5da0d2b0207802c972d53724ccef055/packages/firestore/src/lite-api/reference.ts#L143
+*/
 export interface InternalQuery extends Query<DocumentData> {
   _query: {
     path: {
-      segments: string[];
       canonicalString(): string;
       toString(): string;
     }
-  };
-  type: 'collection' | 'query' | string;
-  path?: string;
+  }
 }
 
-const USER_OWNED_COLLECTIONS = [
-  'leads',
-  'contacts',
-  'notes',
-  'activities',
-  'calendarEvents',
-  'training_materials',
-  'tags'
-];
-
 /**
- * Hardened hook to subscribe to a Firestore collection or query in real-time.
- * Automatically injects ownership filters for root-level user collections to comply
- * with "Rules are not Filters" Firestore security principle.
+ * React hook to subscribe to a Firestore collection or query in real-time.
+ * Handles nullable references/queries.
+ * 
+ *
+ * IMPORTANT! YOU MUST MEMOIZE the inputted memoizedTargetRefOrQuery or BAD THINGS WILL HAPPEN
+ * use useMemo to memoize it per React guidence.  Also make sure that it's dependencies are stable
+ * references
+ *  
+ * @template T Optional type for document data. Defaults to any.
+ * @param {CollectionReference<DocumentData> | Query<DocumentData> | null | undefined} targetRefOrQuery -
+ * The Firestore CollectionReference or Query. Waits if null/undefined.
+ * @returns {UseCollectionResult<T>} Object with data, isLoading, error.
  */
 export function useCollection<T = any>(
     memoizedTargetRefOrQuery: ((CollectionReference<DocumentData> | Query<DocumentData>) & {__memo?: boolean})  | null | undefined,
 ): UseCollectionResult<T> {
-  const { user } = useUser();
-  
   type ResultItemType = WithId<T>;
   type StateDataType = ResultItemType[] | null;
 
@@ -70,40 +69,12 @@ export function useCollection<T = any>(
       return;
     }
 
-    let collectionName = '';
-    const queryObj = memoizedTargetRefOrQuery as any;
-    
-    try {
-      if (queryObj.type === 'collection') {
-        collectionName = queryObj.path || '';
-      } else if (queryObj._query?.path) {
-        const segments = queryObj._query.path.segments;
-        if (segments && segments.length > 0) {
-          collectionName = segments[0];
-        }
-      }
-    } catch (e) {
-      console.warn('[useCollection] Path detection error:', e);
-    }
-
-    collectionName = collectionName.replace(/^\/|\/$/g, '');
-    
-    let finalQuery = memoizedTargetRefOrQuery as Query<DocumentData>;
-
-    if (USER_OWNED_COLLECTIONS.includes(collectionName)) {
-      if (!user) {
-        setData([]);
-        setIsLoading(false);
-        return;
-      }
-      finalQuery = query(finalQuery, where('ownerUid', '==', user.uid));
-    }
-
     setIsLoading(true);
     setError(null);
 
+    // Directly use memoizedTargetRefOrQuery as it's assumed to be the final query
     const unsubscribe = onSnapshot(
-      finalQuery,
+      memoizedTargetRefOrQuery,
       (snapshot: QuerySnapshot<DocumentData>) => {
         const results: ResultItemType[] = [];
         for (const doc of snapshot.docs) {
@@ -113,26 +84,31 @@ export function useCollection<T = any>(
         setError(null);
         setIsLoading(false);
       },
-      (firestoreError: FirestoreError) => {
-        console.error(`[useCollection] Permission Denied on path: /${collectionName}. Query must include ownerUid filter.`);
-        const permissionError = new FirestorePermissionError({
-          operation: 'list',
-          path: collectionName || 'unknown',
-        });
+      (error: FirestoreError) => {
+        // This logic extracts the path from either a ref or a query
+        const path: string =
+          memoizedTargetRefOrQuery.type === 'collection'
+            ? (memoizedTargetRefOrQuery as CollectionReference).path
+            : (memoizedTargetRefOrQuery as unknown as InternalQuery)._query.path.canonicalString()
 
-        setError(permissionError);
-        setData(null);
-        setIsLoading(false);
-        errorEmitter.emit('permission-error', permissionError);
+        const contextualError = new FirestorePermissionError({
+          operation: 'list',
+          path,
+        })
+
+        setError(contextualError)
+        setData(null)
+        setIsLoading(false)
+
+        // trigger global error propagation
+        errorEmitter.emit('permission-error', contextualError);
       }
     );
 
     return () => unsubscribe();
-  }, [memoizedTargetRefOrQuery, user?.uid]);
-
+  }, [memoizedTargetRefOrQuery]); // Re-run if the target query/reference changes.
   if(memoizedTargetRefOrQuery && !memoizedTargetRefOrQuery.__memo) {
-    throw new Error('useCollection: Input was not memoized using useMemoFirebase.');
+    throw new Error(memoizedTargetRefOrQuery + ' was not properly memoized using useMemoFirebase');
   }
-
   return { data, isLoading, error };
 }

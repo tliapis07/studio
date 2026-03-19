@@ -4,158 +4,106 @@
       "$schema": "http://json-schema.org/draft-07/schema#",
       "title": "UserProfile",
       "type": "object",
-      "description": "Stores user-specific settings, preferences, and profile information for the SalesStream CRM application.",
+      "description": "Represents a user's profile information within the CRM, primarily for referencing ownership of other entities. Authentication details are handled by an external system.",
       "properties": {
         "id": {
           "type": "string",
-          "description": "Unique identifier for the user profile, corresponding to the Firebase Authentication User ID (UID). (Primary Key)"
+          "description": "Unique identifier for the UserProfile entity. This typically corresponds to the user's unique ID from the external authentication system."
         },
-        "theme": {
+        "email": {
           "type": "string",
-          "description": "The user's preferred theme ('light', 'dark', or 'system')."
+          "description": "The user's primary email address, used for display and communication purposes. This is not used for direct authentication.",
+          "format": "email"
         },
-        "profilePicURL": {
+        "displayName": {
           "type": "string",
-          "description": "URL to the user's profile picture stored in Firebase Storage.",
-          "format": "uri"
-        },
-        "status": {
-          "type": "string",
-          "description": "The user's current status (e.g., 'Available', 'Busy', 'In a meeting', 'Do not disturb', or a custom message)."
-        },
-        "statusUpdatedAt": {
-          "type": "string",
-          "description": "Timestamp when the user's status was last updated.",
-          "format": "date-time"
-        },
-        "timeZone": {
-          "type": "string",
-          "description": "The user's selected timezone, typically an IANA timezone identifier (e.g., 'America/New_York')."
-        },
-        "notificationSoundsEnabled": {
-          "type": "boolean",
-          "description": "Indicates if notification sounds are enabled for the user."
-        },
-        "defaultLeadStatus": {
-          "type": "string",
-          "description": "The default status assigned to new leads created by this user."
-        },
-        "compactModeEnabled": {
-          "type": "boolean",
-          "description": "Indicates if compact mode (smaller fonts/tables) is enabled for the UI."
-        },
-        "autoArchiveClosedLeadsAfterDays": {
-          "type": "number",
-          "description": "Number of days after which closed leads (won/lost) are automatically archived. A value of 0 or null might mean no auto-archiving."
-        },
-        "language": {
-          "type": "string",
-          "description": "The preferred language for the application UI (e.g., 'en', 'es')."
-        },
-        "currency": {
-          "type": "string",
-          "description": "The preferred currency for deal values (e.g., 'USD', 'EUR')."
-        },
-        "tabLayouts": {
-          "type": "array",
-          "description": "Stores custom layout preferences for different application tabs/sections, e.g., column visibility and order.",
-          "items": {
-            "type": "string"
-          }
+          "description": "The user's preferred name or full name for display within the application."
         }
       },
       "required": [
-        "id",
-        "theme",
-        "timeZone",
-        "notificationSoundsEnabled",
-        "defaultLeadStatus",
-        "compactModeEnabled",
-        "language",
-        "currency",
-        "tabLayouts"
+        "id"
       ]
     },
     "Lead": {
       "$schema": "http://json-schema.org/draft-07/schema#",
       "title": "Lead",
       "type": "object",
-      "description": "Represents a potential sales opportunity or contact within the CRM system.",
+      "description": "Represents a potential customer or sales opportunity within the CRM system, tracking its progress through the sales pipeline.",
       "properties": {
         "id": {
           "type": "string",
-          "description": "Unique identifier for the lead. (Primary Key)"
+          "description": "Unique identifier for the Lead entity."
         },
         "ownerUid": {
           "type": "string",
-          "description": "Reference to the UserProfile ID of the user who owns this lead. (Relationship: UserProfile 1:N Lead)"
+          "description": "Reference to the unique identifier of the UserProfile who owns and is responsible for this lead. (Relationship: UserProfile 1:N Lead)"
         },
         "name": {
           "type": "string",
-          "description": "Full name of the lead or company name."
+          "description": "The full name of the lead or the primary contact person associated with this lead."
         },
         "email": {
           "type": "string",
-          "description": "Email address of the lead.",
+          "description": "The primary email address of the lead contact.",
           "format": "email"
         },
         "phone": {
           "type": "string",
-          "description": "Phone number of the lead."
+          "description": "The primary phone number of the lead contact."
         },
         "company": {
           "type": "string",
-          "description": "Company name associated with the lead."
+          "description": "The name of the company or organization the lead is associated with."
         },
         "status": {
           "type": "string",
-          "description": "Current sales pipeline status of the lead (e.g., 'new', 'contacted', 'qualified', 'proposal', 'won', 'lost')."
+          "description": "The current stage of the lead within the sales pipeline.",
+          "items": {
+            "type": "string"
+          }
         },
-        "tagIds": {
+        "tags": {
           "type": "array",
-          "description": "References to Tag entities associated with this lead. (Relationship: Lead N:N Tag)",
+          "description": "A collection of descriptive tags or labels applied to the lead for categorization and filtering.",
           "items": {
             "type": "string"
           }
         },
         "leadScore": {
           "type": "number",
-          "description": "A numerical score indicating the potential value or likelihood of closing the lead."
+          "description": "A numerical value indicating the lead's qualification level or likelihood to convert."
         },
         "nextFollowUpAt": {
           "type": "string",
-          "description": "The scheduled date and time for the next follow-up activity.",
+          "description": "The scheduled date and time for the next planned interaction or follow-up with the lead.",
           "format": "date-time"
         },
         "lastContactAt": {
           "type": "string",
-          "description": "The date and time of the last recorded contact with the lead.",
+          "description": "The date and time of the most recent documented contact or interaction with the lead.",
           "format": "date-time"
         },
         "createdAt": {
           "type": "string",
-          "description": "Timestamp when the lead was created.",
+          "description": "The timestamp indicating when this lead record was initially created in the system.",
           "format": "date-time"
         },
         "updatedAt": {
           "type": "string",
-          "description": "Timestamp when the lead was last updated.",
+          "description": "The timestamp indicating when this lead record was last modified.",
           "format": "date-time"
         },
         "customFields": {
           "type": "array",
-          "description": "A flexible dictionary for storing additional, user-defined fields for the lead.",
-          "items": {
-            "type": "string"
-          }
+          "description": "A flexible object containing any additional, user-defined fields relevant to the lead."
         },
         "notesCount": {
           "type": "number",
-          "description": "Denormalized count of notes associated with this lead."
+          "description": "A denormalized count of the number of notes associated with this lead. Used for quick display on dashboards or lists."
         },
         "callsCount": {
           "type": "number",
-          "description": "Denormalized count of calls associated with this lead."
+          "description": "A denormalized count of the number of call activities associated with this lead. Used for quick display on dashboards or lists."
         }
       },
       "required": [
@@ -163,90 +111,64 @@
         "ownerUid",
         "name",
         "status",
+        "tags",
         "leadScore",
         "createdAt",
-        "updatedAt"
+        "updatedAt",
+        "notesCount",
+        "callsCount"
       ]
     },
     "Activity": {
       "$schema": "http://json-schema.org/draft-07/schema#",
       "title": "Activity",
       "type": "object",
-      "description": "Records an interaction or event related to a specific lead.",
+      "description": "Records an interaction, event, or change related to a specific lead, contributing to the lead's historical timeline.",
       "properties": {
         "id": {
           "type": "string",
-          "description": "Unique identifier for the activity. (Primary Key)"
+          "description": "Unique identifier for the Activity entity."
+        },
+        "ownerUid": {
+          "type": "string",
+          "description": "Reference to the unique identifier of the UserProfile who created or is responsible for this activity. (Relationship: UserProfile 1:N Activity)"
         },
         "leadId": {
           "type": "string",
-          "description": "Reference to the Lead entity this activity belongs to. (Relationship: Lead 1:N Activity)"
+          "description": "Reference to the unique identifier of the Lead to which this activity belongs. (Relationship: Lead 1:N Activity)"
         },
         "type": {
           "type": "string",
-          "description": "The type of activity (e.g., 'note', 'call', 'status_change', 'tag_added')."
+          "description": "The category or nature of the activity, e.g., 'note', 'call', 'status_change', 'tag_added'.",
+          "items": {
+            "type": "string"
+          }
         },
         "content": {
           "type": "string",
-          "description": "Detailed description or notes about the activity."
+          "description": "The detailed description or summary of the activity, such as call notes or status change details."
         },
         "createdAt": {
           "type": "string",
-          "description": "Timestamp when the activity was recorded.",
+          "description": "The timestamp indicating when this activity record was created.",
           "format": "date-time"
         },
         "oldStatus": {
           "type": "string",
-          "description": "(Optional) The lead's status before a status change activity."
+          "description": "The lead's status immediately before this activity, primarily relevant for 'status_change' activities. (Corresponds to LeadStatus enum values)"
         },
         "newStatus": {
           "type": "string",
-          "description": "(Optional) The lead's status after a status change activity."
+          "description": "The lead's new status after this activity, primarily relevant for 'status_change' activities. (Corresponds to LeadStatus enum values)"
         }
       },
       "required": [
         "id",
+        "ownerUid",
         "leadId",
         "type",
         "content",
         "createdAt"
-      ]
-    },
-    "Tag": {
-      "$schema": "http://json-schema.org/draft-07/schema#",
-      "title": "Tag",
-      "type": "object",
-      "description": "Represents a reusable tag or category that can be applied to leads for organization and filtering.",
-      "properties": {
-        "id": {
-          "type": "string",
-          "description": "Unique identifier for the tag. (Primary Key)"
-        },
-        "name": {
-          "type": "string",
-          "description": "The name or label of the tag (e.g., 'Hot Lead', 'Enterprise', 'Follow-up')."
-        },
-        "ownerUid": {
-          "type": "string",
-          "description": "Reference to the UserProfile ID of the user who created or owns this tag. (Relationship: UserProfile 1:N Tag)"
-        },
-        "createdAt": {
-          "type": "string",
-          "description": "Timestamp when the tag was created.",
-          "format": "date-time"
-        },
-        "updatedAt": {
-          "type": "string",
-          "description": "Timestamp when the tag was last updated.",
-          "format": "date-time"
-        }
-      },
-      "required": [
-        "id",
-        "name",
-        "ownerUid",
-        "createdAt",
-        "updatedAt"
       ]
     }
   },
@@ -265,11 +187,11 @@
           "schema": {
             "$ref": "#/backend/entities/UserProfile"
           },
-          "description": "Stores user-specific settings, preferences, and profile information. The document ID `{userId}` corresponds to the Firebase Authentication UID, making it directly accessible to the authenticated user. No denormalized authorization fields are explicitly needed beyond the path.",
+          "description": "Stores a user's profile information. The document ID (`userId`) must match the authenticated user's UID. Access is restricted to the owning user.",
           "params": [
             {
               "name": "userId",
-              "description": "The Firebase Authentication User ID (UID) of the owner of this UserProfile."
+              "description": "The unique identifier of the user, matching `request.auth.uid`."
             }
           ]
         }
@@ -281,15 +203,15 @@
           "schema": {
             "$ref": "#/backend/entities/Lead"
           },
-          "description": "Contains individual sales lead records for a specific user. The `{userId}` in the path indicates the owner. Includes denormalized 'ownerUid' field for authorization independence, ensuring `request.auth.uid` matches both the path and the document's `ownerUid`.",
+          "description": "Stores leads associated with a specific user. The `ownerUid` field in the document must match the `userId` in the path, ensuring Authorization Independence and enabling secure `list` operations for leads owned by the authenticated user.",
           "params": [
             {
               "name": "userId",
-              "description": "The Firebase Authentication User ID (UID) of the user who owns this Lead."
+              "description": "The unique identifier of the user who owns this lead, matching `request.auth.uid`."
             },
             {
               "name": "leadId",
-              "description": "The unique identifier for the Lead document."
+              "description": "The unique identifier of the lead."
             }
           ]
         }
@@ -301,44 +223,24 @@
           "schema": {
             "$ref": "#/backend/entities/Activity"
           },
-          "description": "Records specific interactions or events related to a lead. Nested under a user's lead. Access relies on `request.auth.uid` matching `{userId}` and a security rule `get()` call to the parent Lead document to verify `Lead` ownership, as the `Activity` schema does not include a denormalized `ownerUid` field.",
+          "description": "Stores activities related to a specific lead, owned by a specific user. The `ownerUid` and `leadId` fields in the document must match the respective IDs in the path, ensuring Authorization Independence and enabling secure `list` operations for activities belonging to a user's lead.",
           "params": [
             {
               "name": "userId",
-              "description": "The Firebase Authentication User ID (UID) of the user who owns the parent Lead."
+              "description": "The unique identifier of the user who owns the parent lead, matching `request.auth.uid`."
             },
             {
               "name": "leadId",
-              "description": "The unique identifier for the parent Lead document."
+              "description": "The unique identifier of the parent lead."
             },
             {
               "name": "activityId",
-              "description": "The unique identifier for the Activity document."
-            }
-          ]
-        }
-      },
-      {
-        "path": "/users/{userId}/tags/{tagId}",
-        "definition": {
-          "entityName": "Tag",
-          "schema": {
-            "$ref": "#/backend/entities/Tag"
-          },
-          "description": "Stores reusable tags or categories created by and for a specific user. Includes denormalized 'ownerUid' field for authorization independence, ensuring `request.auth.uid` matches both the path and the document's `ownerUid`.",
-          "params": [
-            {
-              "name": "userId",
-              "description": "The Firebase Authentication User ID (UID) of the user who owns this Tag."
-            },
-            {
-              "name": "tagId",
-              "description": "The unique identifier for the Tag document."
+              "description": "The unique identifier of the activity."
             }
           ]
         }
       }
     ],
-    "reasoning": "The Firestore structure is designed to be secure, scalable, and highly debuggable, adhering to the core design principles and strategy mandates. It primarily utilizes a hierarchical, path-based ownership model, segregating all user-specific data under individual user documents. This approach simplifies security rules significantly by making authorization dependent almost entirely on the `request.auth.uid` matching a `userId` wildcard in the path.\n\n**Authorization Independence (CRITICAL) & Denormalization:**\n\n1.  **UserProfile (`/users/{userId}`):** The user's profile document (`UserProfile`) is directly accessible via their `uid`. Authorization is fully independent as `request.auth.uid` must match `{userId}` in the path, ensuring a user can only access their own profile. No `get()` calls are needed in rules for this entity.\n\n2.  **Lead (`/users/{userId}/leads/{leadId}`):** Each `Lead` document includes an `ownerUid` field, which stores the `userId` of the lead's owner. This field is denormalized directly into the `Lead` document. Security rules for `Lead` can then simply check `request.auth.uid == userId` (from the path) and `resource.data.ownerUid == userId`, achieving full authorization independence without needing to query a parent document. This enables atomic creation and updates.\n\n3.  **Activity (`/users/{userId}/leads/{leadId}/activities/{activityId}`):** The `Activity` entity's access logically depends on its parent `Lead`'s `ownerUid`. According to the Authorization Independence mandate, this `ownerUid` should be denormalized into the `Activity` document. *However, the provided `Activity` schema does not include an `ownerUid` field.* As per the strict adherence to the provided schema, `ownerUid` is omitted from the `Activity` document. Consequently, security rules for `Activity` will *require a `get()` call to the parent `Lead` document* to verify that the `Lead` (and thus its `Activities`) is owned by `request.auth.uid`. This constitutes a **violation** of the Authorization Independence principle for `Activity` data. For full compliance, the `Activity` schema should be updated to include `ownerUid` (denormalized from `Lead`).\n\n4.  **Tag (`/users/{userId}/tags/{tagId}`):** Similar to `Lead`, each `Tag` document includes an `ownerUid` field, storing the `userId` of the tag's creator/owner. This denormalization makes `Tag` documents authorization independent, allowing rules to verify `request.auth.uid == userId` (from the path) and `resource.data.ownerUid == userId` without `get()` calls.\n\n**Querying for Authorization Purposes (QAPs - Rules are not Filters):**\n\nThe hierarchical structure ensures that `list` operations (queries) are inherently secure and efficient. When a user queries for their leads (`/users/{userId}/leads`), activities (`/users/{userId}/leads/{leadId}/activities`), or tags (`/users/{userId}/tags`), the `userId` in the path ensures that Firestore's security rules can immediately filter results to only include data owned by `request.auth.uid`. This prevents unauthorized data leakage and avoids costly or insecure client-side filtering. By placing all user-specific data under `/users/{userId}`, security rules can use a single, explicit check on the path wildcard, `request.auth.uid == userId`, combined with denormalized `ownerUid` fields for subcollections where applicable (Leads, Tags). This makes the intent clear and prevents rules from acting as data filters."
+    "reasoning": "The recommended Firestore structure is designed to enforce Authorization Independence, enable robust Query-as-Permission (QAP) security rules, and provide clear data segregation. The core strategy revolves around creating user-centric, hierarchical paths where ownership is intrinsically tied to the document's location.\n\n1.  **User Profiles (`/users/{userId}`):** UserProfile documents are stored in a top-level `users` collection, with each document ID (`userId`) directly matching the Firebase Authentication `uid`. This makes it simple to write rules that ensure a user can only read/write their own profile (`request.auth.uid == userId`).\n\n2.  **Leads (`/users/{userId}/leads/{leadId}`):** Leads are modeled as a subcollection under the owning `UserProfile`. This is critical for Authorization Independence and QAPs. By embedding the `ownerUid` (as `userId`) directly into the path, any operation on a lead (create, read, update, delete, or list) automatically includes the owner's UID in its access path. Security rules can then simply verify `request.auth.uid == userId` without needing to perform a `get()` operation on a parent lead document to determine ownership. This eliminates hierarchical authorization dependencies, making rules atomic and easier to debug. For QAPs, any query for leads by a user *must* specify their `userId` in the path (e.g., `/users/current_user_id/leads`), ensuring that lists are inherently filtered by ownership.\n\n3.  **Activities (`/users/{userId}/leads/{leadId}/activities/{activityId}`):** Activities are nested further as a subcollection under their respective `Lead` documents. This extends the principle of Authorization Independence: access to an `Activity` document is automatically tied to both the `leadId` and the `ownerUid` (via `userId`) in the path. Rules again verify `request.auth.uid == userId`. The `Activity` document also redundantly stores `ownerUid` and `leadId` for data integrity and flexible indexing, but rules primarily leverage the path for authorization. This hierarchical structure directly resolves the 'Permission Denied on path: /activities. Query must include ownerUid filter' error by making `ownerUid` part of the access path itself, thereby implicitly enforcing the owner filter for all queries against `activities` subcollections."
   }
 }

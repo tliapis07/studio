@@ -1,71 +1,93 @@
+/**
+ * Firestore Security Rules
+ * 
+ * Core Philosophy:
+ * This ruleset implements a strict hierarchical ownership model to ensure data isolation and security. 
+ * By nesting resources under the owner's user ID (e.g., /users/{userId}/leads/...), authorization 
+ * is inherently tied to the request path, fulfilling the principle of Authorization Independence.
+ * 
+ * Data Structure:
+ * - /users/{userId}: Root user profile, keyed by the Firebase Auth UID.
+ * - /users/{userId}/leads/{leadId}: Lead records owned by the specific user.
+ * - /users/{userId}/leads/{leadId}/activities/{activityId}: Activity logs specific to a lead and its owner.
+ * 
+ * Key Security Decisions:
+ * - Ownership Enforcement: All read and write operations are restricted to the authenticated user 
+ *   whose UID matches the {userId} parameter in the document path.
+ * - Query-as-Permission (QAP): Listing documents is only permitted within the user's own path 
+ *   segment, preventing cross-user data leakage and enforcing implicit filtering.
+ * - Relational Integrity: On creation and update, rules verify that internal fields (like ownerUid 
+ *   and leadId) remain consistent with the document's location in the hierarchy.
+ * - Denormalization for Performance: The system relies on the path for rapid authorization, avoiding 
+ *   costly get() lookups on parent documents.
+ */
+
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    /**
-     * SalesStream Security Rules
-     * Standardized on ownerUid for user-data isolation.
-     */
+    // --- Helper Functions ---
 
+    /** Checks if the request is from an authenticated user. */
     function isSignedIn() {
       return request.auth != null;
     }
 
-    // Checks if the existing document is owned by the requester
-    function isOwner() {
-      return isSignedIn() && resource.data.ownerUid == request.auth.uid;
+    /** Checks if the authenticated user's UID matches the provided userId. */
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
     }
 
-    // Checks if the new data being written assigns the requester as owner
-    function isAssigningToSelf() {
-      return isSignedIn() && request.resource.data.ownerUid == request.auth.uid;
+    /** 
+     * Verifies the document exists and the authenticated user is the owner.
+     * Used for update and delete operations to ensure destructive actions only happen on existing data.
+     */
+    function isExistingOwner(userId) {
+      return resource != null && isOwner(userId);
     }
 
-    // User Profile Rules: Path-based ownership
+    // --- Collection Rules ---
+
+    /**
+     * @description Rules for the UserProfile entity. Users can only access their own profile.
+     * @path /users/{userId}
+     * @allow (get) If the request.auth.uid matches {userId}.
+     * @deny (list) If trying to list all users in the system.
+     * @principle Enforces strict user-to-document 1:1 ownership based on Authentication UID.
+     */
     match /users/{userId} {
-      allow read, write: if isSignedIn() && request.auth.uid == userId;
-    }
+      allow get, list: if isOwner(userId);
+      allow create: if isOwner(userId) && request.resource.data.id == userId;
+      allow update: if isExistingOwner(userId) && request.resource.data.id == resource.data.id;
+      allow delete: if isExistingOwner(userId);
 
-    // Global Tags & Categories
-    match /tags/{id} {
-      allow read, update, delete: if isOwner();
-      allow create: if isAssigningToSelf();
-    }
+      /**
+       * @description Rules for Leads. Leads are nested under the owner for path-based security.
+       * @path /users/{userId}/leads/{leadId}
+       * @allow (list) When querying /users/{my_uid}/leads.
+       * @deny (create) If the internal ownerUid does not match the path userId.
+       * @principle Uses hierarchical paths to enable secure 'list' operations without complex filters.
+       */
+      match /leads/{leadId} {
+        allow get, list: if isOwner(userId);
+        allow create: if isOwner(userId) && request.resource.data.ownerUid == userId;
+        allow update: if isExistingOwner(userId) && request.resource.data.ownerUid == resource.data.ownerUid;
+        allow delete: if isExistingOwner(userId);
 
-    // Leads Collection
-    match /leads/{id} {
-      allow read, update, delete: if isOwner();
-      allow create: if isAssigningToSelf();
-    }
-
-    // Contacts Directory
-    match /contacts/{id} {
-      allow read, update, delete: if isOwner();
-      allow create: if isAssigningToSelf();
-    }
-
-    // Personal & Strategy Notes
-    match /notes/{id} {
-      allow read, update, delete: if isOwner();
-      allow create: if isAssigningToSelf();
-    }
-
-    // Activity Logs
-    match /activities/{id} {
-      allow read, update, delete: if isOwner();
-      allow create: if isAssigningToSelf();
-    }
-
-    // Team Calendar
-    match /calendarEvents/{id} {
-      allow read, update, delete: if isOwner();
-      allow create: if isAssigningToSelf();
-    }
-
-    // Training Repository
-    match /training_materials/{id} {
-      allow read, update, delete: if isOwner();
-      allow create: if isAssigningToSelf();
+        /**
+         * @description Rules for Activities. Nested under Leads to resolve ownership and context.
+         * @path /users/{userId}/leads/{leadId}/activities/{activityId}
+         * @allow (create) If ownerUid matches the user and leadId matches the parent lead.
+         * @deny (get) If a user attempts to access an activity under another user's path.
+         * @principle Validates relational integrity between the path and the document data.
+         */
+        match /activities/{activityId} {
+          allow get, list: if isOwner(userId);
+          allow create: if isOwner(userId) && request.resource.data.ownerUid == userId && request.resource.data.leadId == leadId;
+          allow update: if isExistingOwner(userId) && request.resource.data.ownerUid == resource.data.ownerUid && request.resource.data.leadId == resource.data.leadId;
+          allow delete: if isExistingOwner(userId);
+        }
+      }
     }
   }
 }
