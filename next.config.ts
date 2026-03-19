@@ -2,6 +2,7 @@ import type {NextConfig} from 'next';
 
 const nextConfig: NextConfig = {
   output: 'export', // Required for Capacitor and Tauri
+  trailingSlash: true, // Recommended for static exports used in native apps
   images: {
     unoptimized: true, // Required for static export
     remotePatterns: [

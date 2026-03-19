@@ -10,13 +10,14 @@ SalesStream is optimized for static export and native wrapping via Capacitor (Mo
 ```bash
 npm run build
 ```
-This generates the `out/` folder containing the full SPA.
+This generates the `out/` folder containing the full standalone SPA.
 
-### 2. Mobile Deployment (iOS/Android)
+### 2. Mobile Deployment (Android / iOS)
 We use **Capacitor** to wrap the static site into native binaries.
-- **Initialize (first time):** `npx cap add ios` or `npx cap add android`
-- **Sync changes:** `npx cap sync`
-- **Open in IDE:** `npx cap open ios` or `npx cap open android`
+- **Initialize (if not done):** `npx cap add android` or `npx cap add ios`
+- **Sync changes:** `npx cap sync` (This pulls the `out/` directory into native platforms)
+- **Open in IDE:** `npx cap open android` or `npx cap open ios`
+- **Build APK:** In Android Studio, go to `Build > Build Bundle(s) / APK(s) > Build APK(s)`.
 
 ### 3. Desktop Deployment (Windows/Mac/Linux)
 We use **Tauri** for desktop wrapping.
