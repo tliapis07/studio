@@ -51,33 +51,36 @@ import {
   Trash2,
   Edit2,
   Contact as ContactIcon,
-  Tag,
-  X
+  Tag as TagIcon,
+  X,
+  Check
 } from 'lucide-react';
-import { Contact } from '@/lib/types';
+import { Contact, Tag } from '@/lib/types';
 import { toast } from '@/hooks/use-toast';
 
-const DEFAULT_TAGS = ["Client", "Lead", "Referral", "VIP", "Partner"];
-
 export default function ContactsPage() {
-  const { user } = useUser();
+  const { user } = userHook();
   const db = useFirestore();
   const [search, setSearch] = useState('');
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
-  const [isTagModalOpen, setIsTypeManageOpen] = useState(false);
+  const [isTagModalOpen, setIsTagModalOpen] = useState(false);
   const [editingContact, setEditingContact] = useState<Contact | null>(null);
   const [selectedTagFilter, setSelectedTagFilter] = useState('all');
-  
-  const [availableTags, setAvailableTags] = useState(DEFAULT_TAGS);
   const [newTagInput, setNewTagInput] = useState('');
+  const [editingTag, setEditingTag] = useState<Tag | null>(null);
 
   const contactsQueryStable = useMemoFirebase(() => {
     if (!db || !user) return null;
-    // Security Rule Alignment: Must filter by ownerUid to pass permissions check
     return query(collection(db, 'contacts'), where('ownerUid', '==', user.uid));
   }, [db, user]);
 
+  const tagsQueryStable = useMemoFirebase(() => {
+    if (!db || !user) return null;
+    return query(collection(db, 'tags'), where('ownerUid', '==', user.uid), where('type', '==', 'contact'));
+  }, [db, user]);
+
   const { data: contacts, isLoading } = useCollection<Contact>(contactsQueryStable);
+  const { data: tags } = useCollection<Tag>(tagsQueryStable);
 
   const filteredContacts = useMemo(() => {
     if (!contacts) return [];
@@ -121,17 +124,36 @@ export default function ContactsPage() {
     setEditingContact(null);
   };
 
-  const handleDeleteContact = (id: string) => {
-    if (!db) return;
-    deleteDocumentNonBlocking(doc(db, 'contacts', id));
-    toast({ title: "Contact Deleted", description: "Record removed from directory." });
+  const handleSaveTag = () => {
+    if (!db || !user || !newTagInput.trim()) return;
+    
+    if (editingTag) {
+      updateDocumentNonBlocking(doc(db, 'tags', editingTag.id), {
+        name: newTagInput.trim(),
+        updatedAt: serverTimestamp(),
+      });
+      setEditingTag(null);
+    } else {
+      addDocumentNonBlocking(collection(db, 'tags'), {
+        ownerUid: user.uid,
+        name: newTagInput.trim(),
+        type: 'contact',
+        createdAt: serverTimestamp(),
+        updatedAt: serverTimestamp(),
+      });
+    }
+    setNewTagInput('');
   };
 
-  const addNewTag = () => {
-    if (!newTagInput.trim()) return;
-    setAvailableTags(prev => [...prev, newTagInput.trim()]);
-    setNewTagInput('');
-    toast({ title: "Tag Created", description: `'${newTagInput}' added to directory labels.` });
+  const handleDeleteTag = (tag: Tag) => {
+    if (!db) return;
+    const isUsed = contacts?.some(c => c.tags?.includes(tag.name));
+    if (isUsed) {
+      toast({ variant: "destructive", title: "Cannot Delete", description: "This label is currently active on one or more contacts." });
+      return;
+    }
+    deleteDocumentNonBlocking(doc(db, 'tags', tag.id));
+    toast({ title: "Label Removed", description: "Label deleted from organizational directory." });
   };
 
   const openWhatsApp = (phone: string) => {
@@ -147,8 +169,8 @@ export default function ContactsPage() {
           <p className="text-muted-foreground">Unified management for organizational client phone numbers.</p>
         </div>
         <div className="flex gap-2">
-          <Button variant="outline" onClick={() => setIsTypeManageOpen(true)} className="border-2 gap-2 h-10 font-bold text-xs uppercase tracking-widest">
-            <Tag className="h-4 w-4" /> Manage Labels
+          <Button variant="outline" onClick={() => setIsTagModalOpen(true)} className="border-2 gap-2 h-10 font-bold text-xs uppercase tracking-widest">
+            <TagIcon className="h-4 w-4" /> Manage Labels
           </Button>
           <Button onClick={() => { setEditingContact(null); setIsAddModalOpen(true); }} className="bg-primary hover:bg-primary/90 gap-2 shadow-lg shadow-primary/20 h-10 font-bold text-xs uppercase tracking-widest">
             <Plus className="h-4 w-4" /> Add Contact
@@ -175,15 +197,15 @@ export default function ContactsPage() {
           >
             All
           </Button>
-          {availableTags.map(tag => (
+          {tags?.map(tag => (
             <Button 
-              key={tag}
-              variant={selectedTagFilter === tag ? 'default' : 'outline'} 
+              key={tag.id}
+              variant={selectedTagFilter === tag.name ? 'default' : 'outline'} 
               size="sm" 
-              onClick={() => setSelectedTagFilter(tag)}
+              onClick={() => setSelectedTagFilter(tag.name)}
               className="rounded-xl h-9 px-4 font-black uppercase tracking-widest text-[9px] whitespace-nowrap"
             >
-              {tag}
+              {tag.name}
             </Button>
           ))}
         </div>
@@ -232,7 +254,7 @@ export default function ContactsPage() {
                         <DropdownMenuItem onClick={() => { setEditingContact(contact); setIsAddModalOpen(true); }}>
                           <Edit2 className="h-4 w-4 mr-2" /> Edit Record
                         </DropdownMenuItem>
-                        <DropdownMenuItem onClick={() => handleDeleteContact(contact.id)} className="text-rose-500">
+                        <DropdownMenuItem onClick={() => deleteDocumentNonBlocking(doc(db, 'contacts', contact.id))} className="text-rose-500">
                           <Trash2 className="h-4 w-4 mr-2" /> Archive Contact
                         </DropdownMenuItem>
                       </DropdownMenuContent>
@@ -277,16 +299,16 @@ export default function ContactsPage() {
             <div className="space-y-2">
               <Label className="text-[10px] font-black uppercase tracking-widest">Organizational Labels</Label>
               <div className="flex flex-wrap gap-2 p-3 bg-muted/10 rounded-xl border-2 shadow-inner">
-                {availableTags.map(tag => (
-                  <label key={tag} className="flex items-center gap-2 bg-background/50 px-3 py-1.5 rounded-lg border-2 border-border/50 cursor-pointer hover:bg-primary/5 transition-all has-[:checked]:bg-primary/10 has-[:checked]:border-primary/50 group">
+                {tags?.map(tag => (
+                  <label key={tag.id} className="flex items-center gap-2 bg-background/50 px-3 py-1.5 rounded-lg border-2 border-border/50 cursor-pointer hover:bg-primary/5 transition-all has-[:checked]:bg-primary/10 has-[:checked]:border-primary/50 group">
                     <input 
                       type="checkbox" 
                       name="tags" 
-                      value={tag} 
-                      defaultChecked={editingContact?.tags?.includes(tag)}
+                      value={tag.name} 
+                      defaultChecked={editingContact?.tags?.includes(tag.name)}
                       className="hidden" 
                     />
-                    <span className="text-[9px] font-black uppercase tracking-widest">{tag}</span>
+                    <span className="text-[9px] font-black uppercase tracking-widest">{tag.name}</span>
                   </label>
                 ))}
               </div>
@@ -302,27 +324,42 @@ export default function ContactsPage() {
         </DialogContent>
       </Dialog>
 
-      <Dialog open={isTagModalOpen} onOpenChange={setIsTypeManageOpen}>
+      <Dialog open={isTagModalOpen} onOpenChange={setIsTagModalOpen}>
         <DialogContent className="sm:max-w-[400px] rounded-3xl border-2">
           <DialogHeader>
             <DialogTitle className="text-xl font-black">Manage Label Directory</DialogTitle>
+            <DialogDescription>Create and refine organizational contact labels.</DialogDescription>
           </DialogHeader>
           <div className="space-y-4 py-4">
             <div className="flex gap-2">
               <Input 
-                placeholder="New Label Name..." 
+                placeholder={editingTag ? "Rename label..." : "New Label Name..."} 
                 className="h-11 rounded-xl"
                 value={newTagInput}
                 onChange={(e) => setNewTagInput(e.target.value)}
-                onKeyDown={(e) => e.key === 'Enter' && addNewTag()}
+                onKeyDown={(e) => e.key === 'Enter' && handleSaveTag()}
               />
-              <Button addNewTag size="icon" className="h-11 w-11 rounded-xl"><Plus className="h-5 w-5" /></Button>
+              <Button onClick={handleSaveTag} size="icon" className="h-11 w-11 rounded-xl">
+                {editingTag ? <Check className="h-5 w-5" /> : <Plus className="h-5 w-5" />}
+              </Button>
+              {editingTag && (
+                <Button variant="ghost" onClick={() => { setEditingTag(null); setNewTagInput(''); }} size="icon" className="h-11 w-11 rounded-xl">
+                  <X className="h-5 w-5" />
+                </Button>
+              )}
             </div>
             <div className="space-y-2">
-              {availableTags.map(tag => (
-                <div key={tag} className="flex items-center justify-between p-3 rounded-xl bg-muted/30 border border-border/50 group">
-                  <span className="text-xs font-bold uppercase tracking-widest">{tag}</span>
-                  <Button variant="ghost" size="icon" className="h-8 w-8 text-rose-500 opacity-0 group-hover:opacity-100" onClick={() => setAvailableTags(prev => prev.filter(t => t !== tag))}><Trash2 className="h-4 w-4" /></Button>
+              {tags?.map(tag => (
+                <div key={tag.id} className="flex items-center justify-between p-3 rounded-xl bg-muted/30 border border-border/50 group">
+                  <span className="text-xs font-bold uppercase tracking-widest">{tag.name}</span>
+                  <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                    <Button variant="ghost" size="icon" className="h-8 w-8 text-primary" onClick={() => { setEditingTag(tag); setNewTagInput(tag.name); }}>
+                      <Edit2 className="h-4 w-4" />
+                    </Button>
+                    <Button variant="ghost" size="icon" className="h-8 w-8 text-rose-500" onClick={() => handleDeleteTag(tag)}>
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  </div>
                 </div>
               ))}
             </div>
@@ -331,4 +368,9 @@ export default function ContactsPage() {
       </Dialog>
     </div>
   );
+}
+
+function userHook() {
+  const { user, isUserLoading } = useUser();
+  return { user, isUserLoading };
 }

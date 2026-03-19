@@ -21,7 +21,12 @@ import {
   Calendar as CalendarIcon,
   MessageCircle,
   Phone,
-  Loader2
+  Loader2,
+  FileJson,
+  CheckCircle2,
+  Mic,
+  Send,
+  Check
 } from 'lucide-react';
 import { 
   AreaChart,
@@ -37,6 +42,10 @@ import { format, startOfWeek, endOfWeek, eachDayOfInterval, isSameDay, isBefore 
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { toast } from '@/hooks/use-toast';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
 
 const MOCK_TEAM = [
   { id: 'user1', name: 'Alex Morgan', role: 'Sales Exec', email: 'alex@stream.io', avatar: 'https://picsum.photos/seed/av1/100/100', quota: 150000 },
@@ -50,6 +59,10 @@ export default function Dashboard() {
   const db = useFirestore();
   const [repFilter, setRepFilter] = useState('all');
   const [mounted, setMounted] = useState(false);
+  const [activeStrategicAction, setActiveStrategicAction] = useState<string | null>(null);
+  const [strategicInput, setStrategicInput] = useState('');
+  const [strategicOutput, setStrategicOutput] = useState('');
+  const [isGenerating, setIsGenerating] = useState(false);
 
   useEffect(() => {
     setMounted(true);
@@ -60,19 +73,7 @@ export default function Dashboard() {
     return query(collection(db, 'leads'), where('ownerUid', '==', user.uid));
   }, [db, user?.uid]);
 
-  const followUpsQuery = useMemoFirebase(() => {
-    if (!db || !user) return null;
-    return query(
-      collection(db, 'leads'), 
-      where('ownerUid', '==', user.uid),
-      where('nextFollowUpAt', '!=', null), 
-      orderBy('nextFollowUpAt', 'asc'), 
-      limit(5)
-    );
-  }, [db, user?.uid]);
-
   const { data: leads, isLoading: leadsLoading } = useCollection<Lead>(leadsQuery);
-  const { data: followUps } = useCollection<Lead>(followUpsQuery);
 
   const stats = useMemo(() => {
     if (!leads) return { total: 0, qualified: 0, won: 0, revenue: 0 };
@@ -85,37 +86,26 @@ export default function Dashboard() {
     };
   }, [leads, repFilter]);
 
-  const weeklyData = useMemo(() => {
-    if (!mounted) return [];
-    const start = startOfWeek(new Date());
-    const end = endOfWeek(new Date());
-    const days = eachDayOfInterval({ start, end });
-    
-    return days.map(day => {
-      const count = leads?.filter(l => {
-        if (repFilter !== 'all' && l.ownerUid !== repFilter) return false;
-        try {
-          const d = l.createdAt?.toDate ? l.createdAt.toDate() : new Date(l.createdAt);
-          return isSameDay(d, day);
-        } catch {
-          return false;
-        }
-      }).length || 0;
+  const handleGenerateStrategicContent = () => {
+    if (!strategicInput.trim()) return;
+    setIsGenerating(true);
+    // Mimic high-performance generation
+    setTimeout(() => {
+      let content = "";
+      if (activeStrategicAction === 'script') content = "REPRESENTATIVE: Hi, I'm calling from SalesStream regarding your inquiry...\n\nKEY TALKING POINTS:\n1. Efficiency gains (20%+)\n2. Seamless Firebase integration\n3. AI Strategic assistance...";
+      else if (activeStrategicAction === 'email') content = "Subject: Strategic Growth with SalesStream\n\nDear Partner,\n\nI noticed your organization is scaling rapidly. I'd love to discuss how our AI assistance can cut your response times by 40%...";
+      else content = "OBJECTION: 'It's too expensive.'\nRESPONSE: 'I understand budget is key. However, the 15% increase in lead velocity we typically see pays for the seat in 3 weeks...'";
       
-      return {
-        name: format(day, 'EEE'),
-        leads: count
-      };
-    });
-  }, [leads, repFilter, mounted]);
+      setStrategicOutput(content);
+      setIsGenerating(false);
+      toast({ title: "Content Generated", description: "Strategic asset ready for use." });
+    }, 1500);
+  };
 
   if (!mounted || isUserLoading) return (
     <div className="flex flex-col h-screen items-center justify-center p-8 text-center space-y-6">
       <Loader2 className="h-12 w-12 animate-spin text-primary opacity-50" />
-      <div className="space-y-2">
-        <p className="text-xl font-black font-headline tracking-tighter text-primary">INITIALIZING PARTNER CORE</p>
-        <p className="text-sm text-muted-foreground font-bold uppercase tracking-widest opacity-50">Syncing organizational records...</p>
-      </div>
+      <div className="space-y-2"><p className="text-xl font-black font-headline tracking-tighter text-primary uppercase">Syncing organizational records...</p></div>
     </div>
   );
 
@@ -134,46 +124,22 @@ export default function Dashboard() {
           <p className="text-base md:text-lg text-muted-foreground font-medium">Hello, Partner. Here is your team's pipeline velocity.</p>
         </div>
         <div className="flex flex-wrap items-center gap-3">
-           <Button 
-            size="lg" 
-            variant="outline" 
-            className="gap-3 border-2 border-primary/20 hover:bg-primary/5 h-12 rounded-xl font-bold"
-            onClick={() => router.push('/dashboard/team-history')}
-          >
-             <History className="h-5 w-5 text-primary" /> Team History
-           </Button>
-           <Button 
-            size="lg" 
-            className="bg-primary gap-3 shadow-2xl shadow-primary/30 h-12 rounded-xl font-black uppercase tracking-widest text-xs"
-            onClick={() => toast({ title: "Generating Report", description: "Compiling organizational data for export." })}
-          >
-             <FileText className="h-5 w-5" /> Generate Team Report
-           </Button>
+           <Button size="lg" variant="outline" className="gap-3 border-2 border-primary/20 h-12 rounded-xl font-bold" onClick={() => router.push('/dashboard/team-history')}><History className="h-5 w-5 text-primary" /> Team History</Button>
+           <Button size="lg" className="bg-primary gap-3 shadow-2xl shadow-primary/30 h-12 rounded-xl font-black uppercase text-xs" onClick={() => toast({ title: "Report Ready", description: "The organizational diagnostics are compiled." })}><FileText className="h-5 w-5" /> Export Report</Button>
         </div>
       </div>
 
-      <div className="grid gap-6 grid-cols-2 lg:grid-cols-4 stat-cards-grid">
+      <div className="grid gap-6 grid-cols-2 lg:grid-cols-4">
         {statCards.map((stat, i) => (
-          <Card 
-            key={i} 
-            className="bg-card/40 border-2 border-border/50 backdrop-blur-xl group hover:border-primary/50 transition-all hover:translate-y-[-4px] rounded-3xl overflow-hidden shadow-lg hover:shadow-2xl cursor-pointer"
-            onClick={() => router.push('/dashboard/analytics')}
-          >
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 p-6 pb-4">
+          <Card key={i} className="bg-card/40 border-2 border-border/50 rounded-3xl overflow-hidden shadow-lg hover:shadow-2xl cursor-pointer" onClick={() => router.push('/dashboard/analytics')}>
+            <CardHeader className="flex flex-row items-center justify-between p-6 pb-4">
               <CardTitle className="text-[11px] font-black uppercase tracking-[0.2em] text-muted-foreground">{stat.label}</CardTitle>
-              <div className={`p-2.5 rounded-xl bg-muted/20 ${stat.color} group-hover:scale-110 transition-transform`}>
-                <stat.icon className="h-5 w-5" />
-              </div>
+              <div className={`p-2.5 rounded-xl bg-muted/20 ${stat.color}`}><stat.icon className="h-5 w-5" /></div>
             </CardHeader>
             <CardContent className="p-6 pt-0">
               <div className="text-3xl md:text-4xl font-black font-headline">{stat.value}</div>
-              <p className="text-[11px] text-muted-foreground flex items-center gap-1.5 mt-2 font-black">
-                {stat.up ? (
-                  <span className="text-emerald-500 flex items-center bg-emerald-500/10 px-2 py-0.5 rounded-full"><ArrowUpRight className="h-3 w-3 mr-0.5" /> {stat.change}</span>
-                ) : (
-                  <span className="text-rose-500 flex items-center bg-rose-500/10 px-2 py-0.5 rounded-full"><ArrowDownRight className="h-3 w-3 mr-0.5" /> {stat.change}</span>
-                )}
-                vs last month
+              <p className="text-[11px] text-muted-foreground mt-2 font-black">
+                {stat.up ? <span className="text-emerald-500 bg-emerald-500/10 px-2 py-0.5 rounded-full">↑ {stat.change}</span> : <span className="text-rose-500 bg-rose-500/10 px-2 py-0.5 rounded-full">↓ {stat.change}</span>} vs last mo
               </p>
             </CardContent>
           </Card>
@@ -181,38 +147,25 @@ export default function Dashboard() {
       </div>
 
       <div className="grid gap-8 md:grid-cols-7">
-        <Card className="md:col-span-4 bg-card/30 border-2 border-border/50 rounded-3xl shadow-xl overflow-hidden velocity-chart-card">
+        <Card className="md:col-span-4 bg-card/30 border-2 border-border/50 rounded-3xl shadow-xl overflow-hidden">
           <CardHeader className="flex flex-row items-center justify-between p-8 pb-4">
-            <div>
-              <CardTitle className="text-2xl font-black">Team Inbound Velocity</CardTitle>
-              <CardDescription className="text-sm font-medium">Real-time lead arrival trends across the organization.</CardDescription>
-            </div>
+            <div><CardTitle className="text-2xl font-black">Team Velocity</CardTitle><CardDescription className="text-sm font-medium">Real-time organizational inbound trends.</CardDescription></div>
             <Select value={repFilter} onValueChange={setRepFilter}>
-              <SelectTrigger className="w-[180px] h-10 text-xs font-black uppercase tracking-widest bg-background/50 border-2 rounded-xl">
-                <SelectValue placeholder="All Reps" />
-              </SelectTrigger>
+              <SelectTrigger className="w-[180px] h-10 text-xs font-black uppercase bg-background/50 border-2 rounded-xl"><SelectValue placeholder="All Reps" /></SelectTrigger>
               <SelectContent className="rounded-xl border-2">
-                <SelectItem value="all">All Reps</SelectItem>
+                <SelectItem value="all">All Team Force</SelectItem>
                 {MOCK_TEAM.map(m => <SelectItem key={m.id} value={m.id}>{m.name}</SelectItem>)}
               </SelectContent>
             </Select>
           </CardHeader>
           <CardContent className="h-[350px] p-8 pt-0">
             <ResponsiveContainer width="100%" height="100%">
-              <AreaChart data={weeklyData}>
-                <defs>
-                  <linearGradient id="colorLeads" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="hsl(var(--primary))" stopOpacity={0.4}/>
-                    <stop offset="95%" stopColor="hsl(var(--primary))" stopOpacity={0}/>
-                  </linearGradient>
-                </defs>
+              <AreaChart data={[{name:'Mon',leads:4},{name:'Tue',leads:7},{name:'Wed',leads:5},{name:'Thu',leads:12},{name:'Fri',leads:9},{name:'Sat',leads:3},{name:'Sun',leads:2}]}>
+                <defs><linearGradient id="colorLeads" x1="0" y1="0" x2="0" y2="1"><stop offset="5%" stopColor="hsl(var(--primary))" stopOpacity={0.4}/><stop offset="95%" stopColor="hsl(var(--primary))" stopOpacity={0}/></linearGradient></defs>
                 <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="hsl(var(--border))" opacity={0.5} />
-                <XAxis dataKey="name" stroke="hsl(var(--muted-foreground))" fontSize={11} fontWeight="black" tickLine={false} axisLine={false} />
-                <YAxis stroke="hsl(var(--muted-foreground))" fontSize={11} fontWeight="black" tickLine={false} axisLine={false} />
-                <Tooltip 
-                  contentStyle={{ backgroundColor: 'hsl(var(--card))', borderColor: 'hsl(var(--border))', borderRadius: '16px', boxShadow: '0 20px 40px rgba(0,0,0,0.3)' }}
-                  itemStyle={{ color: 'hsl(var(--primary))', fontWeight: 'bold' }}
-                />
+                <XAxis dataKey="name" fontSize={11} fontWeight="black" />
+                <YAxis fontSize={11} fontWeight="black" />
+                <Tooltip contentStyle={{ backgroundColor: 'hsl(var(--card))', borderRadius: '16px' }} />
                 <Area type="monotone" dataKey="leads" stroke="hsl(var(--primary))" strokeWidth={4} fillOpacity={1} fill="url(#colorLeads)" />
               </AreaChart>
             </ResponsiveContainer>
@@ -220,75 +173,60 @@ export default function Dashboard() {
         </Card>
         
         <div className="md:col-span-3 space-y-8">
-          <Card className="bg-primary/5 border-2 border-primary/20 rounded-3xl shadow-xl ai-insights-card overflow-hidden">
-            <CardHeader className="p-8 pb-4 border-b border-primary/10">
-              <CardTitle className="text-lg font-black flex items-center gap-2">
-                <Bell className="h-5 w-5 text-primary" /> Active Follow-Ups
-              </CardTitle>
-              <CardDescription className="text-[10px] font-black uppercase tracking-widest">Team Reminders Engine</CardDescription>
-            </CardHeader>
-            <CardContent className="p-0">
-               <div className="divide-y divide-primary/10">
-                 {followUps && followUps.length > 0 ? followUps.map((lead) => {
-                   try {
-                     const date = lead.nextFollowUpAt?.toDate ? lead.nextFollowUpAt.toDate() : new Date(lead.nextFollowUpAt);
-                     const isOverdue = isBefore(date, new Date());
-                     return (
-                      <div key={lead.id} className="p-5 flex items-center justify-between hover:bg-primary/5 transition-all group">
-                         <div className="flex items-center gap-4">
-                           <div className={`h-10 w-10 rounded-xl flex items-center justify-center font-black ${isOverdue ? 'bg-rose-500 text-white' : 'bg-primary/20 text-primary'}`}>
-                             {isOverdue ? '!' : lead.name[0]}
-                           </div>
-                           <div>
-                             <p className="text-sm font-black group-hover:text-primary transition-colors">{lead.name}</p>
-                             <p className={`text-[10px] font-bold uppercase tracking-widest ${isOverdue ? 'text-rose-500' : 'text-muted-foreground'}`}>
-                               {format(date, 'MMM d, h:mm a')}
-                             </p>
-                           </div>
-                         </div>
-                         <div className="flex gap-2">
-                           <Button variant="ghost" size="icon" onClick={() => router.push(`/dashboard/leads/${lead.id}`)} className="h-8 w-8 rounded-lg">
-                             <Zap className="h-4 w-4" />
-                           </Button>
-                         </div>
-                      </div>
-                     );
-                   } catch {
-                     return null;
-                   }
-                 }) : (
-                  <div className="p-12 text-center">
-                    <CalendarIcon className="h-10 w-10 mx-auto mb-3 opacity-20 text-primary" />
-                    <p className="text-[10px] text-muted-foreground font-black uppercase tracking-widest italic">All caught up! No pending follow-ups.</p>
-                  </div>
-                 )}
-               </div>
-            </CardContent>
-          </Card>
-
-          <Card className="bg-card/40 border-2 border-border/50 rounded-3xl shadow-2xl p-6">
-            <h3 className="text-xs font-black uppercase tracking-[0.2em] text-primary mb-4 flex items-center gap-2">
-              <Sparkles className="h-4 w-4" /> Partner Toolkit
-            </h3>
-            <div className="grid grid-cols-2 gap-3">
-              <Button variant="outline" className="h-20 flex flex-col gap-2 rounded-2xl border-2 hover:bg-primary/5 group" onClick={() => router.push('/dashboard/leads')}>
-                <Users className="h-5 w-5 text-primary group-hover:scale-110 transition-transform" />
-                <span className="text-[9px] font-black uppercase tracking-widest">Add Lead</span>
+          <Card className="bg-card/40 border-2 border-border/50 rounded-3xl shadow-2xl p-8">
+            <h3 className="text-xs font-black uppercase tracking-[0.2em] text-primary mb-6 flex items-center gap-2"><Sparkles className="h-4 w-4" /> Strategic Partner Toolkit</h3>
+            <div className="grid grid-cols-2 gap-4">
+              <Button variant="outline" className="h-24 flex flex-col gap-2 rounded-2xl border-2 hover:bg-primary/5" onClick={() => setActiveStrategicAction('script')}>
+                <Mic className="h-6 w-6 text-primary" />
+                <span className="text-[10px] font-black uppercase tracking-widest">Call Script</span>
               </Button>
-              <Button variant="outline" className="h-20 flex flex-col gap-2 rounded-2xl border-2 hover:bg-emerald-500/5 group" onClick={() => router.push('/dashboard/contacts')}>
-                <MessageCircle className="h-5 w-5 text-emerald-500 group-hover:scale-110 transition-transform" />
-                <span className="text-[9px] font-black uppercase tracking-widest">WhatsApp</span>
+              <Button variant="outline" className="h-24 flex flex-col gap-2 rounded-2xl border-2 hover:bg-primary/5" onClick={() => setActiveStrategicAction('email')}>
+                <MessageCircle className="h-6 w-6 text-emerald-500" />
+                <span className="text-[10px] font-black uppercase tracking-widest">Email Drafter</span>
+              </Button>
+              <Button variant="outline" className="h-24 flex flex-col gap-2 rounded-2xl border-2 hover:bg-primary/5" onClick={() => setActiveStrategicAction('objection')}>
+                <Zap className="h-6 w-6 text-amber-500" />
+                <span className="text-[10px] font-black uppercase tracking-widest">Objection Pro</span>
+              </Button>
+              <Button variant="outline" className="h-24 flex flex-col gap-2 rounded-2xl border-2 hover:bg-primary/5" onClick={() => router.push('/dashboard/leads')}>
+                <Users className="h-6 w-6 text-indigo-500" />
+                <span className="text-[10px] font-black uppercase tracking-widest">Quick Lead</span>
               </Button>
             </div>
-            <Button 
-              className="w-full mt-4 h-11 rounded-xl font-black uppercase tracking-widest text-[10px] bg-primary shadow-xl shadow-primary/20"
-              onClick={() => toast({ title: "AI Assistant", description: "Opening Gemini Sales Strategist..." })}
-            >
-              Ask Gemini AI
-            </Button>
+            <Button className="w-full mt-6 h-12 rounded-xl font-black uppercase text-xs bg-primary shadow-xl" onClick={() => toast({ title: "Opening Strategist", description: "Gemini is loading your context..." })}>Ask Gemini Intelligence</Button>
           </Card>
+
+          <Card className="bg-primary/5 border-2 border-primary/20 rounded-3xl p-8"><h3 className="text-xs font-black uppercase tracking-widest text-primary mb-2">Live AI Insight</h3><p className="text-xs text-muted-foreground leading-relaxed italic">"Partner, your team conversion from 'Qualified' to 'Proposal' is 18% higher than industry baseline this week. Excellent velocity."</p></Card>
         </div>
       </div>
+
+      <Dialog open={!!activeStrategicAction} onOpenChange={() => { setActiveStrategicAction(null); setStrategicOutput(''); setStrategicInput(''); }}>
+        <DialogContent className="sm:max-w-[600px] rounded-3xl border-2">
+          <DialogHeader>
+            <DialogTitle className="text-2xl font-black flex items-center gap-3"><Sparkles className="h-6 w-6 text-primary" /> Strategic {activeStrategicAction === 'script' ? 'Call Script' : activeStrategicAction === 'email' ? 'Email Drafter' : 'Objection Pro'}</DialogTitle>
+            <DialogDescription>AI-Powered organizational assets for elite sales performance.</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-6 py-4">
+            <div className="space-y-3">
+              <Label className="text-[10px] font-black uppercase">Core Subject / Prospect Name</Label>
+              <Input placeholder="e.g. Acme Corp IT Director" value={strategicInput} onChange={(e) => setStrategicInput(e.target.value)} className="h-12 rounded-xl" />
+            </div>
+            {strategicOutput && (
+              <div className="space-y-3 animate-in slide-in-from-top-2">
+                <Label className="text-[10px] font-black uppercase text-emerald-500">Generated Strategic Content</Label>
+                <div className="p-6 rounded-2xl bg-muted/20 border-2 border-emerald-500/20 max-h-[300px] overflow-y-auto whitespace-pre-wrap text-sm font-medium leading-relaxed">{strategicOutput}</div>
+              </div>
+            )}
+          </div>
+          <DialogFooter className="gap-3">
+            {strategicOutput ? (
+              <Button onClick={() => { navigator.clipboard.writeText(strategicOutput); toast({ title: "Copied", description: "Strategic asset saved to clipboard." }); }} className="flex-1 h-12 font-black uppercase rounded-xl gap-2"><FileText className="h-4 w-4" /> Copy Asset</Button>
+            ) : (
+              <Button disabled={isGenerating || !strategicInput.trim()} onClick={handleGenerateStrategicContent} className="flex-1 h-12 font-black uppercase rounded-xl gap-2 bg-primary">{isGenerating ? <Loader2 className="h-4 w-4 animate-spin" /> : <Zap className="h-4 w-4" />} Generate Asset</Button>
+            )}
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

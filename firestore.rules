@@ -26,6 +26,12 @@ service cloud.firestore {
       allow read, write: if isSignedIn() && request.auth.uid == userId;
     }
 
+    // Global Tags & Categories
+    match /tags/{id} {
+      allow read, update, delete: if isOwner();
+      allow create: if isAssigningToSelf();
+    }
+
     // Leads Collection
     match /leads/{id} {
       allow read, update, delete: if isOwner();

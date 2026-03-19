@@ -41,7 +41,8 @@ const USER_OWNED_COLLECTIONS = [
   'notes',
   'activities',
   'calendarEvents',
-  'training_materials'
+  'training_materials',
+  'tags'
 ];
 
 /**
@@ -72,12 +73,10 @@ export function useCollection<T = any>(
     let collectionName = '';
     const queryObj = memoizedTargetRefOrQuery as any;
     
-    // Reliable path detection for root collections
     try {
       if (queryObj.type === 'collection') {
         collectionName = queryObj.path || '';
       } else if (queryObj._query?.path) {
-        // Most reliable way to extract collection name from a complex query
         const segments = queryObj._query.path.segments;
         if (segments && segments.length > 0) {
           collectionName = segments[0];
@@ -87,22 +86,16 @@ export function useCollection<T = any>(
       console.warn('[useCollection] Path detection error:', e);
     }
 
-    // Normalize path string (strip slashes)
     collectionName = collectionName.replace(/^\/|\/$/g, '');
     
     let finalQuery = memoizedTargetRefOrQuery as Query<DocumentData>;
 
-    // AUTOMATIC HARDENING: Force ownership filter for known user collections
-    // This prevents rule violations by scoping the "list" operation to the current user
     if (USER_OWNED_COLLECTIONS.includes(collectionName)) {
       if (!user) {
-        console.log(`[useCollection] Skipping ${collectionName} - No authenticated user.`);
         setData([]);
         setIsLoading(false);
         return;
       }
-
-      console.log(`[useCollection] Scoping ${collectionName} to ownerUid: ${user.uid}`);
       finalQuery = query(finalQuery, where('ownerUid', '==', user.uid));
     }
 
