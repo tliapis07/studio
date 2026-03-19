@@ -32,11 +32,13 @@ export interface UseCollectionResult<T> {
 export interface InternalQuery extends Query<DocumentData> {
   _query: {
     path: {
+      segments: string[];
       canonicalString(): string;
       toString(): string;
     }
   };
   type: 'collection' | 'query' | string;
+  path?: string;
 }
 
 // Collections that require ownership filtering to pass Firestore Security Rules
@@ -75,7 +77,7 @@ export function useCollection<T = any>(
       return;
     }
 
-    // Harden path detection logic
+    // --- HARDENED PATH DETECTION ---
     let collectionName = '';
     const queryObj = memoizedTargetRefOrQuery as any;
     
@@ -83,8 +85,13 @@ export function useCollection<T = any>(
       if (queryObj.type === 'collection') {
         collectionName = queryObj.path || '';
       } else if (queryObj._query && queryObj._query.path) {
-        const fullPath = queryObj._query.path.canonicalString() || '';
-        collectionName = fullPath.split('/')[0] || '';
+        // Handle internal segments if available (most reliable for v9 SDK)
+        if (queryObj._query.path.segments && queryObj._query.path.segments.length > 0) {
+          collectionName = queryObj._query.path.segments[0];
+        } else {
+          const fullPath = queryObj._query.path.canonicalString() || '';
+          collectionName = fullPath.split('/')[0] || '';
+        }
       } else if (typeof queryObj.path === 'string') {
         collectionName = queryObj.path;
       }
@@ -94,11 +101,11 @@ export function useCollection<T = any>(
 
     // Normalize path
     collectionName = collectionName.replace(/^\/|\/$/g, '');
+    console.log('[useCollection] Detected collection:', collectionName);
     
-    // Final query preparation
+    // --- QUERY PREPARATION & FILTER INJECTION ---
     let finalQuery = memoizedTargetRefOrQuery as Query<DocumentData>;
 
-    // Automatic filter injection for user-owned records
     if (USER_OWNED_COLLECTIONS.includes(collectionName)) {
       if (!user) {
         console.log(`[useCollection] Skipping ${collectionName}: User not authenticated.`);
@@ -107,8 +114,9 @@ export function useCollection<T = any>(
         return;
       }
 
-      console.log(`[useCollection] Hardening query for ${collectionName}: Appending ownerUid filter.`);
+      console.log(`[useCollection] Hardening query for ${collectionName}: Appending ownerUid filter for ${user.uid}`);
       // Enforce the 'Rules are not Filters' logic by scoping the query to the user's UID
+      // We use 'ownerUid' to match the firestore.rules implementation
       finalQuery = query(finalQuery, where('ownerUid', '==', user.uid));
     }
 
@@ -122,6 +130,7 @@ export function useCollection<T = any>(
         for (const doc of snapshot.docs) {
           results.push({ ...(doc.data() as T), id: doc.id });
         }
+        console.log(`[useCollection] Success: ${results.length} docs from ${collectionName}`);
         setData(results);
         setError(null);
         setIsLoading(false);
@@ -147,7 +156,10 @@ export function useCollection<T = any>(
 
   // Validation: Ensure memoization to prevent render loops
   if(memoizedTargetRefOrQuery && !memoizedTargetRefOrQuery.__memo) {
-    throw new Error('useCollection: Input was not memoized using useMemoFirebase. Path: ' + collectionName);
+    // Only throw if we have a target, otherwise it's just idle
+    if (memoizedTargetRefOrQuery) {
+      throw new Error('useCollection: Input was not memoized using useMemoFirebase.');
+    }
   }
 
   return { data, isLoading, error };
