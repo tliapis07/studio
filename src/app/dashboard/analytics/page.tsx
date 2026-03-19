@@ -2,7 +2,7 @@
 
 import { useState, useMemo, useEffect } from 'react';
 import { useCollection, useFirestore, useUser, useMemoFirebase } from '@/firebase';
-import { collection, query, doc, deleteDoc, addDoc, serverTimestamp, where } from 'firebase/firestore';
+import { collection, query, where } from 'firebase/firestore';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { 
@@ -27,17 +27,15 @@ import {
   ShieldCheck, 
   Sparkles,
   Info,
-  Calendar,
   Globe,
   Plus,
   Trash2,
   Edit2,
-  Users
+  Loader2
 } from 'lucide-react';
 import { Lead } from '@/lib/types';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 import {
   Tooltip as UITooltip,
   TooltipProvider,
@@ -66,22 +64,20 @@ export default function TeamAnalyticsPage() {
   const { user } = useUser();
   const [isAddSourceOpen, setIsAddSourceOpen] = useState(false);
   const [newSource, setNewSource] = useState('');
-  const [hydrated, setHydrated] = useState(false);
-  const [randomRatios, setRandomValues] = useState<number[]>([]);
+  const [mounted, setMounted] = useState(false);
+  const [randomRatios, setRandomRatios] = useState<number[]>([]);
 
   useEffect(() => {
-    setHydrated(true);
-    // Generate random values only on client to avoid hydration mismatch
-    setRandomValues(MOCK_TEAM.map(() => Math.random() * 60 + 40));
+    setMounted(true);
+    setRandomRatios(MOCK_TEAM.map(() => Math.floor(Math.random() * 60) + 40));
   }, []);
 
   const leadsQueryStable = useMemoFirebase(() => {
     if (!db || !user) return null;
-    // Security Rule Alignment: Must filter by ownerUid to pass permissions check
     return query(collection(db, 'leads'), where('ownerUid', '==', user.uid));
   }, [db, user]);
 
-  const { data: leads } = useCollection<Lead>(leadsQueryStable);
+  const { data: leads, isLoading } = useCollection<Lead>(leadsQueryStable);
 
   const teamMetrics = useMemo(() => {
     if (!leads) return [];
@@ -113,11 +109,11 @@ export default function TeamAnalyticsPage() {
   const sourceData = useMemo(() => {
     if (!leads) return [];
     const sources = ['Website', 'Referral', 'Cold Call', 'LinkedIn', 'Social'];
-    return sources.map((s, idx) => ({
+    return sources.map((s) => ({
       name: s,
-      value: leads.filter(l => l.source === s).length || (hydrated ? Math.floor(Math.random() * 10) + 1 : 5)
+      value: leads.filter(l => l.source === s).length || (mounted ? Math.floor(Math.random() * 10) + 1 : 5)
     }));
-  }, [leads, hydrated]);
+  }, [leads, mounted]);
 
   const tabInfo: Record<string, { desc: string; icon: any }> = {
     'Overview': { desc: 'Team performance overview and revenue targets.', icon: Target },
@@ -135,10 +131,16 @@ export default function TeamAnalyticsPage() {
     setIsAddSourceOpen(false);
   };
 
-  if (!hydrated) return null;
+  if (!mounted || isLoading) {
+    return (
+      <div className="flex h-full items-center justify-center p-20">
+        <Loader2 className="h-10 w-10 animate-spin text-primary opacity-50" />
+      </div>
+    );
+  }
 
   return (
-    <div className="space-y-8 pb-20 md:pb-8">
+    <div className="space-y-8 pb-20 md:pb-8 animate-in fade-in duration-500">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
           <h1 className="text-3xl font-bold font-headline tracking-tight">Partner Analytics</h1>
@@ -156,7 +158,7 @@ export default function TeamAnalyticsPage() {
       <div className="grid gap-6 grid-cols-1 sm:grid-cols-2 lg:grid-cols-5">
         {[
           { label: 'Team Win Rate', value: '32%', change: '+4%', icon: Target, info: 'Percentage of leads closed as WON across the entire team.' },
-          { label: 'Avg Deal Size', value: '$5.2k', change: '+8%', icon: DollarSign, iconColor: 'text-primary', info: 'Mean monetary value of won deals.' },
+          { label: 'Avg Deal Size', value: '$5.2k', change: '+8%', icon: DollarSign, info: 'Mean monetary value of won deals.' },
           { label: 'Sales Cycle', value: '42d', change: '-5d', icon: Clock, info: 'Average time from Lead Creation to Close WON.' },
           { label: 'Sales Velocity', value: '1.2x', change: '+15%', icon: Zap, info: 'Rate at which the team generates revenue.' },
           { label: 'Pipeline Coverage', value: '3.4x', change: '+0.2', icon: ShieldCheck, info: 'Pipeline value divided by remaining team quota.' },
@@ -203,7 +205,7 @@ export default function TeamAnalyticsPage() {
           </div>
         </div>
 
-        <TabsContent value="Overview" className="space-y-6 m-0 animate-in fade-in slide-in-from-top-4 duration-500">
+        <TabsContent value="Overview" className="space-y-6 m-0">
           <div className="grid gap-6 md:grid-cols-3">
             <Card className="md:col-span-2 bg-card/50 border-2 border-border/50 rounded-2xl shadow-lg">
               <CardHeader className="p-8 pb-4">
@@ -247,7 +249,7 @@ export default function TeamAnalyticsPage() {
                   </p>
                   <div className="bg-background/80 p-5 rounded-2xl border-2 border-primary/10 shadow-inner">
                     <p className="text-[12px] italic leading-relaxed text-muted-foreground font-medium">
-                      "Partner, the current proposal conversion is 25% below baseline. Consider reviewing team proposal templates and pricing flexibility."
+                      "Partner, the current proposal conversion is 25% below baseline. Consider reviewing team proposal templates."
                     </p>
                   </div>
                   <Button 
@@ -287,7 +289,7 @@ export default function TeamAnalyticsPage() {
           </div>
         </TabsContent>
 
-        <TabsContent value="Pipeline" className="m-0 animate-in fade-in slide-in-from-top-4 duration-500">
+        <TabsContent value="Pipeline" className="m-0">
            <Card className="bg-card/50 border-2 border-border/50 rounded-3xl shadow-xl overflow-hidden">
               <CardHeader className="p-8">
                 <CardTitle className="text-xl font-black">Team Conversion Funnel</CardTitle>
@@ -301,8 +303,7 @@ export default function TeamAnalyticsPage() {
                     <YAxis dataKey="stage" type="category" fontSize={11} fontWeight="black" tickLine={false} axisLine={false} />
                     <Tooltip 
                       cursor={{ fill: 'transparent' }} 
-                      contentStyle={{ backgroundColor: 'hsl(var(--popover))', borderRadius: '16px', border: '2px solid hsl(var(--border))', boxShadow: '0 10px 30px rgba(0,0,0,0.2)' }} 
-                      itemStyle={{ color: 'hsl(var(--primary))', fontWeight: 'black' }}
+                      contentStyle={{ backgroundColor: 'hsl(var(--popover))', borderRadius: '16px', border: '2px solid hsl(var(--border))' }} 
                     />
                     <Bar dataKey="count" radius={[0, 8, 8, 0]} barSize={40}>
                       {funnelData.map((entry, index) => (
@@ -315,7 +316,7 @@ export default function TeamAnalyticsPage() {
            </Card>
         </TabsContent>
 
-        <TabsContent value="Sources" className="m-0 animate-in fade-in slide-in-from-top-4 duration-500 space-y-6">
+        <TabsContent value="Sources" className="m-0 space-y-6">
            <div className="flex justify-between items-center bg-card/30 p-4 rounded-2xl border-2">
               <div>
                 <h3 className="text-lg font-black">Data Origin Diagnostics</h3>
@@ -362,21 +363,16 @@ export default function TeamAnalyticsPage() {
                         <span className="text-[10px] uppercase font-black text-muted-foreground">Top: Referral</span>
                       </div>
                       <div className="w-full h-2 bg-muted rounded-full overflow-hidden">
-                        <div className="h-full bg-primary rounded-full" style={{ width: hydrated ? `${randomRatios[idx]}%` : '50%' }} />
+                        <div className="h-full bg-primary rounded-full" style={{ width: mounted ? `${randomRatios[idx]}%` : '50%' }} />
                       </div>
                     </div>
                   ))}
-                </div>
-                <div className="pt-4 mt-auto border-t-2 border-border/50">
-                   <p className="text-[10px] text-muted-foreground italic leading-relaxed">
-                     "Partner, LinkedIn leads assigned to Sarah have a 45% higher win rate than Website leads. Consider rebalancing source assignments."
-                   </p>
                 </div>
              </Card>
            </div>
         </TabsContent>
 
-        <TabsContent value="Forecasting" className="m-0 animate-in fade-in slide-in-from-top-4 duration-500">
+        <TabsContent value="Forecasting" className="m-0">
            <Card className="bg-card/50 border-2 border-border/50 rounded-3xl shadow-xl overflow-hidden">
               <CardHeader className="p-8">
                 <CardTitle className="text-xl font-black">Revenue Forecast (90 Days)</CardTitle>
@@ -420,17 +416,6 @@ export default function TeamAnalyticsPage() {
                 onKeyDown={(e) => e.key === 'Enter' && handleAddSource()}
               />
               <Button onClick={handleAddSource} size="icon" className="h-11 w-11 rounded-xl"><Plus className="h-5 w-5" /></Button>
-            </div>
-            <div className="space-y-2">
-              {['Website', 'Referral', 'LinkedIn', 'Cold Call'].map(s => (
-                <div key={s} className="flex items-center justify-between p-3 rounded-xl bg-muted/30 border border-border/50 group">
-                  <span className="text-xs font-bold uppercase tracking-widest">{s}</span>
-                  <div className="flex gap-1 opacity-0 group-hover:opacity-100">
-                    <Button variant="ghost" size="icon" className="h-8 w-8 text-primary"><Edit2 className="h-4 w-4" /></Button>
-                    <Button variant="ghost" size="icon" className="h-8 w-8 text-rose-500"><Trash2 className="h-4 w-4" /></Button>
-                  </div>
-                </div>
-              ))}
             </div>
           </div>
         </DialogContent>

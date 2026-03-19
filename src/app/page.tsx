@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { TrendingUp, LogIn, Loader2, ShieldCheck, Users } from 'lucide-react';
+import { TrendingUp, Loader2, ShieldCheck, Users } from 'lucide-react';
 import Image from 'next/image';
 import { useAuth, useUser } from '@/firebase';
 import { signInWithPopup, GoogleAuthProvider, signInAnonymously } from 'firebase/auth';
@@ -24,11 +24,13 @@ export default function LoginPage() {
   // Auto-redirect if already logged in
   useEffect(() => {
     if (mounted && !isUserLoading && user) {
+      console.log("User already authenticated, redirecting to dashboard...");
       router.replace('/dashboard');
     }
   }, [user, isUserLoading, router, mounted]);
 
   const handleGoogleLogin = async () => {
+    if (isLoading) return;
     setIsLoading(true);
     const provider = new GoogleAuthProvider();
     provider.setCustomParameters({ prompt: 'select_account' });
@@ -40,26 +42,22 @@ export default function LoginPage() {
           title: "Access Granted",
           description: `Welcome back, ${result.user.displayName || 'Partner'}.`,
         });
-        router.push('/dashboard');
-      } else {
-        setIsLoading(false);
+        // The useEffect above will handle the redirect once onAuthStateChanged fires
       }
     } catch (err: any) {
       console.error("Google Sign-in Error:", err);
       let message = "Could not establish a secure session.";
       if (err.code === 'auth/popup-closed-by-user') {
-        message = "Sign-in popup was closed before completion.";
-      } else if (err.code === 'auth/popup-blocked') {
-        message = "Popup blocked! Please allow popups for this site.";
-      } else if (err.code === 'auth/unauthorized-domain') {
-        message = "Domain not authorized. Check Firebase Authorized Domains.";
+        message = "Sign-in popup was closed.";
       }
       toast({ variant: "destructive", title: "Authentication Failed", description: message });
+    } finally {
       setIsLoading(false);
     }
   };
 
   const handleDemoLogin = async () => {
+    if (isLoading) return;
     setIsLoading(true);
     try {
       await signInAnonymously(auth);
@@ -67,7 +65,7 @@ export default function LoginPage() {
         title: "Guest Access",
         description: "Welcome! Browsing as an organizational guest.",
       });
-      router.push('/dashboard');
+      // The useEffect above will handle the redirect
     } catch (err: any) {
       console.error("Anonymous Sign-in Error:", err);
       toast({
@@ -75,11 +73,15 @@ export default function LoginPage() {
         title: "Demo Access Failed",
         description: "Anonymous access is disabled or blocked.",
       });
+    } finally {
       setIsLoading(false);
     }
   };
 
-  if (!mounted || (isUserLoading && !user)) {
+  if (!mounted) return null;
+
+  // Show loading spinner if checking auth state
+  if (isUserLoading && !user) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background dark">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />
@@ -131,7 +133,7 @@ export default function LoginPage() {
                   <span className="w-full border-t-2 border-border" />
                 </div>
                 <div className="relative flex justify-center text-[11px] uppercase font-black tracking-[0.2em]">
-                  <span className="bg-[#1a1c23] px-4 text-muted-foreground">
+                  <span className="bg-background px-4 text-muted-foreground">
                     Management Entry
                   </span>
                 </div>
@@ -167,6 +169,7 @@ export default function LoginPage() {
             fill 
             className="object-cover scale-105" 
             alt="CRM Dashboard Preview"
+            priority
             data-ai-hint="office business"
           />
         </div>

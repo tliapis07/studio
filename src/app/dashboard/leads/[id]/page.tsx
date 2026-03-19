@@ -3,22 +3,20 @@ import LeadDetailClient from './LeadDetailClient';
 /**
  * @fileOverview Lead Detail Page (Server Component)
  * 
- * This component acts as the entry point for lead details. For Next.js 15/16 static 
- * export compatibility, we use generateStaticParams and dynamicParams = false.
+ * Entry point for dynamic lead details. Configured for Next.js 15+ 
+ * static export compatibility.
  */
 
-// Required for static export with dynamic routes. 
-// Note: 'false' is required when output: 'export' is used.
+// Required for static export with dynamic routes.
 export const dynamicParams = false;
 
 export async function generateStaticParams() {
-  // In a Capacitor/static environment, we return an empty array to satisfy the build process.
-  // Dynamic leads will be handled client-side via Firestore listeners in the Client Component.
+  // Return an empty array to satisfy the build process for static export.
+  // Dynamic IDs are handled client-side via Firestore listeners in LeadDetailClient.
   return []; 
 }
 
 export default async function LeadDetailPage({ params }: { params: Promise<{ id: string }> }) {
-  // In Next.js 15+, params is a Promise
   const resolvedParams = await params;
   const id = resolvedParams.id;
 
