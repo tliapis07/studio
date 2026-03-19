@@ -7,7 +7,7 @@
  * - Real-time sync with ownerUid isolation
  * - AI Activity Summarization
  * - AI Suggested Next Action
- * - Commits AI results to Activity Feed
+ * - Client-side sorting to bypass composite index requirements
  */
 
 import { useState, useMemo } from 'react';
@@ -54,8 +54,8 @@ export default function LeadDetailClient({ id }: { id: string }) {
 
   const activitiesQuery = useMemoFirebase(() => {
     if (!db || !id || !user) return null;
-    // Removed orderBy to avoid missing index errors during development.
-    // Query must filter by ownerUid AND target collection path correctly.
+    // Security Rule Alignment: Must include ownerUid filter.
+    // OrderBy removed to bypass manual composite index requirement.
     return query(
       collection(db, 'activities'), 
       where('ownerUid', '==', user.uid),
@@ -67,7 +67,7 @@ export default function LeadDetailClient({ id }: { id: string }) {
   const { data: rawActivities } = useCollection<Activity>(activitiesQuery);
   const lead = leadResult.data;
 
-  // Sorting activities client-side to resolve missing composite index requirement
+  // Sorting activities client-side to bypass composite index requirement
   const sortedActivities = useMemo(() => {
     if (!rawActivities) return [];
     return [...rawActivities].sort((a, b) => {
@@ -269,7 +269,7 @@ export default function LeadDetailClient({ id }: { id: string }) {
 
         <div className="space-y-8">
           <Card className="bg-primary/5 border-primary/20 border-2 shadow-2xl rounded-3xl overflow-hidden">
-            <CardHeader className="bg-primary/10 border-b border-primary/10 p-6"><CardTitle className="text-11px] font-black uppercase tracking-[0.2em] flex items-center gap-2"><Sparkles className="h-4 w-4" /> Organizational Score</CardTitle></CardHeader>
+            <CardHeader className="bg-primary/10 border-b border-primary/10 p-6"><CardTitle className="text-[11px] font-black uppercase tracking-[0.2em] flex items-center gap-2"><Sparkles className="h-4 w-4" /> Organizational Score</CardTitle></CardHeader>
             <CardContent className="p-8">
               <div className="flex items-end gap-2 mb-6">
                 <span className="text-6xl font-black text-primary font-headline leading-none">{lead.leadScore || 82}</span>

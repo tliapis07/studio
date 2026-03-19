@@ -78,23 +78,23 @@ export function useCollection<T = any>(
         }
       }
     } catch (e) {
-      console.warn('[useCollection] Path detection failed:', e);
+      // Silently fail path detection for complex queries
     }
 
     const collectionName = collectionPath.split('/')[0];
     let finalQuery = memoizedTargetRefOrQuery as Query<DocumentData>;
 
-    // 2. SECURITY FILTER INJECTION
+    // 2. SECURITY FILTER INJECTION (CRITICAL FOR PERMISSIONS)
     if (USER_OWNED_COLLECTIONS.includes(collectionName)) {
       if (!user) {
+        // Pause query until user is available to prevent Permission Denied
         setData(null);
         setIsLoading(true);
         return;
       }
       
-      // Inject ownership filter to ensure compatibility with "Rules are not Filters"
+      // Inject ownership filter to satisfy "Rules are not Filters"
       finalQuery = query(finalQuery, where('ownerUid', '==', user.uid));
-      console.log(`[useCollection] Querying ${collectionName} with ownerUid filter applied.`);
     }
 
     setIsLoading(true);
@@ -115,11 +115,6 @@ export function useCollection<T = any>(
       (firestoreError: FirestoreError) => {
         const isPermissionError = firestoreError.code === 'permission-denied';
         
-        console.error(
-          `[useCollection] ${isPermissionError ? 'PERMISSION DENIED' : 'Error'} on /${collectionName}:`, 
-          firestoreError.message
-        );
-        
         const contextualError = new FirestorePermissionError({
           operation: 'list',
           path: collectionName || 'unknown',
@@ -139,7 +134,7 @@ export function useCollection<T = any>(
   }, [memoizedTargetRefOrQuery, user?.uid]); 
 
   if(memoizedTargetRefOrQuery && !memoizedTargetRefOrQuery.__memo) {
-    console.warn('[useCollection] Target query was not properly memoized using useMemoFirebase. This can cause performance issues or infinite loops.');
+    console.warn('[useCollection] Target query was not properly memoized. This can cause performance issues.');
   }
   
   return { data, isLoading, error };
