@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -84,10 +83,10 @@ export function useCollection<T = any>(
     const queryObj = memoizedTargetRefOrQuery as any;
     let path = '';
     
+    // Safely extract the canonical path from the reference or query
     if (queryObj.type === 'collection') {
-      path = queryObj.path;
+      path = queryObj.path || (queryObj as any)._query?.path?.canonicalString() || '';
     } else if (queryObj._query && queryObj._query.path) {
-      // Handle complex queries by extracting the base collection path
       path = queryObj._query.path.canonicalString();
     }
 
@@ -103,8 +102,7 @@ export function useCollection<T = any>(
         return;
       }
 
-      // Automatically append ownership filter if not already present
-      // Note: Firestore query() is additive, so this is safe even if filter exists.
+      // Automatically append ownership filter to satisfy "Rules are not Filters" requirement
       finalQuery = query(finalQuery, where('ownerUid', '==', user.uid));
     }
 

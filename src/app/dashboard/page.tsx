@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useMemo, useState, useEffect } from 'react';
@@ -21,7 +20,8 @@ import {
   Bell,
   Calendar as CalendarIcon,
   MessageCircle,
-  Phone
+  Phone,
+  Loader2
 } from 'lucide-react';
 import { 
   AreaChart,
@@ -57,13 +57,11 @@ export default function Dashboard() {
 
   const leadsQuery = useMemoFirebase(() => {
     if (!db || !user) return null;
-    // CRITICAL: Scope by ownerUid for permission alignment
     return query(collection(db, 'leads'), where('ownerUid', '==', user.uid));
-  }, [db, user]);
+  }, [db, user?.uid]);
 
   const followUpsQuery = useMemoFirebase(() => {
     if (!db || !user) return null;
-    // CRITICAL: Scope by ownerUid for permission alignment
     return query(
       collection(db, 'leads'), 
       where('ownerUid', '==', user.uid),
@@ -71,7 +69,7 @@ export default function Dashboard() {
       orderBy('nextFollowUpAt', 'asc'), 
       limit(5)
     );
-  }, [db, user]);
+  }, [db, user?.uid]);
 
   const { data: leads, isLoading: leadsLoading } = useCollection<Lead>(leadsQuery);
   const { data: followUps } = useCollection<Lead>(followUpsQuery);
@@ -111,12 +109,12 @@ export default function Dashboard() {
     });
   }, [leads, repFilter, mounted]);
 
-  if (!mounted || isUserLoading || (leadsLoading && !leads)) return (
-    <div className="flex flex-col h-full items-center justify-center p-8 text-center space-y-6">
-      <div className="h-16 w-16 border-4 border-primary border-t-transparent rounded-3xl animate-spin shadow-2xl shadow-primary/20" />
+  if (!mounted || isUserLoading) return (
+    <div className="flex flex-col h-screen items-center justify-center p-8 text-center space-y-6">
+      <Loader2 className="h-12 w-12 animate-spin text-primary opacity-50" />
       <div className="space-y-2">
-        <p className="text-xl font-black font-headline tracking-tighter text-primary">SYNCING TEAM ENGINE</p>
-        <p className="text-sm text-muted-foreground font-bold uppercase tracking-widest opacity-50">Establishing secure connection...</p>
+        <p className="text-xl font-black font-headline tracking-tighter text-primary">INITIALIZING PARTNER CORE</p>
+        <p className="text-sm text-muted-foreground font-bold uppercase tracking-widest opacity-50">Syncing organizational records...</p>
       </div>
     </div>
   );
@@ -140,7 +138,7 @@ export default function Dashboard() {
             size="lg" 
             variant="outline" 
             className="gap-3 border-2 border-primary/20 hover:bg-primary/5 h-12 rounded-xl font-bold"
-            onClick={() => router.push('/dashboard/team-history/')}
+            onClick={() => router.push('/dashboard/team-history')}
           >
              <History className="h-5 w-5 text-primary" /> Team History
            </Button>
@@ -159,7 +157,7 @@ export default function Dashboard() {
           <Card 
             key={i} 
             className="bg-card/40 border-2 border-border/50 backdrop-blur-xl group hover:border-primary/50 transition-all hover:translate-y-[-4px] rounded-3xl overflow-hidden shadow-lg hover:shadow-2xl cursor-pointer"
-            onClick={() => router.push('/dashboard/analytics/')}
+            onClick={() => router.push('/dashboard/analytics')}
           >
             <CardHeader className="flex flex-row items-center justify-between space-y-0 p-6 pb-4">
               <CardTitle className="text-[11px] font-black uppercase tracking-[0.2em] text-muted-foreground">{stat.label}</CardTitle>
@@ -231,7 +229,7 @@ export default function Dashboard() {
             </CardHeader>
             <CardContent className="p-0">
                <div className="divide-y divide-primary/10">
-                 {followUps && followUps.length > 0 ? followUps.map((lead, i) => {
+                 {followUps && followUps.length > 0 ? followUps.map((lead) => {
                    try {
                      const date = lead.nextFollowUpAt?.toDate ? lead.nextFollowUpAt.toDate() : new Date(lead.nextFollowUpAt);
                      const isOverdue = isBefore(date, new Date());
@@ -249,7 +247,7 @@ export default function Dashboard() {
                            </div>
                          </div>
                          <div className="flex gap-2">
-                           <Button variant="ghost" size="icon" onClick={() => router.push(`/dashboard/leads/${lead.id}/`)} className="h-8 w-8 rounded-lg">
+                           <Button variant="ghost" size="icon" onClick={() => router.push(`/dashboard/leads/${lead.id}`)} className="h-8 w-8 rounded-lg">
                              <Zap className="h-4 w-4" />
                            </Button>
                          </div>
@@ -273,11 +271,11 @@ export default function Dashboard() {
               <Sparkles className="h-4 w-4" /> Partner Toolkit
             </h3>
             <div className="grid grid-cols-2 gap-3">
-              <Button variant="outline" className="h-20 flex flex-col gap-2 rounded-2xl border-2 hover:bg-primary/5 group" onClick={() => router.push('/dashboard/leads/')}>
+              <Button variant="outline" className="h-20 flex flex-col gap-2 rounded-2xl border-2 hover:bg-primary/5 group" onClick={() => router.push('/dashboard/leads')}>
                 <Users className="h-5 w-5 text-primary group-hover:scale-110 transition-transform" />
                 <span className="text-[9px] font-black uppercase tracking-widest">Add Lead</span>
               </Button>
-              <Button variant="outline" className="h-20 flex flex-col gap-2 rounded-2xl border-2 hover:bg-emerald-500/5 group" onClick={() => router.push('/dashboard/contacts/')}>
+              <Button variant="outline" className="h-20 flex flex-col gap-2 rounded-2xl border-2 hover:bg-emerald-500/5 group" onClick={() => router.push('/dashboard/contacts')}>
                 <MessageCircle className="h-5 w-5 text-emerald-500 group-hover:scale-110 transition-transform" />
                 <span className="text-[9px] font-black uppercase tracking-widest">WhatsApp</span>
               </Button>

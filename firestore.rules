@@ -1,11 +1,10 @@
-
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
     /**
      * SalesStream Security Rules
-     * Optimized for per-collection ownership validation using ownerUid.
+     * Standardized on ownerUid for user-data isolation.
      */
 
     function isSignedIn() {
@@ -27,32 +26,37 @@ service cloud.firestore {
       allow read, write: if isSignedIn() && request.auth.uid == userId;
     }
 
-    // Standard User-Owned Collections
+    // Leads Collection
     match /leads/{id} {
       allow read, update, delete: if isOwner();
       allow create: if isAssigningToSelf();
     }
 
+    // Contacts Directory
     match /contacts/{id} {
       allow read, update, delete: if isOwner();
       allow create: if isAssigningToSelf();
     }
 
+    // Personal & Strategy Notes
     match /notes/{id} {
       allow read, update, delete: if isOwner();
       allow create: if isAssigningToSelf();
     }
 
+    // Activity Logs
     match /activities/{id} {
       allow read, update, delete: if isOwner();
       allow create: if isAssigningToSelf();
     }
 
+    // Team Calendar
     match /calendarEvents/{id} {
       allow read, update, delete: if isOwner();
       allow create: if isAssigningToSelf();
     }
 
+    // Training Repository
     match /training_materials/{id} {
       allow read, update, delete: if isOwner();
       allow create: if isAssigningToSelf();

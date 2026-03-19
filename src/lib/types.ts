@@ -1,4 +1,3 @@
-
 export type LeadStatus = 'new' | 'contacted' | 'qualified' | 'proposal' | 'negotiated' | 'won' | 'lost';
 
 export interface TeamMember {
@@ -30,7 +29,7 @@ export interface UserProfile {
 
 export interface Lead {
   id: string;
-  ownerUid: string;
+  ownerUid: string; // Unified ownership field
   ownerName?: string;
   ownerAvatar?: string;
   name: string;
