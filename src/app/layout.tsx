@@ -2,6 +2,7 @@ import type {Metadata, Viewport} from 'next';
 import './globals.css';
 import { FirebaseClientProvider } from '@/firebase';
 import { ThemeProvider } from '@/components/ThemeProvider';
+import { ConfigGuard } from '@/components/ConfigGuard';
 
 export const metadata: Metadata = {
   title: 'SalesStream | AI-Powered Team Velocity',
@@ -36,6 +37,7 @@ export default function RootLayout({
       <body className="font-body antialiased bg-background text-foreground min-h-screen">
         <FirebaseClientProvider>
           <ThemeProvider>
+            <ConfigGuard />
             {children}
           </ThemeProvider>
         </FirebaseClientProvider>
