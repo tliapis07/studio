@@ -1,8 +1,22 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
-import Joyride, { Step, CallBackProps, STATUS } from 'react-joyride';
+import dynamic from 'next/dynamic';
 import { useUser } from '@/firebase';
+
+// Dynamically import Joyride with SSR disabled to avoid React 19/Next.js build errors
+// related to deprecated React DOM APIs used in older library versions.
+const Joyride = dynamic(() => import('react-joyride'), { ssr: false });
+
+// Import types only to avoid triggering the import error in the main bundle
+import type { Step, CallBackProps } from 'react-joyride';
+
+// Define status constants locally to avoid importing from 'react-joyride' constants 
+// which might pull in problematic code during the build.
+const STATUS = {
+  FINISHED: 'finished',
+  SKIPPED: 'skipped',
+};
 
 const OnboardingTour = () => {
   const { user } = useUser();
@@ -42,7 +56,6 @@ const OnboardingTour = () => {
       placement: 'left',
     },
     {
-      target: '#offline-indicator-trigger', // Using a stable data attribute or ID if possible, but let's use the ID we added
       target: '#offline-indicator',
       content: 'SalesStream now supports full offline persistence. Your data syncs automatically when you reconnect.',
       placement: 'top',
