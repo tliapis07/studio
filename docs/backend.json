@@ -21,10 +21,7 @@
         },
         "role": {
           "type": "string",
-          "description": "The role of the user within the CRM system, defining access levels and responsibilities.",
-          "items": {
-            "type": "string"
-          }
+          "description": "The role of the user within the CRM system, defining access levels and responsibilities."
         },
         "photoUrl": {
           "type": "string",
@@ -46,7 +43,6 @@
         "id",
         "email",
         "displayName",
-        "role",
         "createdAt",
         "updatedAt"
       ]
@@ -63,7 +59,7 @@
         },
         "ownerUid": {
           "type": "string",
-          "description": "Reference to UserProfile.id, indicating the user who owns or is assigned this lead. (Relationship: UserProfile 1:N Lead)"
+          "description": "Reference to UserProfile.id, indicating the user who owns or is assigned this lead."
         },
         "name": {
           "type": "string",
@@ -85,9 +81,15 @@
         "status": {
           "type": "string",
           "description": "The current stage of the lead in the sales pipeline.",
-          "items": {
-            "type": "string"
-          }
+          "enum": [
+            "new",
+            "contacted",
+            "qualified",
+            "proposal",
+            "negotiated",
+            "won",
+            "lost"
+          ]
         },
         "dealValue": {
           "type": "number",
@@ -103,10 +105,6 @@
           "items": {
             "type": "string"
           }
-        },
-        "leadScore": {
-          "type": "number",
-          "description": "A numerical score indicating the quality or priority of the lead."
         },
         "nextFollowUpAt": {
           "type": "string",
@@ -129,11 +127,8 @@
           "format": "date-time"
         },
         "customFields": {
-          "type": "array",
-          "description": "A flexible object for storing additional, user-defined fields specific to the lead. (Represented as an array of generic objects to allow for flexibility with varying data types and structures for custom fields)",
-          "items": {
-            "type": "string"
-          }
+          "type": "object",
+          "description": "A flexible object for storing additional, user-defined fields specific to the lead."
         },
         "notesCount": {
           "type": "number",
@@ -165,22 +160,26 @@
         },
         "leadId": {
           "type": "string",
-          "description": "Reference to Lead.id, indicating which lead this activity pertains to. (Relationship: Lead 1:N Activity)"
+          "description": "Reference to Lead.id, indicating which lead this activity pertains to."
         },
         "ownerUid": {
           "type": "string",
-          "description": "Reference to UserProfile.id, indicating the user who logged this activity. (Relationship: UserProfile 1:N Activity)"
+          "description": "Reference to UserProfile.id, indicating the user who logged this activity."
         },
         "type": {
           "type": "string",
-          "description": "The category of the activity (e.g., 'note', 'call', 'status_change', 'tag_added', 'event_created').",
-          "items": {
-            "type": "string"
-          }
+          "description": "The category of the activity.",
+          "enum": [
+            "note",
+            "call",
+            "status_change",
+            "tag_added",
+            "event_created"
+          ]
         },
         "content": {
           "type": "string",
-          "description": "The detailed description or content of the activity (e.g., call notes, meeting summary, status change reason)."
+          "description": "The detailed description or content of the activity."
         },
         "createdAt": {
           "type": "string",
@@ -189,21 +188,11 @@
         },
         "oldStatus": {
           "type": "string",
-          "description": "The previous status of the lead, applicable if the activity type is 'status_change'.",
-          "items": {
-            "type": "string"
-          }
+          "description": "The previous status of the lead."
         },
         "newStatus": {
           "type": "string",
-          "description": "The new status of the lead, applicable if the activity type is 'status_change'.",
-          "items": {
-            "type": "string"
-          }
-        },
-        "tag": {
-          "type": "string",
-          "description": "The specific tag that was added, applicable if the activity type is 'tag_added'."
+          "description": "The new status of the lead."
         }
       },
       "required": [
@@ -215,11 +204,11 @@
         "createdAt"
       ]
     },
-    "Event": {
+    "CalendarEvent": {
       "$schema": "http://json-schema.org/draft-07/schema#",
-      "title": "Event",
+      "title": "CalendarEvent",
       "type": "object",
-      "description": "Represents a scheduled event, meeting, or reminder, often associated with a lead and visible on the calendar.",
+      "description": "Represents a scheduled event, meeting, or reminder.",
       "properties": {
         "id": {
           "type": "string",
@@ -227,11 +216,11 @@
         },
         "ownerUid": {
           "type": "string",
-          "description": "Reference to UserProfile.id, indicating the user who created or owns this event. (Relationship: UserProfile 1:N Event)"
+          "description": "Reference to UserProfile.id, indicating the user who created or owns this event."
         },
         "leadId": {
           "type": "string",
-          "description": "Reference to Lead.id, indicating which lead this event is associated with (optional, as some events may not be lead-specific). (Relationship: Lead 0..1:N Event)"
+          "description": "Reference to Lead.id."
         },
         "title": {
           "type": "string",
@@ -248,7 +237,7 @@
         },
         "endAt": {
           "type": "string",
-          "description": "The ending date and time of the event (optional for single-point reminders or tasks).",
+          "description": "The ending date and time of the event.",
           "format": "date-time"
         },
         "allDay": {
@@ -257,26 +246,26 @@
         },
         "eventType": {
           "type": "string",
-          "description": "The category or nature of the event (e.g., 'follow-up', 'meeting', 'task', 'reminder').",
-          "items": {
-            "type": "string"
-          }
+          "description": "The category or nature of the event.",
+          "enum": [
+            "follow-up",
+            "meeting",
+            "task",
+            "reminder"
+          ]
         },
         "status": {
           "type": "string",
-          "description": "The current status of the event (e.g., 'scheduled', 'completed', 'cancelled').",
-          "items": {
-            "type": "string"
-          }
+          "description": "The current status of the event.",
+          "enum": [
+            "scheduled",
+            "completed",
+            "cancelled"
+          ]
         },
         "createdAt": {
           "type": "string",
           "description": "Timestamp when the event record was initially created.",
-          "format": "date-time"
-        },
-        "updatedAt": {
-          "type": "string",
-          "description": "Timestamp when the event record was last updated.",
           "format": "date-time"
         }
       },
@@ -286,108 +275,101 @@
         "title",
         "startAt",
         "eventType",
-        "createdAt",
-        "updatedAt"
+        "createdAt"
+      ]
+    },
+    "TrainingMaterial": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "TrainingMaterial",
+      "type": "object",
+      "description": "Represents a training resource or document for sales reps.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the TrainingMaterial."
+        },
+        "userId": {
+          "type": "string",
+          "description": "The user who uploaded the material."
+        },
+        "title": {
+          "type": "string",
+          "description": "The title of the material."
+        },
+        "subject": {
+          "type": "string",
+          "description": "The category (e.g., Cold Calling)."
+        },
+        "content": {
+          "type": "string",
+          "description": "The content or body of the training material."
+        },
+        "createdAt": {
+          "type": "string",
+          "description": "Timestamp when the material was created.",
+          "format": "date-time"
+        }
+      },
+      "required": [
+        "id",
+        "userId",
+        "title",
+        "subject",
+        "content",
+        "createdAt"
       ]
     }
   },
   "auth": {
     "providers": [
-      "password",
+      "google",
       "anonymous"
     ]
   },
   "firestore": {
-    "structure": [
-      {
-        "path": "/userProfiles/{userId}",
-        "definition": {
-          "entityName": "UserProfile",
-          "schema": {
-            "$ref": "#/backend/entities/UserProfile"
+    "training_materials": {
+      "schema": {
+        "$ref": "#/backend/entities/TrainingMaterial"
+      },
+      "description": "Stores organizational training resources accessible by all team members."
+    },
+    "leads": {
+      "schema": {
+        "$ref": "#/backend/entities/Lead"
+      },
+      "description": "Stores all lead records for the organization."
+    },
+    "activities": {
+      "schema": {
+        "$ref": "#/backend/entities/Activity"
+      },
+      "description": "Stores activity logs and interaction history for leads."
+    },
+    "calendarEvents": {
+      "schema": {
+        "$ref": "#/backend/entities/CalendarEvent"
+      },
+      "description": "Stores team calendar events and follow-up reminders."
+    },
+    "userProfiles": {
+      "schema": {
+        "$ref": "#/backend/entities/UserProfile"
+      },
+      "description": "Stores user-specific profile data."
+    },
+    "teamSettings": {
+      "schema": {
+        "type": "object",
+        "properties": {
+          "totalTeamQuota": {
+            "type": "number"
           },
-          "description": "Stores user profile details, where the document ID is the user's Firebase Auth UID. Access is read/write for the profile owner and typically read-only for other authenticated users for purposes like lead assignment. Includes denormalized 'role' field, but critical roles use a separate collection.",
-          "params": [
-            {
-              "name": "userId",
-              "description": "The unique identifier (Firebase Auth UID) of the user whose profile is being stored."
-            }
-          ]
+          "monthlyTarget": {
+            "type": "number"
+          }
         }
       },
-      {
-        "path": "/roles_admin/{userId}",
-        "definition": {
-          "entityName": "AdminRole",
-          "schema": {
-            "$ref": "#/backend/entities/UserProfile"
-          },
-          "description": "Dedicated collection for defining administrative roles. The document ID corresponds to the Firebase Auth UID of an administrator. Authorization for admin actions is granted by the existence of a document with the user's UID in this collection, simplifying DBAC rules.",
-          "params": [
-            {
-              "name": "userId",
-              "description": "The unique identifier (Firebase Auth UID) of a user designated as an administrator."
-            }
-          ]
-        }
-      },
-      {
-        "path": "/leads/{leadId}",
-        "definition": {
-          "entityName": "Lead",
-          "schema": {
-            "$ref": "#/backend/entities/Lead"
-          },
-          "description": "Stores individual lead records. Includes the 'ownerUid' field which links to the UserProfile.id, enabling authorization independence and efficient querying for leads assigned to a specific user. Admins can access all leads.",
-          "params": [
-            {
-              "name": "leadId",
-              "description": "The unique identifier for a specific lead."
-            }
-          ]
-        }
-      },
-      {
-        "path": "/leads/{leadId}/activities/{activityId}",
-        "definition": {
-          "entityName": "Activity",
-          "schema": {
-            "$ref": "#/backend/entities/Activity"
-          },
-          "description": "Records interactions and events related to a specific lead. Each document includes 'leadId', 'ownerUid' (the user who logged the activity), and 'leadOwnerUid' (denormalized from the parent Lead) to ensure authorization independence. Access is granted to the lead's owner or the activity creator.",
-          "params": [
-            {
-              "name": "leadId",
-              "description": "The unique identifier of the parent lead for this activity."
-            },
-            {
-              "name": "activityId",
-              "description": "The unique identifier for a specific activity."
-            }
-          ]
-        }
-      },
-      {
-        "path": "/users/{userId}/events/{eventId}",
-        "definition": {
-          "entityName": "Event",
-          "schema": {
-            "$ref": "#/backend/entities/Event"
-          },
-          "description": "Stores personal calendar events and follow-ups for a specific user. The 'ownerUid' field in the document must match the '{userId}' in the path, ensuring strict user-based ownership and authorization independence for personal events. Includes an optional 'leadId' for lead-related context.",
-          "params": [
-            {
-              "name": "userId",
-              "description": "The unique identifier (Firebase Auth UID) of the user who owns this event."
-            },
-            {
-              "name": "eventId",
-              "description": "The unique identifier for a specific event."
-            }
-          ]
-        }
-      }
-    ],
-    "reasoning": "The Firestore structure is designed to be secure, scalable, and debuggable, adhering strictly to the core design principles and strategy mandates. \n\n**Authorization Independence via Denormalization (Strategy A):**\n- For `Lead` documents in `/leads/{leadId}`, the `ownerUid` field is directly stored within each document. This ensures that authorization for a lead (who can read/write it) can be determined solely by checking `request.auth.uid == resource.data.ownerUid`, eliminating the need for `get()` operations on parent documents or separate user roles.\n- For `Activity` documents within `/leads/{leadId}/activities/{activityId}`, the `leadId`, the `ownerUid` (of the activity creator), and critically, the `leadOwnerUid` (denormalized from the parent Lead) are stored within each activity document. This allows security rules for activities to be evaluated atomically by comparing `request.auth.uid` against these fields, making them independent of the parent lead's document read.\n- For `Event` documents in `/users/{userId}/events/{eventId}`, the `ownerUid` field is present and is expected to match the `{userId}` wildcard in the path. This intrinsically links the event to its owner, enabling atomic authorization checks without fetching the parent user profile.\n\n**Structural Segregation & QAPs (Strategy B & C.1, C.2, C.3, C.4):**\n- **`/userProfiles/{userId}`:** This collection stores user-specific profiles. It follows the \"Private Data\" and \"Hierarchical Paths for User-Owned Data\" pattern for read/write access by the owner, and controlled list access for other users (e.g., to assign leads). This provides a homogeneous security posture for individual profile management.\n- **`/roles_admin/{userId}`:** This collection is a prime example of \"DBAC (Existence over Content)\" for global roles. The mere existence of a document with a user's UID in this collection grants administrative privileges, allowing for straightforward `exists()` checks in security rules to enable QAPs for viewing sensitive or global data (e.g., all leads).\n- **`/leads/{leadId}`:** This top-level collection centralizes all lead data, accommodating the application's requirement for a \"Leads Page\" and \"Pipeline / Kanban View\" that can display leads across all users (for admins) or specific users (for sales reps). By including `ownerUid` in each document, it enables Queryable Access Patterns (QAPs) such as `db.collection('leads').where('ownerUid', '==', request.auth.uid)` for sales reps to retrieve only their assigned leads. Admins, with appropriate `exists()` rule checks, can query the entire collection.\n- **`/leads/{leadId}/activities/{activityId}`:** Activities are tightly coupled to leads, so a subcollection ensures semantic grouping. The denormalization of `leadOwnerUid` means that a user can list activities for a lead if they are the `leadOwnerUid`, which is a QAP.\n- **`/users/{userId}/events/{eventId}`:** Events are personal calendar items. Placing them under a user's path (`/users/{userId}/...`) ensures that each user has a private calendar. QAPs for the calendar page (e.g., fetching all events for `request.auth.uid`) are directly supported and highly efficient, as rules can simply enforce `request.auth.uid == userId` for all read/write operations.\n\nThis architecture ensures that security rules are simple, explicit, and do not rely on expensive or non-atomic `get()` calls, making the system inherently more secure, performant, and easier to debug."
+      "description": "Global settings for team quotas and targets."
+    }
   }
 }

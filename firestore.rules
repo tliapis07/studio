@@ -43,7 +43,7 @@ service cloud.firestore {
     match /activities/{activityId} {
       allow get, list: if isSignedIn();
       allow create: if isSignedIn();
-      allow update, delete: if isAdmin();
+      allow update, delete: if isSignedIn();
     }
 
     /**
@@ -61,6 +61,14 @@ service cloud.firestore {
     match /teamSettings/{settingId} {
       allow read: if isSignedIn();
       allow write: if isAdmin();
+    }
+
+    /**
+     * @path /training_materials/{materialId}
+     */
+    match /training_materials/{materialId} {
+      allow read: if isSignedIn();
+      allow create, update, delete: if isSignedIn();
     }
   }
 }
