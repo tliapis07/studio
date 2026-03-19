@@ -42,12 +42,13 @@ const OnboardingTour = () => {
       placement: 'left',
     },
     {
-      target: '.fixed.bottom-20.left-1\/2',
+      target: '#offline-indicator-trigger', // Using a stable data attribute or ID if possible, but let's use the ID we added
+      target: '#offline-indicator',
       content: 'SalesStream now supports full offline persistence. Your data syncs automatically when you reconnect.',
       placement: 'top',
     },
     {
-      target: '.fixed.bottom-6.right-6',
+      target: '#ai-assistant-trigger',
       content: 'Need help? Your Partner AI assistant is always available for quick tasks and WhatsApp drafting.',
       placement: 'left',
     }

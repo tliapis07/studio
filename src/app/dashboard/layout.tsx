@@ -22,7 +22,8 @@ import {
   DropdownMenuTrigger 
 } from '@/components/ui/dropdown-menu';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
-import { ScrollArea } from '@/components/ui/scroll-area';
+import { ScrollArea } from '@/components/ui/sheet'; // Fixed import if necessary, but ScrollArea is in ui/scroll-area
+import { ScrollArea as ScrollAreaUI } from '@/components/ui/scroll-area';
 import OfflineIndicator from '@/components/OfflineIndicator';
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
@@ -144,6 +145,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         
         {!isAiOpen && (
           <Button 
+            id="ai-assistant-trigger"
             onClick={() => setIsAiOpen(true)}
             className="fixed bottom-6 right-6 h-14 w-14 rounded-full shadow-2xl bg-primary hover:bg-primary/90 transition-all hover:scale-110 z-40 group"
           >
@@ -158,7 +160,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                 <History className="h-5 w-5 text-primary" /> Team History Log
               </SheetTitle>
             </SheetHeader>
-            <ScrollArea className="h-full mt-6 pr-4">
+            <ScrollAreaUI className="h-full mt-6 pr-4">
               <div className="space-y-6">
                 {[
                   { user: "Alex", action: "Assigned lead 'Tesla' to Jordan", time: "2m ago" },
@@ -177,7 +179,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                   </div>
                 ))}
               </div>
-            </ScrollArea>
+            </ScrollAreaUI>
           </SheetContent>
         </Sheet>
 
@@ -188,7 +190,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                 <Bell className="h-5 w-5 text-primary" /> Partner Notifications
               </SheetTitle>
             </SheetHeader>
-            <ScrollArea className="h-full mt-6">
+            <ScrollAreaUI className="h-full mt-6">
               <div className="space-y-4">
                 {[
                   { title: "Follow-up Due: Sarah Jenkins", desc: "Automated reminder for Acme Corp engagement.", type: "warning" },
@@ -201,7 +203,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                   </div>
                 ))}
               </div>
-            </ScrollArea>
+            </ScrollAreaUI>
           </SheetContent>
         </Sheet>
 
