@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { useCollection, useFirestore, useUser, useMemoFirebase } from '@/firebase';
 import { collection, query, orderBy, limit, where } from 'firebase/firestore';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
@@ -35,19 +35,23 @@ export default function TeamHistoryPage() {
   const [repFilter, setRepFilter] = useState('all');
   const [typeFilter, setTypeFilter] = useState('all');
   const [dateRange, setDateRange] = useState('30');
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   const historyQuery = useMemoFirebase(() => {
     if (!db || !user) return null;
-    let baseQuery = query(collection(db, 'activities'), orderBy('createdAt', 'desc'), limit(100));
-    return baseQuery;
+    return query(collection(db, 'activities'), orderBy('createdAt', 'desc'), limit(100));
   }, [db, user]);
 
-  const { data: activities, isLoading } = useCollection(historyQuery);
+  const { data: activities, isLoading } = useCollection<any>(historyQuery);
 
   const filteredActivities = useMemo(() => {
-    if (!activities) return [];
+    if (!activities || !mounted) return [];
     return activities.filter(a => {
-      const matchesSearch = a.content.toLowerCase().includes(search.toLowerCase()) || 
+      const matchesSearch = (a.content || '').toLowerCase().includes(search.toLowerCase()) || 
                             (a.ownerName && a.ownerName.toLowerCase().includes(search.toLowerCase()));
       const matchesRep = repFilter === 'all' || a.ownerUid === repFilter;
       const matchesType = typeFilter === 'all' || a.type === typeFilter;
@@ -61,19 +65,18 @@ export default function TeamHistoryPage() {
 
       return matchesSearch && matchesRep && matchesType && matchesDate;
     });
-  }, [activities, search, repFilter, typeFilter, dateRange]);
+  }, [activities, search, repFilter, typeFilter, dateRange, mounted]);
 
   const stats = useMemo(() => {
     return {
       total: filteredActivities.length,
       won: filteredActivities.filter(a => a.newStatus === 'won').length,
-      topRep: MOCK_TEAM[0].name, // Mock
+      topRep: MOCK_TEAM[0].name,
     };
   }, [filteredActivities]);
 
   const handleExport = () => {
     toast({ title: "Export Started", description: "Preparing team activity CSV report." });
-    // Mock CSV logic
     const headers = "Date,User,Action,Content\n";
     const rows = filteredActivities.map(a => 
       `${format(a.createdAt?.toDate ? a.createdAt.toDate() : new Date(), 'yyyy-MM-dd HH:mm')},${a.ownerName || 'Unknown'},${a.type},"${(a.content || '').replace(/"/g, '""')}"`
@@ -85,6 +88,8 @@ export default function TeamHistoryPage() {
     link.download = `team-history-${format(new Date(), 'yyyy-MM-dd')}.csv`;
     link.click();
   };
+
+  if (!mounted) return null;
 
   return (
     <div className="space-y-8 animate-in fade-in duration-500 pb-20">

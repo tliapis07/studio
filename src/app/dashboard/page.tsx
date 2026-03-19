@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useMemo, useState, useEffect } from 'react';
@@ -49,6 +48,11 @@ export default function Dashboard() {
   const { user, isUserLoading } = useUser();
   const db = useFirestore();
   const [repFilter, setRepFilter] = useState('all');
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   const leadsQuery = useMemoFirebase(() => {
     if (!db || !user) return null;
@@ -57,7 +61,6 @@ export default function Dashboard() {
 
   const followUpsQuery = useMemoFirebase(() => {
     if (!db || !user) return null;
-    // Query leads with upcoming follow-ups
     return query(
       collection(db, 'leads'), 
       where('nextFollowUpAt', '!=', null), 
@@ -81,6 +84,7 @@ export default function Dashboard() {
   }, [leads, repFilter]);
 
   const weeklyData = useMemo(() => {
+    if (!mounted) return [];
     const start = startOfWeek(new Date());
     const end = endOfWeek(new Date());
     const days = eachDayOfInterval({ start, end });
@@ -97,9 +101,9 @@ export default function Dashboard() {
         leads: count
       };
     });
-  }, [leads, repFilter]);
+  }, [leads, repFilter, mounted]);
 
-  if (isUserLoading || (leadsLoading && !leads)) return (
+  if (!mounted || isUserLoading || (leadsLoading && !leads)) return (
     <div className="flex flex-col h-full items-center justify-center p-8 text-center space-y-6">
       <div className="h-16 w-16 border-4 border-primary border-t-transparent rounded-3xl animate-spin shadow-2xl shadow-primary/20" />
       <div className="space-y-2">
