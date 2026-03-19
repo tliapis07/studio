@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, useMemo, useEffect } from 'react';
@@ -40,7 +39,8 @@ import {
   addDays,
   subDays,
   isSameMonth,
-  startOfDay
+  startOfDay,
+  isValid
 } from 'date-fns';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
@@ -67,8 +67,8 @@ type ViewMode = 'month' | 'week' | 'day';
 export default function CalendarPage() {
   const { user } = useUser();
   const db = useFirestore();
-  const [currentDate, setCurrentDate] = useState<Date>(new Date(2024, 0, 1)); // Stable initial for hydration
-  const [selectedDate, setSelectedDate] = useState<Date>(new Date(2024, 0, 1)); // Stable initial for hydration
+  const [currentDate, setCurrentDate] = useState<Date>(new Date(2024, 0, 1));
+  const [selectedDate, setSelectedDate] = useState<Date>(new Date(2024, 0, 1));
   const [viewMode, setViewMode] = useState<ViewMode>('month');
   const [teamFilter, setTeamFilter] = useState('all');
   const [typeFilter, setTypeFilter] = useState('all');
@@ -91,18 +91,22 @@ export default function CalendarPage() {
   const { data: events } = useCollection<CalendarEvent>(eventsQuery);
 
   const calendarDays = useMemo(() => {
-    if (viewMode === 'month') {
-      const monthStart = startOfMonth(currentDate);
-      const monthEnd = endOfMonth(monthStart);
-      const calendarStart = startOfWeek(monthStart);
-      const calendarEnd = endOfWeek(monthEnd);
-      return eachDayOfInterval({ start: calendarStart, end: calendarEnd });
-    } else if (viewMode === 'week') {
-      const weekStart = startOfWeek(currentDate);
-      const weekEnd = endOfWeek(currentDate);
-      return eachDayOfInterval({ start: weekStart, end: weekEnd });
-    } else {
-      return [startOfDay(currentDate)];
+    try {
+      if (viewMode === 'month') {
+        const monthStart = startOfMonth(currentDate);
+        const monthEnd = endOfMonth(monthStart);
+        const calendarStart = startOfWeek(monthStart);
+        const calendarEnd = endOfWeek(monthEnd);
+        return eachDayOfInterval({ start: calendarStart, end: calendarEnd });
+      } else if (viewMode === 'week') {
+        const weekStart = startOfWeek(currentDate);
+        const weekEnd = endOfWeek(currentDate);
+        return eachDayOfInterval({ start: weekStart, end: weekEnd });
+      } else {
+        return [startOfDay(currentDate)];
+      }
+    } catch {
+      return [];
     }
   }, [currentDate, viewMode]);
 
@@ -124,6 +128,11 @@ export default function CalendarPage() {
     const timeStr = formData.get('time') as string;
     const date = new Date(`${dateStr}T${timeStr}`);
 
+    if (!isValid(date)) {
+      toast({ variant: "destructive", title: "Invalid Date", description: "Please select a valid date and time." });
+      return;
+    }
+
     addDocumentNonBlocking(collection(db, 'calendarEvents'), {
       ownerUid: user.uid,
       title: formData.get('title') as string,
@@ -142,8 +151,12 @@ export default function CalendarPage() {
     return events?.filter(e => {
       if (teamFilter !== 'all' && e.ownerUid !== teamFilter) return false;
       if (typeFilter !== 'all' && e.eventType !== typeFilter) return false;
-      const start = e.startAt?.toDate ? e.startAt.toDate() : new Date(e.startAt);
-      return isSameDay(start, day);
+      try {
+        const start = e.startAt?.toDate ? e.startAt.toDate() : new Date(e.startAt);
+        return isValid(start) && isSameDay(start, day);
+      } catch {
+        return false;
+      }
     }) || [];
   };
 

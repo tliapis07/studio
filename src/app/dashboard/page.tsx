@@ -92,8 +92,12 @@ export default function Dashboard() {
     return days.map(day => {
       const count = leads?.filter(l => {
         if (repFilter !== 'all' && l.ownerUid !== repFilter) return false;
-        const d = l.createdAt?.toDate ? l.createdAt.toDate() : new Date(l.createdAt);
-        return isSameDay(d, day);
+        try {
+          const d = l.createdAt?.toDate ? l.createdAt.toDate() : new Date(l.createdAt);
+          return isSameDay(d, day);
+        } catch {
+          return false;
+        }
       }).length || 0;
       
       return {
@@ -224,28 +228,32 @@ export default function Dashboard() {
             <CardContent className="p-0">
                <div className="divide-y divide-primary/10">
                  {followUps && followUps.length > 0 ? followUps.map((lead, i) => {
-                   const date = lead.nextFollowUpAt?.toDate ? lead.nextFollowUpAt.toDate() : new Date(lead.nextFollowUpAt);
-                   const isOverdue = isBefore(date, new Date());
-                   return (
-                    <div key={lead.id} className="p-5 flex items-center justify-between hover:bg-primary/5 transition-all group">
-                       <div className="flex items-center gap-4">
-                         <div className={`h-10 w-10 rounded-xl flex items-center justify-center font-black ${isOverdue ? 'bg-rose-500 text-white' : 'bg-primary/20 text-primary'}`}>
-                           {isOverdue ? '!' : lead.name[0]}
+                   try {
+                     const date = lead.nextFollowUpAt?.toDate ? lead.nextFollowUpAt.toDate() : new Date(lead.nextFollowUpAt);
+                     const isOverdue = isBefore(date, new Date());
+                     return (
+                      <div key={lead.id} className="p-5 flex items-center justify-between hover:bg-primary/5 transition-all group">
+                         <div className="flex items-center gap-4">
+                           <div className={`h-10 w-10 rounded-xl flex items-center justify-center font-black ${isOverdue ? 'bg-rose-500 text-white' : 'bg-primary/20 text-primary'}`}>
+                             {isOverdue ? '!' : lead.name[0]}
+                           </div>
+                           <div>
+                             <p className="text-sm font-black group-hover:text-primary transition-colors">{lead.name}</p>
+                             <p className={`text-[10px] font-bold uppercase tracking-widest ${isOverdue ? 'text-rose-500' : 'text-muted-foreground'}`}>
+                               {format(date, 'MMM d, h:mm a')}
+                             </p>
+                           </div>
                          </div>
-                         <div>
-                           <p className="text-sm font-black group-hover:text-primary transition-colors">{lead.name}</p>
-                           <p className={`text-[10px] font-bold uppercase tracking-widest ${isOverdue ? 'text-rose-500' : 'text-muted-foreground'}`}>
-                             {format(date, 'MMM d, h:mm a')}
-                           </p>
+                         <div className="flex gap-2">
+                           <Button variant="ghost" size="icon" onClick={() => router.push(`/dashboard/leads/${lead.id}`)} className="h-8 w-8 rounded-lg">
+                             <Zap className="h-4 w-4" />
+                           </Button>
                          </div>
-                       </div>
-                       <div className="flex gap-2">
-                         <Button variant="ghost" size="icon" onClick={() => router.push(`/dashboard/leads/${lead.id}`)} className="h-8 w-8 rounded-lg">
-                           <Zap className="h-4 w-4" />
-                         </Button>
-                       </div>
-                    </div>
-                   );
+                      </div>
+                     );
+                   } catch {
+                     return null;
+                   }
                  }) : (
                   <div className="p-12 text-center">
                     <CalendarIcon className="h-10 w-10 mx-auto mb-3 opacity-20 text-primary" />

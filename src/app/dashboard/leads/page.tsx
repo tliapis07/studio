@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, useMemo, useRef } from 'react';
@@ -36,7 +35,7 @@ import {
   DialogContent, 
   DialogHeader, 
   DialogTitle, 
-  DialogTrigger,
+  DialogTrigger, 
   DialogFooter,
   DialogDescription
 } from '@/components/ui/dialog';
@@ -166,7 +165,7 @@ export default function LeadsPage() {
           phone: phone || '',
           email: email || '',
           notes: `Auto-created from lead ${name}`,
-          linkedLeadId: leadRef.id,
+          linkedLeadId: leadRef?.id || null,
           tags: ["Lead"],
           createdAt: serverTimestamp(),
           updatedAt: serverTimestamp(),
@@ -191,7 +190,6 @@ export default function LeadsPage() {
       complete: (results) => {
         setImportData(results.data);
         setImportHeaders(results.meta.fields || []);
-        // Auto-map simple matching names
         const initialMapping: Record<string, string> = {};
         results.meta.fields?.forEach(header => {
           const match = LEAD_FIELDS.find(f => f.value === header.toLowerCase() || f.label.toLowerCase() === header.toLowerCase());
@@ -244,7 +242,7 @@ export default function LeadsPage() {
           phone,
           email,
           notes: `Auto-created from import row`,
-          linkedLeadId: leadRef.id,
+          linkedLeadId: leadRef?.id || null,
           tags: ["Imported"],
           createdAt: serverTimestamp(),
           updatedAt: serverTimestamp(),

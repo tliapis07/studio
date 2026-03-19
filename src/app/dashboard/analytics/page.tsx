@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, useMemo, useEffect } from 'react';
@@ -94,7 +93,7 @@ export default function TeamAnalyticsPage() {
         name: member.name,
         revenue,
         winRate: `${winRate}%`,
-        quota: Math.round((revenue / member.quota) * 100),
+        quota: Math.round((revenue / (member.quota || 100000)) * 100),
       };
     });
   }, [leads]);
@@ -126,7 +125,7 @@ export default function TeamAnalyticsPage() {
     'Forecasting': { desc: 'Predictive revenue trends weighted by pipeline stage win rates.', icon: Sparkles },
   };
 
-  const DynamicIcon = tabInfo[activeTab].icon;
+  const DynamicIcon = tabInfo[activeTab]?.icon || Target;
 
   const handleAddSource = () => {
     if (!newSource.trim()) return;
@@ -134,6 +133,8 @@ export default function TeamAnalyticsPage() {
     setNewSource('');
     setIsAddSourceOpen(false);
   };
+
+  if (!hydrated) return null;
 
   return (
     <div className="space-y-8 pb-20 md:pb-8">
@@ -197,7 +198,7 @@ export default function TeamAnalyticsPage() {
           </TabsList>
           <div className="flex items-center gap-3 text-xs font-bold text-muted-foreground bg-primary/5 px-5 py-3 rounded-xl border-2 border-primary/10 w-fit">
             <DynamicIcon className="h-5 w-5 text-primary" />
-            <span>{tabInfo[activeTab].desc}</span>
+            <span>{tabInfo[activeTab]?.desc}</span>
           </div>
         </div>
 

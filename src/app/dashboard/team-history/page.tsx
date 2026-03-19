@@ -9,7 +9,7 @@ import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { format, subDays, isWithinInterval } from 'date-fns';
+import { format, subDays, isWithinInterval, isValid } from 'date-fns';
 import { Badge } from '@/components/ui/badge';
 import { toast } from '@/hooks/use-toast';
 
@@ -56,14 +56,18 @@ export default function TeamHistoryPage() {
       const matchesRep = repFilter === 'all' || a.ownerUid === repFilter;
       const matchesType = typeFilter === 'all' || a.type === typeFilter;
       
-      const date = a.createdAt?.toDate ? a.createdAt.toDate() : new Date(a.createdAt);
-      const daysAgo = parseInt(dateRange);
-      const matchesDate = isWithinInterval(date, { 
-        start: subDays(new Date(), daysAgo), 
-        end: new Date() 
-      });
-
-      return matchesSearch && matchesRep && matchesType && matchesDate;
+      try {
+        const date = a.createdAt?.toDate ? a.createdAt.toDate() : new Date(a.createdAt);
+        if (!isValid(date)) return true; // Show malformed dates instead of crashing
+        
+        const daysAgo = parseInt(dateRange);
+        return isWithinInterval(date, { 
+          start: subDays(new Date(), daysAgo), 
+          end: new Date() 
+        });
+      } catch {
+        return true;
+      }
     });
   }, [activities, search, repFilter, typeFilter, dateRange, mounted]);
 
@@ -71,16 +75,18 @@ export default function TeamHistoryPage() {
     return {
       total: filteredActivities.length,
       won: filteredActivities.filter(a => a.newStatus === 'won').length,
-      topRep: MOCK_TEAM[0].name,
+      topRep: MOCK_TEAM[0]?.name || 'N/A',
     };
   }, [filteredActivities]);
 
   const handleExport = () => {
     toast({ title: "Export Started", description: "Preparing team activity CSV report." });
     const headers = "Date,User,Action,Content\n";
-    const rows = filteredActivities.map(a => 
-      `${format(a.createdAt?.toDate ? a.createdAt.toDate() : new Date(), 'yyyy-MM-dd HH:mm')},${a.ownerName || 'Unknown'},${a.type},"${(a.content || '').replace(/"/g, '""')}"`
-    ).join("\n");
+    const rows = filteredActivities.map(a => {
+      const date = a.createdAt?.toDate ? a.createdAt.toDate() : new Date(a.createdAt);
+      const dateStr = isValid(date) ? format(date, 'yyyy-MM-dd HH:mm') : 'Unknown';
+      return `${dateStr},${a.ownerName || 'Unknown'},${a.type},"${(a.content || '').replace(/"/g, '""')}"`;
+    }).join("\n");
     const blob = new Blob([headers + rows], { type: 'text/csv' });
     const url = window.URL.createObjectURL(blob);
     const link = document.createElement('a');
@@ -167,7 +173,8 @@ export default function TeamHistoryPage() {
                           <div className="flex items-center justify-between">
                              <p className="text-sm font-black">{activity.ownerName || 'Team Member'}</p>
                              <span className="text-[10px] text-muted-foreground font-bold uppercase tracking-widest flex items-center gap-1">
-                               <Clock className="h-3 w-3" /> {activity.createdAt?.toDate ? format(activity.createdAt.toDate(), 'MMM d, h:mm a') : 'Recently'}
+                               <Clock className="h-3 w-3" /> 
+                               {activity.createdAt?.toDate ? format(activity.createdAt.toDate(), 'MMM d, h:mm a') : 'Recently'}
                              </span>
                           </div>
                           <p className="text-sm text-muted-foreground leading-relaxed">{activity.content}</p>
