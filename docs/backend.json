@@ -4,173 +4,341 @@
       "$schema": "http://json-schema.org/draft-07/schema#",
       "title": "UserProfile",
       "type": "object",
-      "description": "Represents a user's profile within the CRM application.",
+      "description": "Stores user-specific settings, preferences, and profile information for the SalesStream CRM application.",
       "properties": {
-        "id": { "type": "string" },
-        "email": { "type": "string", "format": "email" },
-        "displayName": { "type": "string" },
-        "role": { "type": "string" },
-        "photoUrl": { "type": "string", "format": "uri" },
-        "createdAt": { "type": "string", "format": "date-time" },
-        "updatedAt": { "type": "string", "format": "date-time" }
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the user profile, corresponding to the Firebase Authentication User ID (UID). (Primary Key)"
+        },
+        "theme": {
+          "type": "string",
+          "description": "The user's preferred theme ('light', 'dark', or 'system')."
+        },
+        "profilePicURL": {
+          "type": "string",
+          "description": "URL to the user's profile picture stored in Firebase Storage.",
+          "format": "uri"
+        },
+        "status": {
+          "type": "string",
+          "description": "The user's current status (e.g., 'Available', 'Busy', 'In a meeting', 'Do not disturb', or a custom message)."
+        },
+        "statusUpdatedAt": {
+          "type": "string",
+          "description": "Timestamp when the user's status was last updated.",
+          "format": "date-time"
+        },
+        "timeZone": {
+          "type": "string",
+          "description": "The user's selected timezone, typically an IANA timezone identifier (e.g., 'America/New_York')."
+        },
+        "notificationSoundsEnabled": {
+          "type": "boolean",
+          "description": "Indicates if notification sounds are enabled for the user."
+        },
+        "defaultLeadStatus": {
+          "type": "string",
+          "description": "The default status assigned to new leads created by this user."
+        },
+        "compactModeEnabled": {
+          "type": "boolean",
+          "description": "Indicates if compact mode (smaller fonts/tables) is enabled for the UI."
+        },
+        "autoArchiveClosedLeadsAfterDays": {
+          "type": "number",
+          "description": "Number of days after which closed leads (won/lost) are automatically archived. A value of 0 or null might mean no auto-archiving."
+        },
+        "language": {
+          "type": "string",
+          "description": "The preferred language for the application UI (e.g., 'en', 'es')."
+        },
+        "currency": {
+          "type": "string",
+          "description": "The preferred currency for deal values (e.g., 'USD', 'EUR')."
+        },
+        "tabLayouts": {
+          "type": "array",
+          "description": "Stores custom layout preferences for different application tabs/sections, e.g., column visibility and order.",
+          "items": {
+            "type": "string"
+          }
+        }
       },
-      "required": ["id", "email", "displayName", "createdAt", "updatedAt"]
+      "required": [
+        "id",
+        "theme",
+        "timeZone",
+        "notificationSoundsEnabled",
+        "defaultLeadStatus",
+        "compactModeEnabled",
+        "language",
+        "currency",
+        "tabLayouts"
+      ]
     },
     "Lead": {
       "$schema": "http://json-schema.org/draft-07/schema#",
       "title": "Lead",
       "type": "object",
-      "description": "Represents a potential customer or sales opportunity.",
+      "description": "Represents a potential sales opportunity or contact within the CRM system.",
       "properties": {
-        "id": { "type": "string" },
-        "ownerUid": { "type": "string" },
-        "name": { "type": "string" },
-        "email": { "type": "string", "format": "email" },
-        "phone": { "type": "string" },
-        "company": { "type": "string" },
-        "status": { "type": "string", "enum": ["new", "contacted", "qualified", "proposal", "negotiated", "won", "lost"] },
-        "dealValue": { "type": "number" },
-        "source": { "type": "string" },
-        "tags": { "type": "array", "items": { "type": "string" } },
-        "nextFollowUpAt": { "type": "string", "format": "date-time" },
-        "lastContactAt": { "type": "string", "format": "date-time" },
-        "createdAt": { "type": "string", "format": "date-time" },
-        "updatedAt": { "type": "string", "format": "date-time" },
-        "customFields": { "type": "object" },
-        "notesCount": { "type": "number" },
-        "callsCount": { "type": "number" }
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the lead. (Primary Key)"
+        },
+        "ownerUid": {
+          "type": "string",
+          "description": "Reference to the UserProfile ID of the user who owns this lead. (Relationship: UserProfile 1:N Lead)"
+        },
+        "name": {
+          "type": "string",
+          "description": "Full name of the lead or company name."
+        },
+        "email": {
+          "type": "string",
+          "description": "Email address of the lead.",
+          "format": "email"
+        },
+        "phone": {
+          "type": "string",
+          "description": "Phone number of the lead."
+        },
+        "company": {
+          "type": "string",
+          "description": "Company name associated with the lead."
+        },
+        "status": {
+          "type": "string",
+          "description": "Current sales pipeline status of the lead (e.g., 'new', 'contacted', 'qualified', 'proposal', 'won', 'lost')."
+        },
+        "tagIds": {
+          "type": "array",
+          "description": "References to Tag entities associated with this lead. (Relationship: Lead N:N Tag)",
+          "items": {
+            "type": "string"
+          }
+        },
+        "leadScore": {
+          "type": "number",
+          "description": "A numerical score indicating the potential value or likelihood of closing the lead."
+        },
+        "nextFollowUpAt": {
+          "type": "string",
+          "description": "The scheduled date and time for the next follow-up activity.",
+          "format": "date-time"
+        },
+        "lastContactAt": {
+          "type": "string",
+          "description": "The date and time of the last recorded contact with the lead.",
+          "format": "date-time"
+        },
+        "createdAt": {
+          "type": "string",
+          "description": "Timestamp when the lead was created.",
+          "format": "date-time"
+        },
+        "updatedAt": {
+          "type": "string",
+          "description": "Timestamp when the lead was last updated.",
+          "format": "date-time"
+        },
+        "customFields": {
+          "type": "array",
+          "description": "A flexible dictionary for storing additional, user-defined fields for the lead.",
+          "items": {
+            "type": "string"
+          }
+        },
+        "notesCount": {
+          "type": "number",
+          "description": "Denormalized count of notes associated with this lead."
+        },
+        "callsCount": {
+          "type": "number",
+          "description": "Denormalized count of calls associated with this lead."
+        }
       },
-      "required": ["id", "ownerUid", "name", "status", "createdAt", "updatedAt"]
+      "required": [
+        "id",
+        "ownerUid",
+        "name",
+        "status",
+        "leadScore",
+        "createdAt",
+        "updatedAt"
+      ]
     },
     "Activity": {
       "$schema": "http://json-schema.org/draft-07/schema#",
       "title": "Activity",
       "type": "object",
-      "description": "Records an interaction related to a lead.",
+      "description": "Records an interaction or event related to a specific lead.",
       "properties": {
-        "id": { "type": "string" },
-        "leadId": { "type": "string" },
-        "ownerUid": { "type": "string" },
-        "type": { "type": "string", "enum": ["note", "call", "status_change", "tag_added", "event_created", "whatsapp_sent"] },
-        "content": { "type": "string" },
-        "createdAt": { "type": "string", "format": "date-time" },
-        "oldStatus": { "type": "string" },
-        "newStatus": { "type": "string" }
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the activity. (Primary Key)"
+        },
+        "leadId": {
+          "type": "string",
+          "description": "Reference to the Lead entity this activity belongs to. (Relationship: Lead 1:N Activity)"
+        },
+        "type": {
+          "type": "string",
+          "description": "The type of activity (e.g., 'note', 'call', 'status_change', 'tag_added')."
+        },
+        "content": {
+          "type": "string",
+          "description": "Detailed description or notes about the activity."
+        },
+        "createdAt": {
+          "type": "string",
+          "description": "Timestamp when the activity was recorded.",
+          "format": "date-time"
+        },
+        "oldStatus": {
+          "type": "string",
+          "description": "(Optional) The lead's status before a status change activity."
+        },
+        "newStatus": {
+          "type": "string",
+          "description": "(Optional) The lead's status after a status change activity."
+        }
       },
-      "required": ["id", "leadId", "ownerUid", "type", "content", "createdAt"]
+      "required": [
+        "id",
+        "leadId",
+        "type",
+        "content",
+        "createdAt"
+      ]
     },
-    "CalendarEvent": {
+    "Tag": {
       "$schema": "http://json-schema.org/draft-07/schema#",
-      "title": "CalendarEvent",
+      "title": "Tag",
       "type": "object",
-      "description": "Represents a scheduled event.",
+      "description": "Represents a reusable tag or category that can be applied to leads for organization and filtering.",
       "properties": {
-        "id": { "type": "string" },
-        "ownerUid": { "type": "string" },
-        "leadId": { "type": "string" },
-        "title": { "type": "string" },
-        "description": { "type": "string" },
-        "startAt": { "type": "string", "format": "date-time" },
-        "endAt": { "type": "string", "format": "date-time" },
-        "allDay": { "type": "boolean" },
-        "eventType": { "type": "string", "enum": ["follow-up", "meeting", "task", "reminder"] },
-        "status": { "type": "string", "enum": ["scheduled", "completed", "cancelled"] },
-        "createdAt": { "type": "string", "format": "date-time" }
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the tag. (Primary Key)"
+        },
+        "name": {
+          "type": "string",
+          "description": "The name or label of the tag (e.g., 'Hot Lead', 'Enterprise', 'Follow-up')."
+        },
+        "ownerUid": {
+          "type": "string",
+          "description": "Reference to the UserProfile ID of the user who created or owns this tag. (Relationship: UserProfile 1:N Tag)"
+        },
+        "createdAt": {
+          "type": "string",
+          "description": "Timestamp when the tag was created.",
+          "format": "date-time"
+        },
+        "updatedAt": {
+          "type": "string",
+          "description": "Timestamp when the tag was last updated.",
+          "format": "date-time"
+        }
       },
-      "required": ["id", "ownerUid", "title", "startAt", "eventType", "createdAt"]
-    },
-    "TrainingMaterial": {
-      "$schema": "http://json-schema.org/draft-07/schema#",
-      "title": "TrainingMaterial",
-      "type": "object",
-      "description": "Represents a training resource.",
-      "properties": {
-        "id": { "type": "string" },
-        "userId": { "type": "string" },
-        "title": { "type": "string" },
-        "subject": { "type": "string" },
-        "content": { "type": "string" },
-        "type": { "type": "string", "enum": ["pdf", "link", "video", "doc", "image"] },
-        "fileUrl": { "type": "string" },
-        "createdAt": { "type": "string", "format": "date-time" }
-      },
-      "required": ["id", "userId", "title", "subject", "content", "createdAt"]
-    },
-    "Contact": {
-      "$schema": "http://json-schema.org/draft-07/schema#",
-      "title": "Contact",
-      "type": "object",
-      "description": "Represents a client contact.",
-      "properties": {
-        "id": { "type": "string" },
-        "userId": { "type": "string" },
-        "name": { "type": "string" },
-        "phone": { "type": "string" },
-        "secondaryPhone": { "type": "string" },
-        "email": { "type": "string", "format": "email" },
-        "notes": { "type": "string" },
-        "linkedLeadId": { "type": "string" },
-        "createdAt": { "type": "string", "format": "date-time" },
-        "updatedAt": { "type": "string", "format": "date-time" }
-      },
-      "required": ["id", "userId", "name", "phone", "createdAt", "updatedAt"]
-    },
-    "Note": {
-      "$schema": "http://json-schema.org/draft-07/schema#",
-      "title": "Note",
-      "type": "object",
-      "description": "A personal sales note or script idea.",
-      "properties": {
-        "id": { "type": "string" },
-        "userId": { "type": "string" },
-        "title": { "type": "string" },
-        "content": { "type": "string" },
-        "tags": { "type": "array", "items": { "type": "string" } },
-        "createdAt": { "type": "string", "format": "date-time" },
-        "updatedAt": { "type": "string", "format": "date-time" }
-      },
-      "required": ["id", "userId", "title", "content", "createdAt", "updatedAt"]
+      "required": [
+        "id",
+        "name",
+        "ownerUid",
+        "createdAt",
+        "updatedAt"
+      ]
     }
   },
   "auth": {
-    "providers": ["google", "anonymous"]
+    "providers": [
+      "password",
+      "anonymous"
+    ]
   },
   "firestore": {
-    "training_materials": {
-      "schema": { "$ref": "#/backend/entities/TrainingMaterial" },
-      "description": "Organizational training resources."
-    },
-    "leads": {
-      "schema": { "$ref": "#/backend/entities/Lead" },
-      "description": "Organization-wide leads."
-    },
-    "activities": {
-      "schema": { "$ref": "#/backend/entities/Activity" },
-      "description": "Activity logs for leads."
-    },
-    "calendarEvents": {
-      "schema": { "$ref": "#/backend/entities/CalendarEvent" },
-      "description": "Team calendar events."
-    },
-    "userProfiles": {
-      "schema": { "$ref": "#/backend/entities/UserProfile" },
-      "description": "User profile data."
-    },
-    "teamSettings": {
-      "schema": { "type": "object" },
-      "description": "Global settings for team quotas."
-    },
-    "contacts": {
-      "schema": { "$ref": "#/backend/entities/Contact" },
-      "description": "Client phone directory."
-    },
-    "notes": {
-      "schema": { "$ref": "#/backend/entities/Note" },
-      "description": "Personal sales notes and scripts."
-    },
-    "whatsapp_logs": {
-      "schema": { "type": "object" },
-      "description": "History of sent WhatsApp messages."
-    }
+    "structure": [
+      {
+        "path": "/users/{userId}",
+        "definition": {
+          "entityName": "UserProfile",
+          "schema": {
+            "$ref": "#/backend/entities/UserProfile"
+          },
+          "description": "Stores user-specific settings, preferences, and profile information. The document ID `{userId}` corresponds to the Firebase Authentication UID, making it directly accessible to the authenticated user. No denormalized authorization fields are explicitly needed beyond the path.",
+          "params": [
+            {
+              "name": "userId",
+              "description": "The Firebase Authentication User ID (UID) of the owner of this UserProfile."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/users/{userId}/leads/{leadId}",
+        "definition": {
+          "entityName": "Lead",
+          "schema": {
+            "$ref": "#/backend/entities/Lead"
+          },
+          "description": "Contains individual sales lead records for a specific user. The `{userId}` in the path indicates the owner. Includes denormalized 'ownerUid' field for authorization independence, ensuring `request.auth.uid` matches both the path and the document's `ownerUid`.",
+          "params": [
+            {
+              "name": "userId",
+              "description": "The Firebase Authentication User ID (UID) of the user who owns this Lead."
+            },
+            {
+              "name": "leadId",
+              "description": "The unique identifier for the Lead document."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/users/{userId}/leads/{leadId}/activities/{activityId}",
+        "definition": {
+          "entityName": "Activity",
+          "schema": {
+            "$ref": "#/backend/entities/Activity"
+          },
+          "description": "Records specific interactions or events related to a lead. Nested under a user's lead. Access relies on `request.auth.uid` matching `{userId}` and a security rule `get()` call to the parent Lead document to verify `Lead` ownership, as the `Activity` schema does not include a denormalized `ownerUid` field.",
+          "params": [
+            {
+              "name": "userId",
+              "description": "The Firebase Authentication User ID (UID) of the user who owns the parent Lead."
+            },
+            {
+              "name": "leadId",
+              "description": "The unique identifier for the parent Lead document."
+            },
+            {
+              "name": "activityId",
+              "description": "The unique identifier for the Activity document."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/users/{userId}/tags/{tagId}",
+        "definition": {
+          "entityName": "Tag",
+          "schema": {
+            "$ref": "#/backend/entities/Tag"
+          },
+          "description": "Stores reusable tags or categories created by and for a specific user. Includes denormalized 'ownerUid' field for authorization independence, ensuring `request.auth.uid` matches both the path and the document's `ownerUid`.",
+          "params": [
+            {
+              "name": "userId",
+              "description": "The Firebase Authentication User ID (UID) of the user who owns this Tag."
+            },
+            {
+              "name": "tagId",
+              "description": "The unique identifier for the Tag document."
+            }
+          ]
+        }
+      }
+    ],
+    "reasoning": "The Firestore structure is designed to be secure, scalable, and highly debuggable, adhering to the core design principles and strategy mandates. It primarily utilizes a hierarchical, path-based ownership model, segregating all user-specific data under individual user documents. This approach simplifies security rules significantly by making authorization dependent almost entirely on the `request.auth.uid` matching a `userId` wildcard in the path.\n\n**Authorization Independence (CRITICAL) & Denormalization:**\n\n1.  **UserProfile (`/users/{userId}`):** The user's profile document (`UserProfile`) is directly accessible via their `uid`. Authorization is fully independent as `request.auth.uid` must match `{userId}` in the path, ensuring a user can only access their own profile. No `get()` calls are needed in rules for this entity.\n\n2.  **Lead (`/users/{userId}/leads/{leadId}`):** Each `Lead` document includes an `ownerUid` field, which stores the `userId` of the lead's owner. This field is denormalized directly into the `Lead` document. Security rules for `Lead` can then simply check `request.auth.uid == userId` (from the path) and `resource.data.ownerUid == userId`, achieving full authorization independence without needing to query a parent document. This enables atomic creation and updates.\n\n3.  **Activity (`/users/{userId}/leads/{leadId}/activities/{activityId}`):** The `Activity` entity's access logically depends on its parent `Lead`'s `ownerUid`. According to the Authorization Independence mandate, this `ownerUid` should be denormalized into the `Activity` document. *However, the provided `Activity` schema does not include an `ownerUid` field.* As per the strict adherence to the provided schema, `ownerUid` is omitted from the `Activity` document. Consequently, security rules for `Activity` will *require a `get()` call to the parent `Lead` document* to verify that the `Lead` (and thus its `Activities`) is owned by `request.auth.uid`. This constitutes a **violation** of the Authorization Independence principle for `Activity` data. For full compliance, the `Activity` schema should be updated to include `ownerUid` (denormalized from `Lead`).\n\n4.  **Tag (`/users/{userId}/tags/{tagId}`):** Similar to `Lead`, each `Tag` document includes an `ownerUid` field, storing the `userId` of the tag's creator/owner. This denormalization makes `Tag` documents authorization independent, allowing rules to verify `request.auth.uid == userId` (from the path) and `resource.data.ownerUid == userId` without `get()` calls.\n\n**Querying for Authorization Purposes (QAPs - Rules are not Filters):**\n\nThe hierarchical structure ensures that `list` operations (queries) are inherently secure and efficient. When a user queries for their leads (`/users/{userId}/leads`), activities (`/users/{userId}/leads/{leadId}/activities`), or tags (`/users/{userId}/tags`), the `userId` in the path ensures that Firestore's security rules can immediately filter results to only include data owned by `request.auth.uid`. This prevents unauthorized data leakage and avoids costly or insecure client-side filtering. By placing all user-specific data under `/users/{userId}`, security rules can use a single, explicit check on the path wildcard, `request.auth.uid == userId`, combined with denormalized `ownerUid` fields for subcollections where applicable (Leads, Tags). This makes the intent clear and prevents rules from acting as data filters."
   }
 }

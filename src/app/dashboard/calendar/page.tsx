@@ -363,7 +363,7 @@ export default function CalendarPage() {
       <Dialog open={isNewEventOpen} onOpenChange={setIsNewEventOpen}>
         <DialogContent className="sm:max-w-[425px] rounded-3xl border-2">
           <DialogHeader>
-            <DialogTitle className="text-xl font-black uppercase tracking-tight">Schedule Team Event</DialogTitle>
+            <DialogTitle className="text-xl font-black uppercase tracking-tight">Schedule Event</DialogTitle>
             <DialogDescription className="font-medium">Add a new strategic engagement to the team calendar.</DialogDescription>
           </DialogHeader>
           <form onSubmit={handleAddEvent} className="space-y-4 pt-4">
