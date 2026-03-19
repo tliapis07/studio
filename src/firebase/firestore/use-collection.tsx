@@ -46,7 +46,8 @@ const USER_OWNED_COLLECTIONS = [
 
 /**
  * Hardened hook to subscribe to a Firestore collection or query in real-time.
- * Automatically injects ownership filters for root-level user collections.
+ * Automatically injects ownership filters for root-level user collections to comply
+ * with "Rules are not Filters" Firestore security principle.
  */
 export function useCollection<T = any>(
     memoizedTargetRefOrQuery: ((CollectionReference<DocumentData> | Query<DocumentData>) & {__memo?: boolean})  | null | undefined,
@@ -71,10 +72,11 @@ export function useCollection<T = any>(
     let collectionName = '';
     const queryObj = memoizedTargetRefOrQuery as any;
     
+    // Reliable path detection for root collections
     try {
       if (queryObj.type === 'collection') {
         collectionName = queryObj.path || '';
-      } else if (queryObj._query && queryObj._query.path) {
+      } else if (queryObj._query?.path) {
         // Most reliable way to extract collection name from a complex query
         const segments = queryObj._query.path.segments;
         if (segments && segments.length > 0) {
@@ -82,26 +84,26 @@ export function useCollection<T = any>(
         }
       }
     } catch (e) {
-      console.warn('[useCollection] Path detection warning:', e);
+      console.warn('[useCollection] Path detection error:', e);
     }
 
-    // Normalize path string
+    // Normalize path string (strip slashes)
     collectionName = collectionName.replace(/^\/|\/$/g, '');
     
     let finalQuery = memoizedTargetRefOrQuery as Query<DocumentData>;
 
     // AUTOMATIC HARDENING: Force ownership filter for known user collections
+    // This prevents rule violations by scoping the "list" operation to the current user
     if (USER_OWNED_COLLECTIONS.includes(collectionName)) {
       if (!user) {
+        console.log(`[useCollection] Skipping ${collectionName} - No authenticated user.`);
         setData([]);
         setIsLoading(false);
         return;
       }
 
-      // Check if filter is already present to avoid redundant where() calls
-      // (Simplified check for this implementation)
+      console.log(`[useCollection] Scoping ${collectionName} to ownerUid: ${user.uid}`);
       finalQuery = query(finalQuery, where('ownerUid', '==', user.uid));
-      console.log(`[useCollection] Scoping ${collectionName} to user: ${user.uid}`);
     }
 
     setIsLoading(true);
@@ -119,6 +121,7 @@ export function useCollection<T = any>(
         setIsLoading(false);
       },
       (firestoreError: FirestoreError) => {
+        console.error(`[useCollection] Permission Denied on path: /${collectionName}. Query must include ownerUid filter.`);
         const permissionError = new FirestorePermissionError({
           operation: 'list',
           path: collectionName || 'unknown',
